@@ -5,6 +5,7 @@ type VPNKey struct {
 	KeyValue string `json:"key_value"`
 	Expires  string `json:"expires"`
 	UserID   string `json:"user_id"`
+	// ADD DEVICE!!!
 }
 
 type User struct {
@@ -14,4 +15,6 @@ type User struct {
 	SubscriptionExpires string `json:"subscription_expires,omitempty"`
 	ReferralsCount      int    `json:"referrals_count"`
 	ReferredBy          string `json:"referred_by,omitempty"`
+	// ADD DEVICES!!!
+	// ADD CELLS!!
 }

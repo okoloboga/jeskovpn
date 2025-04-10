@@ -40,6 +40,8 @@ func GenerateKey(c *gin.Context) {
 	})
 }
 
+// ADD CREATE USER!!!
+
 // Deposit - Incease users balance
 func Deposit(c *gin.Context) {
 	userID := c.PostForm("user_id")
