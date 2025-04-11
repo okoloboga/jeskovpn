@@ -77,6 +77,7 @@ async def command_start_getter(message: Message,
                                                       )
     
 @main_router.callback_query(F.data == "main_menu")
+@main_router.message((F.text == '') | (F.text ==''))  # ADD REAL NAMES
 async def main_menu_handler(callback: CallbackQuery,
                             i18n: TranslatorRunner):
     
@@ -98,33 +99,9 @@ async def main_menu_handler(callback: CallbackQuery,
                                                                )
     
 
-@main_router.message((F.text == "") | (F.text == "")) # FILL CORRECT MESSAGES!
-@main_router.callback_query(F.data == 'devices_menu')
-async def devices_menu(message: Message,
-                       i18n: TranslatorRunner):
+
     
-    user_id = message.from_user.id
 
-    # ??? Add to Backend users model IN GET_USER !!!
-    user = await user_req.get_user(user_id)
-    devices = user.devices
-    combo_cells = user.combo_cells
-    subscription_fee = devices * DEVICE_PRICE # NEED TO KNOW
-
-    await message.answer(text=i18n.devices.menu(subscription_fee=subscription_fee),
-                         reply_markup=main_kb.devices_kb(i18n, devices, combo_cells))
-
-
-@main_router.callback_query(F.data.startswith("selected_device_"))
-async def select_device(callback: CallbackQuery,
-                        i18n: TranslatorRunner):
-    
-    user_id = callback.from_user.id
-    _, _, device = callback.data.split('_')
-    device_key = await user_req.get_device_key(user_id, device)
-
-    await callback.message.edit_text(text=i18n.device.menu(device=device, device_key=device_key),
-                                     reply_markup=main_kb.device_kb(i18n, device))
 
 
         

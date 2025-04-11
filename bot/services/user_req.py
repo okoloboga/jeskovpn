@@ -12,7 +12,3 @@ async def create_user(user_id: int,
 async def add_referral(payload: str, 
                        user_id: str):
     pass
-
-async def get_device_key(user_id: int,
-                         device: str):
-    pass
