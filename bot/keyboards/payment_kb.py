@@ -41,3 +41,22 @@ def decline_custom_payment(i18n: TranslatorRunner):
     builder.row(InlineKeyboardButton(i18n.decline.payment.button, callback_data='balance'))
     return builder.as_markup()
 
+
+def payment_select(i18n: TranslatorRunner, payment_type: str):
+
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(i18n.payment.ukassa.button, callback_data='payment_ukassa'),
+        InlineKeyboardButton(i18n.payment.crypto.button, callback_data='payment_crypto')
+    )
+    builder.row(
+        InlineKeyboardButton(i18n.payment.stars.button, callback_data='payment_stars'),
+    )
+    if payment_type == 'buy_subcription':
+        builder.row(InlineKeyboardButton(i18n.decline.payment.button, callback_data='balance'))
+    builder.row(InlineKeyboardButton(i18n.main.menu.button, callback_data='main_menu'))
+
+    return builder.as_markup()
+
+

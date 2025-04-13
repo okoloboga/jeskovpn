@@ -95,19 +95,3 @@ def period_select_kb(i18n: TranslatorRunner):
     builder.row(InlineKeyboardBuilder(i18n.back.devices.button, callback_data='add_devices'))
 
     return builder.as_markup()
-
-def payment_select_kb(i18n: TranslatorRunner):
-
-    builder = InlineKeyboardBuilder()
-
-    builder.row(
-        InlineKeyboardButton(i18n.payment.ukassa.button, callback_data='payment_ukassa'),
-        InlineKeyboardButton(i18n.payment.crypto.button, callback_data='payment_crypto')
-    )
-    builder.row(
-        InlineKeyboardButton(i18n.payment.stars.button, callback_data='payment_stars'),
-        InlineKeyboardButton(i18n.payment.balance.button, callback_data='payment_balance')
-    )
-    builder.row(InlineKeyboardBuilder(i18n.back.devices.button, callback_data='add_devices'))
-
-    return builder.as_markup()

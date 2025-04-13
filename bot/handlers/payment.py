@@ -7,8 +7,8 @@ from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 from typing import Union
 
-from states import PaymentSG
 from services import user_req, payment_req
+from services.states import PaymentSG
 from keyboards import payment_kb
 
 payment_router = Router()
@@ -20,11 +20,11 @@ logging.basicConfig(
     format='%(filename)s:%(lineno)d #%(levelname)-8s '
            '[%(asctime)s] - %(name)s - %(message)s')
 
-month_price = {'normal':    {'1': '149',
+month_price = {'device':    {'1': '149',
                              '3': '400',
                              '6': '625',
                              '12': '900'},
-               'pro':       {'1': '350',
+               'router':    {'1': '350',
                              '3': '945',
                              '6': '1470',
                              '12': '2100'},
@@ -71,7 +71,9 @@ async def add_balance_handler(callback: CallbackQuery,
     state_data = await state.get_data()
     balance = state_data['balance']
     is_subscripted = state_data['is_subscripted']
-    
+    payment_type = 'add_balance'
+
+    await state.update_data(payment_type=payment_type)
     _, _, amount = callback.data.split('_')
 
     if amount == 'custom':
@@ -80,7 +82,25 @@ async def add_balance_handler(callback: CallbackQuery,
                                          reply_markup=payment_kb.decline_custom_payment(i18n))
     else:
         await state.update_data(amount=amount)
-        await callback.message.edit_text(text=i18n.payment.menu(balance=balance, is_subscripted=is_subscripted))
+        await callback.message.edit_text(text=i18n.payment.menu(balance=balance, is_subscripted=is_subscripted),
+                                         reply_markup=payment_kb.payment_select(i18n, payment_type))
+
+
+@payment_router.message(PaymentSG.custom_balance)
+async def custom_balance_handler(message: Message,
+                                 state: FSMContext,
+                                 i18n: TranslatorRunner):
+
+    amount = message.text
+    state_data = await state.get_data()
+    balance = state_data['balance']
+    is_subscripted = state_data['is_subscripted']
+
+    # ADD CHECK FOR VALID AMOUNT
+
+    await state.update_data(amount=amount)
+    await message.answer(text=i18n.payment.menu(balance=balance, is_subscripted=is_subscripted),
+                         reply_markup=payment_kb.payment_select(i18n))
 
 
 @payment_router.callback_query(F.data.startswith('payment_'))
@@ -92,27 +112,32 @@ async def payment_handler(callback: CallbackQuery,
     _, method = callback.data.split('_')
     user_id = callback.from_user.id
     state_data = await state.get_data()
+    payment_type = state_data['payment_type']
     period = state_data['period']
     device_type = state_data['device_type']
     amount = month_price[device_type][period]
 
+    await state.clear()
+
     if method == 'ukassa':
-        await payment_req.payment_ukassa_process(user_id, amount)
+        await payment_req.payment_ukassa_process(user_id, amount, payment_type)
     elif method == 'crypto':
-        await payment_req.payment_crypto_process(user_id, amount)
+        await payment_req.payment_crypto_process(user_id, amount, payment_type)
     elif method == 'balance':
-        await payment_req.payment_balance_process(user_id, amount)
+        await payment_req.payment_balance_process(user_id, amount, payment_type)
     elif method == 'stars':
         await bot.send_invoice(
             chat_id=callback.chat.id,
             title=i18n.stars.subscription.title,
             description=i18n.stars.subscription.description,
-            payload="vpn_subscription",
+            payload=payment_type,
             provider_token="",
             currency="XTR",
             prices=[LabeledPrice(label=i18n.payment.label, amount=100)],
-            start_parameter="vpn-subscription"
+            start_parameter=payment_type
         )
+
+# ADD FUNCTION WITH COMPLETE MESSAGE OF PAYMENT (WEBHOOK?)
 
 # NEED TO GET OFFICIAL METHODS:
 

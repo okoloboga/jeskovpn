@@ -24,3 +24,17 @@ def main_kb(i18n: TranslatorRunner,
     builder.row(KeyboardButton("🇷🇺" if user_language == "RU" else "🇺🇸"))
 
     return builder.as_markup()
+
+
+def back_inline_kb(i18n: TranslatorRunner):
+
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(i18n.main.menu.button, callback_data='main_menu'))
+    return builder.as_markup()
+
+
+def back_kb(i18n: TranslatorRunner):
+
+    builder = ReplyKeyboardBuilder()
+    builder.row(KeyboardButton(i18n.main.menu.button()))
+    return builder.as_markup()

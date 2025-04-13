@@ -97,13 +97,14 @@ async def select_period_handler(callback: CallbackQuery,
                                 i18n: TranslatorRunner):
     
     _, period = callback.data.split('_') 
-    await state.update_data(period=period)
+    payment_type = 'buy_subscription'
+    await state.update_data(period=period, payment_type=payment_type)
     state_data = await state.get_data()
     balance = state_data['balance']
     is_subscripted = state_data['is_subscripted']
 
     await callback.message.edit_text(text=i18n.payment.menu(balance=balance, is_subscripted=is_subscripted),
-                                     reply_markup=devices_kb.payment_select_kb(i18n))
+                                     reply_markup=devices_kb.payment_select(i18n, payment_type))
 
     
 
