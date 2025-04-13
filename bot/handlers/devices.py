@@ -5,6 +5,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
+from typing import Union
 
 from services import user_req, vpn_req
 from keyboards import main_kb, devices_kb
@@ -22,12 +23,12 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s')
 
 
-@devices_router.message((F.text == "") | (F.text == "")) # FILL CORRECT MESSAGES!
+@devices_router.message(F.text.in_(['', ''])) # FILL CORRECT MESSAGES!
 @devices_router.callback_query(F.data == 'devices_menu')
-async def devices_menu_handler(message: Message,
-                               i18n: TranslatorRunner):
+async def devices_button_handler(event: Union[CallbackQuery, Message],
+                                 i18n: TranslatorRunner):
     
-    user_id = message.from_user.id
+    user_id = event.from_user.id
 
     # ??? Add to Backend users model IN GET_USER !!!
     user = await user_req.get_user(user_id)
@@ -35,9 +36,13 @@ async def devices_menu_handler(message: Message,
     combo_cells = user.combo_cells
     subscription_fee = devices * DEVICE_PRICE # NEED TO KNOW
 
-    await message.answer(text=i18n.devices.menu(subscription_fee=subscription_fee),
-                         reply_markup=devices_kb.devices_kb(i18n, devices, combo_cells))
-
+    if isinstance(event, CallbackQuery):
+        await event.message.edit_text(text=i18n.devices.menu(subscription_fee=subscription_fee),
+                                       reply_markup=devices_kb.devices_kb(i18n, devices, combo_cells))
+    elif isinstance(event, Message):
+        await event.answer(text=i18n.devices.menu(subscription_fee=subscription_fee),
+                           reply_markup=devices_kb.devices_kb(i18n, devices, combo_cells))
+        
 
 @devices_router.callback_query(F.data.startswith("selected_device_"))
 async def select_device_handler(callback: CallbackQuery,

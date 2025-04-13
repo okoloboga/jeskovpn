@@ -1,0 +1,12 @@
+*.exe
+*.out
+*.test
+bin/
+vendor/
+.env
+*.swp
+*.swo
+.vscode/
+venv/
+*/__pycache__
+__pycache__/

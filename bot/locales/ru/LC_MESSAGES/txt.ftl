@@ -25,3 +25,7 @@ device-menu = { $device } { $device_key }
 period-menu = { $device } { $balance }
 payment-menu = { $device } { $balance }
 devices-category-menu = 
+stars-subscription-title =
+stars-subscription-description = 
+payment-label = 
+stars-payment-successful = { $payload }

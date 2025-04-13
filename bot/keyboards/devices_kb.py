@@ -11,7 +11,7 @@ def devices_kb(i18n: TranslatorRunner,
     builder = InlineKeyboardBuilder()
 
     for device in devices:
-        builder.row(InlineKeyboardBuilder(device, callback_data=f'select_device_{device}'))
+        builder.row(InlineKeyboardButton(device, callback_data=f'select_device_{device}'))
     # COMBO CELL?
     for combo_cell in combo_cells:
         builder.row(InlineKeyboardButton(combo_cell, callback_data=f'select_cell_{combo_cell}'))

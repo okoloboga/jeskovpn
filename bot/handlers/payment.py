@@ -4,11 +4,12 @@ from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery, ContentType
-from aiogram.types import 
 from fluentogram import TranslatorRunner
+from typing import Union
 
+from states import PaymentSG
 from services import user_req, payment_req
-from keyboards import main_kb, devices_kb
+from keyboards import payment_kb
 
 payment_router = Router()
 
@@ -36,6 +37,50 @@ month_price = {'normal':    {'1': '149',
                              '6': '6300',
                              '12': '9000'}
                 }
+
+
+@payment_router.message(F.text.in_(['', '']))
+@payment_router.callback_query(F.data == 'balance')
+async def balance_button_handler(event: Union[CallbackQuery, Message],
+                                 state: FSMContext,
+                                 i18n: TranslatorRunner):
+    
+    user_id = event.from_user.id
+
+    # ??? Add to Backend users model IN GET_USER !!!
+    user = await user_req.get_user(user_id)
+    balance = user.balance
+    is_subscripted = user.is_subscripted
+    await state.update_data(balance=balance, is_subscripted=is_subscripted)
+
+    if isinstance(event, CallbackQuery):
+        await event.message.edit_text(text=i18n.balance.menu(balance=balance, is_subscripted=is_subscripted),
+                                      reply_markup=payment_kb.add_balance_kb(i18n))
+
+    elif isinstance(event, CallbackQuery):
+        await event.answer(text=i18n.balance.menu(balance=balance, is_subscripted=is_subscripted),
+                           reply_markup=payment_kb.add_balance_kb(i18n))
+
+    
+@payment_router.callback_query(F.data.startswith('add_balance_'))
+async def add_balance_handler(callback: CallbackQuery,
+                              state: FSMContext,
+                              i18n: TranslatorRunner):
+    
+    user_id = callback.from_user.id
+    state_data = await state.get_data()
+    balance = state_data['balance']
+    is_subscripted = state_data['is_subscripted']
+    
+    _, _, amount = callback.data.split('_')
+
+    if amount == 'custom':
+        await state.set_state(PaymentSG.custom_balance)
+        await callback.message.edit_text(text=i18n.fill.custom.balance,
+                                         reply_markup=payment_kb.decline_custom_payment(i18n))
+    else:
+        await state.update_data(amount=amount)
+        await callback.message.edit_text(text=i18n.payment.menu(balance=balance, is_subscripted=is_subscripted))
 
 
 @payment_router.callback_query(F.data.startswith('payment_'))

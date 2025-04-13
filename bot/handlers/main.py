@@ -6,6 +6,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
+from typing import Union
 
 from services import user_req
 from keyboards import main_kb
@@ -76,12 +77,12 @@ async def command_start_getter(message: Message,
                                                       user_language)
                                                       )
     
+@main_router.message(F.text.in_(['', '']))  # ADD REAL NAMES
 @main_router.callback_query(F.data == "main_menu")
-@main_router.message((F.text == '') | (F.text ==''))  # ADD REAL NAMES
-async def main_menu_handler(callback: CallbackQuery,
+async def main_menu_handler(event: Union[CallbackQuery, Message],
                             i18n: TranslatorRunner):
     
-    user_id = callback.from_user.id
+    user_id = event.from_user.id
     user = await user_req.get_user(user_id)
 
     # ??? Add to Backend users model !!!
@@ -90,13 +91,22 @@ async def main_menu_handler(callback: CallbackQuery,
     user_language = user.language 
     balance = user.balance
 
-    await callback.message.answer(text=i18n.start.default,
-                                  reply_markup=main_kb.main_kb(i18n, 
-                                                               is_subscripted, 
-                                                               subscription_expires, 
-                                                               balance, 
-                                                               user_language)
-                                                               )
+    if isinstance(event, CallbackQuery):
+        await event.message.edit_text(text=i18n.start.default,
+                                      reply_markup=main_kb.main_kb(i18n, 
+                                                                   is_subscripted, 
+                                                                   subscription_expires, 
+                                                                   balance, 
+                                                                   user_language)
+                                                                   )
+    elif isinstance(event, Message):
+        await event.answer(text=i18n.start.default,
+                           reply_markup=main_kb.main_kb(i18n, 
+                                                        is_subscripted, 
+                                                        subscription_expires, 
+                                                        balance, 
+                                                        user_language)
+                                                        )
     
 
 
