@@ -1,64 +1,68 @@
-import logging
-
-from aiogram import Router, F, Bot
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery, ContentType
+ import logging
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from fluentogram import TranslatorRunner
-from typing import Union
-
-from services import admin_req
-from services.states import AdminSG
-from keyboards import admin_kb
-
-admin_router = Router()
-admin = get_config(Admin, 'admin')  # BUILD IT
-admin_id = admin.id
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(filename)s:%(lineno)d #%(levelname)-8s '
-           '[%(asctime)s] - %(name)s - %(message)s')
+def cancel_reply_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
+    """
+    Create an inline keyboard for canceling ticket reply.
 
+    Offers a single button to cancel the action.
 
-@admin_router.callback_query(F.data.startswith("reply_ticket_"))
-async def reply_ticket_start(callback: CallbackQuery, 
-                             i18n: TranslatorRunner,
-                             state: FSMContext):
+    Args:
+        i18n (TranslatorRunner): Translator for localized button texts.
 
-    if str(callback.from_user.id) != str(admin_id):
-        await callback.answer(i18n.error.only.admin(), show_alert=True)
-        return
-    
-    user_id = int(callback.data.split("_")[2])
-    
-    await state.update_data(user_id=user_id)
-    await state.set_state(AdminSG.reply_ticket)
-    await callback.message.answer(i18n.reply.ticket())
-    await callback.answer()
+    Returns:
+        InlineKeyboardMarkup: The cancel reply keyboard.
 
+    Raises:
+        KeyError: If localization keys are missing.
+    """
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(
+                text=i18n.cancel.button(),
+                callback_data="cancel_reply"
+            )
+        )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in cancel_reply_kb: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in cancel_reply_kb: {e}")
+        raise
 
-@account_router.message(AdminSG.reply_ticket)
-async def process_ticket_reply(message: Message, 
-                               bot: Bot, 
-                               state: FSMContext, 
-                               i18n: TranslatorRunner):
-    
-    if str(message.from_user.id) != str(admin_id):
-        await message.answer(i18n.error.only.admin())
-        return
-    
-    reply_text = message.text
-    data = await state.get_data()
-    user_id = data.get("user_id")
-    
-    await bot.send_message(
-        user_id,
-        text=i18n.ticket.answer(reply_text=reply_text)
-    )
+def admin_menu_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
+    """
+    Create an inline keyboard for the admin menu.
 
-    await db.delete_ticket(user_id)
-    await message.answer(i18n.admin.answer())
-        
+    Offers navigation to the main admin functions (placeholder).
+
+    Args:
+        i18n (TranslatorRunner): Translator for localized button texts.
+
+    Returns:
+        InlineKeyboardMarkup: The admin menu keyboard.
+
+    Raises:
+        KeyError: If localization keys are missing.
+    """
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(
+                text=i18n.admin.menu.button(),
+                callback_data="admin_menu"
+            )
+        )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in admin_menu_kb: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in admin_menu_kb: {e}")
+        raise      
