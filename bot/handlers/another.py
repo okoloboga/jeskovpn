@@ -3,6 +3,7 @@ import logging
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
+from aiogram.utils.deep_linking import create_start_link
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery, ContentType
 from fluentogram import TranslatorRunner
 from typing import Union
@@ -10,6 +11,7 @@ from typing import Union
 from services import user_req
 from services.states import SupportSG
 from keyboards import another_kb, main_kb
+from config import get_config, Admin
 
 another_router = Router()
 admin = get_config(Admin, 'admin')  # BUILD IT
@@ -50,6 +52,7 @@ async def subsctiption_handler(message: Message,
 
 @another_router.message(F.text.in_(['', ''])) # SUPPORT BUTTONS TEXT
 async def support_handler(message: Message,
+                          state: FSMContext,
                           i18n: TranslatorRunner):
 
     user_id = message.from_user.id
@@ -58,8 +61,8 @@ async def support_handler(message: Message,
 
     ticket = ticket_data['content']
     ticket = i18n.noticket() if ticket is None else str(ticket)
-    await callback.message.edit_text(i18n.ticket.menu(ticket=ticket), 
-                                     reply_markup=main_kb.back_inline_kb(i18n))
+    await message.answer(i18n.ticket.menu(ticket=ticket), 
+                         reply_markup=main_kb.back_inline_kb(i18n))
 
 
 @another_router.message(SupportSG.create_ticket)
@@ -87,3 +90,11 @@ async def ticket_handler(message: Message,
 
 
 @another_router.message(F.text.in_(['', ''])) # REFERRALS BUTTONS TEXT
+async def referral_handler(message: Message,
+                           bot: Bot,
+                           i18n: TranslatorRunner):
+    
+    user_id = message.from_user.id
+    link = await create_start_link(bot, str(user_id), encode=True)
+    await message.answer(text=i18n.referral.link(link=link),
+                         reply_markup=main_kb.back_kb(i18n))

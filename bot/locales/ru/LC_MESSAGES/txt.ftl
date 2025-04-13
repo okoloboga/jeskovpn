@@ -48,11 +48,13 @@ fill-costum-balance =
 subscription-menu-active = { $name } { $balance }
 nosubscription-have-balance = { $balance }
 nosubscription-nobalance = { $balance }
+referral-link = { $link }
 ticket-menu = { $ticket }
 noticket = 
 ticket-sended = 
 reply-ticket =
 ticket-answer = { $reply_text }
 admin-answer = 
+
 
 error-only-admin = 
