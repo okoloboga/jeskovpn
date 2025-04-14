@@ -55,7 +55,7 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-@payment_router.message(F.text.in_(["Баланс", "Balance"]))
+@payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance"))
 @payment_router.callback_query(F.data == "balance")
 async def balance_button_handler(
     event: Union[CallbackQuery, Message],

@@ -12,6 +12,7 @@ async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
         "devices": ["android", "iphone"],
         "combo_cells": ["combo_5"],
         "subscription_expires": datetime.utcnow().isoformat(),
+        "language": 'ru'
     }
 
 async def create_user(user_id: int, first_name: str, last_name: str, username: str) -> None:

@@ -137,16 +137,16 @@ def devices_list_kb(i18n: TranslatorRunner, device_type: str) -> ReplyKeyboardMa
         builder = ReplyKeyboardBuilder()
         if device_type.lower() == "device":
             builder.row(
-                KeyboardButton(text=i18n.android.button()),
-                KeyboardButton(text=i18n.iphone.button())
+                KeyboardButton(text=i18n.device.android.button()),
+                KeyboardButton(text=i18n.device.iphone.button())
             )
             builder.row(
-                KeyboardButton(text=i18n.windows.button()),
-                KeyboardButton(text=i18n.macos.button())
+                KeyboardButton(text=i18n.decive.windows.button()),
+                KeyboardButton(text=i18n.device.macos.button())
             )
             builder.row(
-                KeyboardButton(text=i18n.tv.button()),
-                KeyboardButton(text=i18n.router.button())
+                KeyboardButton(text=i18n.device.tv.button()),
+                KeyboardButton(text=i18n.device.router.button())
             )
         elif device_type.lower() == "combo":
             builder.row(

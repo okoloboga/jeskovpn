@@ -51,7 +51,8 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-@another_router.message(F.text.in_(["Подписка", "Subscription"]))
+@another_router.message(F.text.statrtswith("До окончания подписки") | F.text.statrtswith("Until subscription end") | 
+                        F.text.in_(["Нет активной подписки", "No active subscription"]))
 async def subscription_handler(
     message: Message,
     i18n: TranslatorRunner
@@ -85,9 +86,9 @@ async def subscription_handler(
         if is_subscribed:
             text = i18n.subscription.menu.active(name=name, balance=balance)
         elif balance >= min_subscription_price:
-            text = i18n.subscription.nobalance.have.balance(balance=balance)
+            text = i18n.nosubscription.have.balance(balance=balance)
         else:
-            text = i18n.subscription.nobalance.nobalance(balance=balance)
+            text = i18n.nosubscription.nobalance(balance=balance)
 
         keyboard = another_kb.subscription_menu(i18n)
         await message.answer(text=text, reply_markup=keyboard)
@@ -96,7 +97,7 @@ async def subscription_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@another_router.message(F.text.in_(["Поддержка", "Support"]))
+@another_router.message(F.text.in_(["Тех. Поддержка", "Support"]))
 async def support_handler(
     message: Message,
     state: FSMContext,
@@ -121,7 +122,7 @@ async def support_handler(
     try:
         ticket_data = await user_req.get_ticket_by_id(user_id)
         ticket_content = ticket_data.get("content") if ticket_data else None
-        ticket_text = i18n.ticket.noticket() if ticket_content is None else str(ticket_content)
+        ticket_text = i18n.noticket() if ticket_content is None else str(ticket_content)
 
         await state.set_state(SupportSG.create_ticket)
         keyboard = main_kb.back_inline_kb(i18n)

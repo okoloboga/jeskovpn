@@ -110,7 +110,7 @@ async def devices_button_handler(
             await event.answer(text=i18n.error.unexpected())
 
 @devices_router.callback_query(F.data.startswith("selected_device_"))
-async def select_device_handler(
+async def select_devices_handler(
     callback: CallbackQuery,
     i18n: TranslatorRunner
 ) -> None:
@@ -184,7 +184,7 @@ async def add_device_handler(
         await callback.message.edit_text(text=i18n.error.unexpected())
         await callback.answer()
 
-@devices_router.message(F.text.in_(["VPN устройство", "VPN Device", "Комбо", "Combo"]))
+@devices_router.message(F.text.in_(["Устройство", "Device", "Комбо набор", "Combo"]))
 async def select_device_type(
     message: Message,
     state: FSMContext,
@@ -217,7 +217,7 @@ async def select_device_type(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@devices_router.message(F.text.in_(["android", "iphone", "windows", "macos", "tv", "router"]))
+@devices_router.message(F.text.in_(["Android", "iPhone/iPad", "Windows", "MacOS", "TV", "Роутер", "Router"]))
 async def select_device_handler(
     message: Message,
     state: FSMContext,

@@ -40,10 +40,10 @@ async def get_user_data(user_id: int) -> Optional[dict]:
             logger.warning(f"User {user_id} not found in backend")
             return None
         return {
-            "is_subscribed": user.is_subscribed,
-            "subscription_expires": user.subscription_expires,
-            "language": user.language,
-            "balance": user.balance
+            "is_subscribed": user['is_subscribed'],
+            "subscription_expires": user['subscription_expires'],
+            "language": user['language'],
+            "balance": user['balance']
         }
     except Exception as e:
         logger.error(f"Failed to fetch user {user_id}: {e}")
@@ -78,6 +78,7 @@ async def command_start_getter(
     # Process referral payload
     is_invited = False
     referral_id = None
+    name = first_name if first_name is not None or first_name != '' else username
     if command.args:
         try:
             referral_id = decode_payload(command.args)
@@ -112,7 +113,7 @@ async def command_start_getter(
             return
 
         # Send welcome message
-        text = i18n.start.invited() if is_invited else i18n.start.default()
+        text = i18n.start.invited(name=name) if is_invited else i18n.start.default(name=name)
         await message.answer(
             text=text,
             reply_markup=main_kb.main_kb(
@@ -130,7 +131,7 @@ async def command_start_getter(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@main_router.message(F.text.in_(["Main Menu", "/menu", "Вернуться в меню"]))
+@main_router.message(F.text.in_(["Main Menu", "/menu", "В главное меню"]))
 @main_router.callback_query(F.data == "main_menu")
 async def main_menu_handler(
     event: Union[CallbackQuery, Message],

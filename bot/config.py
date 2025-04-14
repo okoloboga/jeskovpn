@@ -15,7 +15,7 @@ class Admin(BaseModel):
 @lru_cache(maxsize=1)
 def parse_config_file() -> dict:
     try:
-        with open("config.yaml", "rb") as file:
+        with open("bot/config.yaml", "rb") as file:
             config_data = load(file, Loader=SafeLoader)
         return config_data
     except FileNotFoundError:
