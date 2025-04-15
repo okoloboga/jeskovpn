@@ -8,7 +8,7 @@ from fluentogram import TranslatorHub
 
 from utils import TranslatorHub, create_translator_hub
 from middlewares import TranslatorRunnerMiddleware
-from handlers import (main_router, devices_router, payment_router, admin_router, unknown_router)
+from handlers import (main_router, devices_router, payment_router, admin_router, another_router, unknown_router)
 from config import get_config, BotConfig
 
 
@@ -37,7 +37,7 @@ async def main():
     translator_hub: TranslatorHub = create_translator_hub()
 
     # Routers, dialogs, middlewares
-    dp.include_routers(main_router, devices_router, payment_router, admin_router, unknown_router)
+    dp.include_routers(main_router, devices_router, payment_router, admin_router, another_router, unknown_router)
     dp.update.middleware(TranslatorRunnerMiddleware())
  
     # Skipping old updates

@@ -7,7 +7,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
 
-from services import user_req
+from services import user_req, services
 from keyboards import main_kb
 
 main_router = Router()
@@ -21,33 +21,6 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s'
 )
 
-async def get_user_data(user_id: int) -> Optional[dict]:
-    """
-    Fetch user data from the backend.
-
-    Args:
-        user_id (int): Telegram user ID.
-
-    Returns:
-        Optional[dict]: User data if found, None otherwise.
-
-    Raises:
-        Exception: If backend request fails.
-    """
-    try:
-        user = await user_req.get_user(user_id)
-        if user is None:
-            logger.warning(f"User {user_id} not found in backend")
-            return None
-        return {
-            "is_subscribed": user['is_subscribed'],
-            "subscription_expires": user['subscription_expires'],
-            "language": user['language'],
-            "balance": user['balance']
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch user {user_id}: {e}")
-        raise
 
 @main_router.message(CommandStart(deep_link_encoded=True))
 async def command_start_getter(
@@ -107,10 +80,15 @@ async def command_start_getter(
                     logger.error(f"Failed to add referral {referral_id} for {user_id}: {e}")
 
         # Fetch user data
-        user_data = await get_user_data(user_id)
+        user_data = await services.get_user_data(user_id)
         if user_data is None:
             await message.answer(text=i18n.error.user_not_found())
             return
+
+        day_price = await services.day_price(user_id)
+        balance = user_data["balance"]
+        days_left = int(balance/day_price)
+        is_subscribed = False if days_left == 0 else True
 
         # Send welcome message
         text = i18n.start.invited(name=name) if is_invited else i18n.start.default(name=name)
@@ -118,10 +96,9 @@ async def command_start_getter(
             text=text,
             reply_markup=main_kb.main_kb(
                 i18n=i18n,
-                is_subscribed=user_data["is_subscribed"],
-                subscription_expires=user_data["subscription_expires"],
-                balance=user_data["balance"],
-                user_language=user_data["language"]
+                is_subscribed=is_subscribed,
+                balance=balance,
+                days_left=days_left
             )
         )
     except TelegramBadRequest as e:
@@ -154,7 +131,7 @@ async def main_menu_handler(
 
     try:
         # Fetch user data
-        user_data = await get_user_data(user_id)
+        user_data = await services.get_user_data(user_id)
         if user_data is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
@@ -164,13 +141,16 @@ async def main_menu_handler(
                 await event.answer(text=text)
             return
 
-        # Prepare menu
-        keyboard = main_kb.main_kb(
+        day_price = await services.day_price(user_id)
+        balance = user_data["balance"]
+        days_left = int(balance/day_price)
+        is_subscribed = False if days_left == 0 else True
+
+        keyboard=main_kb.main_kb(
             i18n=i18n,
-            is_subscribed=user_data["is_subscribed"],
-            subscription_expires=user_data["subscription_expires"],
-            balance=user_data["balance"],
-            user_language=user_data["language"]
+            is_subscribed=is_subscribed,
+            balance=balance,
+            days_left=days_left
         )
 
         # Handle event type
@@ -199,11 +179,4 @@ async def main_menu_handler(
             await event.answer()
         else:
             await event.answer(text=i18n.error.unexpected())
-    
-
-
-    
-
-
-
-        
+           

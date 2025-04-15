@@ -1,12 +1,12 @@
 import logging
-from typing import Union, Optional
+from typing import Union
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
-from services import user_req, payment_req
+from services import services, payment_req
 from services.states import PaymentSG
 from keyboards import payment_kb
 
@@ -21,39 +21,6 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s'
 )
 
-# Subscription prices in rubles
-MONTH_PRICE = {
-    "device": {"1": 149, "3": 400, "6": 625, "12": 900},
-    "router": {"1": 350, "3": 945, "6": 1470, "12": 2100},
-    "combo_5": {"1": 750, "3": 2000, "6": 3150, "12": 4500},
-    "combo_10": {"1": 1500, "3": 4000, "6": 6300, "12": 9000}
-}
-
-async def get_user_data(user_id: int) -> Optional[dict]:
-    """
-    Fetch user data from the service.
-
-    Args:
-        user_id (int): Telegram user ID.
-
-    Returns:
-        Optional[dict]: User data with balance and subscription status, or None if not found.
-
-    Raises:
-        Exception: If the service request fails.
-    """
-    try:
-        user = await user_req.get_user(user_id)
-        if user is None:
-            logger.warning(f"User {user_id} not found")
-            return None
-        return {
-            "balance": getattr(user, "balance", 0),
-            "is_subscribed": getattr(user, "is_subscribed", False)
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch user {user_id}: {e}")
-        raise
 
 @payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance"))
 @payment_router.callback_query(F.data == "balance")
@@ -79,7 +46,7 @@ async def balance_button_handler(
     logger.info(f"Showing balance for user {user_id}")
 
     try:
-        user_data = await get_user_data(user_id)
+        user_data = await services.get_user_data(user_id)
         if user_data is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
@@ -117,6 +84,7 @@ async def balance_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
+@payment_router.message(F.text.in_(['Пополнить баланс', 'Add balnce']))
 @payment_router.callback_query(F.data.startswith("add_balance_"))
 async def add_balance_handler(
     callback: CallbackQuery,
@@ -254,7 +222,7 @@ async def payment_handler(
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
                 return
-            amount = MONTH_PRICE.get(device_type, {}).get(period)
+            amount = services.MONTH_PRICE.get(device_type, {}).get(period)
             if amount is None:
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()

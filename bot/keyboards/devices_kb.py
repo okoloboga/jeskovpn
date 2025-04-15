@@ -6,7 +6,7 @@ from fluentogram import TranslatorRunner
 
 logger = logging.getLogger(__name__)
 
-def devices_kb(
+def my_devices_kb(
     i18n: TranslatorRunner,
     devices: List[str],
     combo_cells: List[str]
@@ -112,7 +112,7 @@ def add_device_kb(i18n: TranslatorRunner) -> ReplyKeyboardMarkup:
         logger.error(f"Localization error in add_device_kb: {e}")
         builder = ReplyKeyboardBuilder()
         builder.row(KeyboardButton(text="Back"))
-        return builder.as_markup(resize_keyboard=True)
+        builder.as_markup(resize_keyboard=True)
     except Exception as e:
         logger.error(f"Unexpected error in add_device_kb: {e}")
         raise

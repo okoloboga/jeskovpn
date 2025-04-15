@@ -9,11 +9,14 @@ async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
         "user_id": user_id,
         "balance": 500.0,
         "is_subscribed": True,
-        "devices": ["android", "iphone"],
-        "combo_cells": ["combo_5"],
-        "subscription_expires": datetime.utcnow().isoformat(),
-        "language": 'ru'
-    }
+        "subscription": {'device': {'devices': ['android', 'iphone'],
+                                    'duration': 3},
+                         'router': {'duration': 0},
+                         'combo': {'devices': [],
+                                   'duration': 0,
+                                   'type': 0}
+                        }
+        }
 
 async def create_user(user_id: int, first_name: str, last_name: str, username: str) -> None:
     """Mock user creation."""

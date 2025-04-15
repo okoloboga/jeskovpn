@@ -44,15 +44,15 @@ async def get_user_data(user_id: int) -> Optional[dict]:
             logger.warning(f"User {user_id} not found")
             return None
         return {
-            "balance": getattr(user, "balance", 0),
-            "is_subscribed": getattr(user, "is_subscribed", False)
+            "balance": user['balance'],
+            "is_subscribed": user['is_subscribed']
         }
     except Exception as e:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-@another_router.message(F.text.statrtswith("До окончания подписки") | F.text.statrtswith("Until subscription end") | 
-                        F.text.in_(["Нет активной подписки", "No active subscription"]))
+@another_router.message(F.text.startswith("До окончания") | F.text.startswith("Until")) 
+@another_router.message(F.text.in_(["Нет активной подписки", "No active subscription"]))
 async def subscription_handler(
     message: Message,
     i18n: TranslatorRunner
@@ -84,7 +84,7 @@ async def subscription_handler(
         min_subscription_price = 149  # Minimum price for "device" for 1 month
 
         if is_subscribed:
-            text = i18n.subscription.menu.active(name=name, balance=balance)
+            text = i18n.subscription.menu.active(name=name, balance=balance, days=balance/5)
         elif balance >= min_subscription_price:
             text = i18n.nosubscription.have.balance(balance=balance)
         else:
@@ -216,3 +216,5 @@ async def referral_handler(
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
+
+

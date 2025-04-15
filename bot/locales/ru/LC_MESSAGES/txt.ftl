@@ -1,8 +1,8 @@
-active-sub-button = До окончания подписки: { $expires }
-inactive-sub-button = Нет акктивной подписки
+active-sub-button = До окончания подписки: { $days }
+inactive-sub-button = Нет активной подписки
 balance-button = Баланс: { $balance }
 connect-vpn-button = Подключить VPN
-devices-button = Мои устройсва
+devices-button = Мои устройства
 invite-button = Пригласить друга
 support-button = Тех. Поддержка
 vpn-devices-button = Устройство

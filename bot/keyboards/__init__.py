@@ -1,5 +1,1 @@
-from .main_kb import *
-from .devices_kb import *
-from .another_kb import *
-from .payment_kb import *
-from .admin_kb import *
+from . import main_kb, devices_kb, another_kb, payment_kb, admin_kb

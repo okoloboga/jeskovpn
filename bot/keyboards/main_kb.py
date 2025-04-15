@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from datetime import datetime
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from fluentogram import TranslatorRunner
@@ -9,9 +9,8 @@ logger = logging.getLogger(__name__)
 def main_kb(
     i18n: TranslatorRunner,
     is_subscribed: bool,
-    subscription_expires: str,
-    balance: int,
-    user_language: str
+    balance: float,
+    days_left: float | int
 ) -> ReplyKeyboardMarkup:
     """
     Create the main menu keyboard with user-specific options.
@@ -34,19 +33,22 @@ def main_kb(
         KeyError: If localization keys are missing.
     """
     try:
-        if not isinstance(balance, int) or balance < 0:
+        if not isinstance(balance, (int, float)) or balance < 0:
             raise ValueError(f"Invalid balance: {balance}")
-        if not user_language:
-            user_language = "EN"  # Fallback language
 
         builder = ReplyKeyboardBuilder()
         
         # Subscription button
-        sub_text = (
-            i18n.active.sub.button(expires=subscription_expires)
-            if is_subscribed and subscription_expires
-            else i18n.inactive.sub.button()
-        )
+        if is_subscribed:
+            try:
+                if days_left > 0:
+                    sub_text = i18n.active.sub.button(days=str(days_left))
+                else:
+                    sub_text = i18n.inactive.sub.button()
+            except ValueError:
+                sub_text = i18n.inactive.sub.button()
+        else:
+            sub_text = i18n.inactive.sub.button()
         builder.row(KeyboardButton(text=sub_text))
 
         # Balance and VPN connection
@@ -63,11 +65,7 @@ def main_kb(
             KeyboardButton(text=i18n.invite.button()),
             KeyboardButton(text=i18n.support.button())
         )
-
-        # Language selection
-        lang_text = "🇷🇺 Русский" if user_language == "RU" else "🇺🇸 English"
-        builder.row(KeyboardButton(text=lang_text))
-
+ 
         return builder.as_markup(resize_keyboard=True)
 
     except (KeyError, AttributeError) as e:
