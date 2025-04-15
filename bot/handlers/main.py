@@ -86,10 +86,11 @@ async def command_start_getter(
             return
 
         day_price = await services.day_price(user_id)
+
         balance = user_data["balance"]
         days_left = 0 if day_price == 0 else int(balance/day_price)
         is_subscribed = False if days_left == 0 else True
-
+        
         # Send welcome message
         text = i18n.start.invited(name=name) if is_invited else i18n.start.default(name=name)
         await message.answer(

@@ -49,10 +49,8 @@ async def get_user_data(user_id: int) -> Optional[dict]:
             logger.warning(f"User {user_id} not found in backend")
             return None
         return {
-            "is_subscribed": user['is_subscribed'],
-            "subscription_expires": user['subscription_expires'],
-            "language": user['language'],
-            "balance": user['balance']
+            "balance": user['balance'],
+            "subscription": user['subscription']
         }
     except Exception as e:
         logger.error(f"Failed to fetch user {user_id}: {e}")
@@ -61,20 +59,31 @@ async def get_user_data(user_id: int) -> Optional[dict]:
 async def day_price(user_id: int) -> float | int:
 
     user = await get_user_data(user_id)
-    device_duration = user['subscription']['device']['duration']
-    router_duration = user['subscription']['router']['duration']
-    combo_duration = user['subscription']['combo']['duration']
-    combo_type = user['subscription']['combo']['type']
-
-    if device_duration == 0 and router_duration == 0 and combo_duration == 0:
+    
+    if user is None:
         return 0
+    try:
+        device_duration = user['subscription']['device']['duration']
+        router_duration = user['subscription']['router']['duration']
+        combo_duration = user['subscription']['combo']['duration']
+        combo_type = user['subscription']['combo']['type']
 
-    devices_count = len(user['subscription']['device']['devices'])
+        if device_duration == 0 and router_duration == 0 and combo_duration == 0:
+            return 0
+        
+        devices_count = len(user['subscription']['device']['devices'])
+        devices_price = devices_count * DAY_PRICE['device'][str(device_duration)]
+        router_price = DAY_PRICE['router'][str(router_duration)]
+        combo_price = DAY_PRICE['combo'][str(combo_type)][str(combo_duration)]
 
-    devices_price = devices_count * DAY_PRICE['device'][str(device_duration)]
-    router_price = DAY_PRICE['router'][str(router_duration)]
-    combo_price = DAY_PRICE['combo'][combo_type][str(combo_duration)]
+        total_day_price = devices_price + router_price + combo_price
+        
+        return total_day_price
+ 
+    except Exception as e:
+        logger.error(f"Failed to count total_day_price {user_id}: {e}")
+        raise
 
-    total_day_price = devices_price + router_price + combo_price
+async def count_devices
 
-    return total_day_price
+

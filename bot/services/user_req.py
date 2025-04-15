@@ -8,7 +8,6 @@ async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
     return {
         "user_id": user_id,
         "balance": 500.0,
-        "is_subscribed": True,
         "subscription": {'device': {'devices': ['android', 'iphone'],
                                     'duration': 3},
                          'router': {'duration': 0},
