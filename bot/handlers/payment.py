@@ -7,6 +7,7 @@ from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
 from services import services, payment_req
+from services.services import day_price
 from services.states import PaymentSG
 from keyboards import payment_kb
 
@@ -57,11 +58,19 @@ async def balance_button_handler(
             return
 
         balance = user_data["balance"]
-        is_subscribed = user_data["is_subscribed"]
-        await state.update_data(balance=balance, is_subscribed=is_subscribed)
+        day_price = await services.day_price(user_id)
+        is_subscribed = False if day_price == 0 else True
+        await state.update_data(
+                balance=balance, 
+                is_subscribed=is_subscribed,
+                day_price=day_price
+                )
 
         keyboard = payment_kb.add_balance_kb(i18n)
-        text = i18n.balance.menu(balance=balance, days=balance / 5)
+        text = i18n.balance.menu(
+                balance=balance, 
+                days = 0 if day_price == 0 else (int(balance/day_price))
+                )
 
         if isinstance(event, CallbackQuery):
             await event.message.edit_text(text=text, reply_markup=keyboard)
@@ -111,6 +120,7 @@ async def add_balance_handler(
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
         is_subscribed = state_data.get("is_subscribed", False)
+        day_price = state_data.get("day_price", 0)
 
         await state.update_data(payment_type="add_balance")
         _, _, amount = callback.data.split("_")
@@ -122,7 +132,11 @@ async def add_balance_handler(
         else:
             await state.update_data(amount=int(amount))
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
-            text = i18n.payment.menu(balance=balance, days=balance / 5, is_subscribed=is_subscribed)
+            text = i18n.payment.menu(
+                    balance=balance, 
+                    days = 0 if day_price == 0 else int(balance / day_price), 
+                    is_subscribed=is_subscribed
+                    )
             await callback.message.edit_text(text=text, reply_markup=keyboard)
 
         await callback.answer()

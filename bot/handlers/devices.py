@@ -232,13 +232,13 @@ async def select_device_handler(
         if device != 'router':
             text = i18n.period.menu(
                 balance=balance,
-                days=int(balance/day_price),
+                days = 0 if day_price == 0 else int(balance/day_price),
                 is_subscribed=is_subscribed
             )
         else: 
             text = i18n.period.menu.router(
                 balance=balance,
-                days=int(balance/day_price),
+                days = 0 if day_price == 0 else int(balance/day_price),
                 is_subscribed=is_subscribed
             )
         await message.answer(text=text, reply_markup=keyboard)
@@ -274,7 +274,8 @@ async def select_period_handler(
         await state.update_data(period=period, payment_type=payment_type)
         state_data = await state.get_data()
         balance = state_data['balance']
-        days = int(balance / day_price)
+        day_price = await services.day_price(user_id)
+        days = 0 if day_price == 0 else int(balance / day_price)
         keyboard = payment_kb.payment_select(i18n, payment_type)
         text = i18n.payment.menu(
             balance=balance,

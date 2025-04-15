@@ -7,7 +7,8 @@ from aiogram.utils.deep_linking import create_start_link
 from aiogram.types import Message
 from fluentogram import TranslatorRunner
 
-from services import user_req
+from services import user_req, services
+from services.services import day_price
 from services.states import SupportSG
 from keyboards import another_kb, main_kb
 from config import get_config, Admin
@@ -24,32 +25,6 @@ logging.basicConfig(
     format="%(filename)s:%(lineno)d #%(levelname)-8s "
            "[%(asctime)s] - %(name)s - %(message)s"
 )
-
-async def get_user_data(user_id: int) -> Optional[dict]:
-    """
-    Fetch user data from the service.
-
-    Args:
-        user_id (int): Telegram user ID.
-
-    Returns:
-        Optional[dict]: User data with balance and subscription status, or None if not found.
-
-    Raises:
-        Exception: If the service request fails.
-    """
-    try:
-        user = await user_req.get_user(user_id)
-        if user is None:
-            logger.warning(f"User {user_id} not found")
-            return None
-        return {
-            "balance": user['balance'],
-            "is_subscribed": user['is_subscribed']
-        }
-    except Exception as e:
-        logger.error(f"Failed to fetch user {user_id}: {e}")
-        raise
 
 @another_router.message(F.text.startswith("До окончания") | F.text.startswith("Until")) 
 @another_router.message(F.text.in_(["Нет активной подписки", "No active subscription"]))
@@ -74,17 +49,22 @@ async def subscription_handler(
     logger.info(f"Showing subscription menu for user {user_id}")
 
     try:
-        user_data = await get_user_data(user_id)
+        user_data = await services.get_user_data(user_id)
         if user_data is None:
             await message.answer(text=i18n.error.user_not_found())
             return
 
         balance = user_data["balance"]
-        is_subscribed = user_data["is_subscribed"]
+        day_price = await services.day_price(user_id)
+        is_subscribed = False if day_price == 0 else True
         min_subscription_price = 149  # Minimum price for "device" for 1 month
 
         if is_subscribed:
-            text = i18n.subscription.menu.active(name=name, balance=balance, days=balance/5)
+            text = i18n.subscription.menu.active(
+                    name=name, 
+                    balance=balance, 
+                    days = 0 if day_price == 0 else int(balance / day_price)
+                    )
         elif balance >= min_subscription_price:
             text = i18n.nosubscription.have.balance(balance=balance)
         else:
@@ -160,6 +140,18 @@ async def ticket_handler(
 
     try:
         await user_req.send_ticket(content, user_id, username)
+        user_data = await user_req.get_user(user_id)
+
+        if user_data is None:
+            logger.error(f"Unexpected user {user_id}")
+            await message.answer(text=i18n.error.unexpected())
+            return
+
+        day_price = await services.day_price(user_id)
+        is_subscribed = False if day_price == 0 else True
+        balance = user_data['balance']
+        days_left = 0 if day_price == 0 else int(balance / day_price)
+
         await bot.send_message(
             chat_id=admin_id,
             text=f"#{user_id}\n@{username}:\n\n{content}",
@@ -169,10 +161,9 @@ async def ticket_handler(
             text=i18n.ticket.sended(),
             reply_markup=main_kb.main_kb(
                 i18n=i18n,
-                is_subscribed=False,  # Fetch actual data if needed
-                subscription_expires="",
-                balance=0,
-                user_language="RU"  # Adjust based on user preference
+                is_subscribed=is_subscribed,
+                balance=balance,
+                days_left=days_left
             )
         )
         await state.clear()

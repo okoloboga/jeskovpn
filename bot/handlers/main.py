@@ -87,7 +87,7 @@ async def command_start_getter(
 
         day_price = await services.day_price(user_id)
         balance = user_data["balance"]
-        days_left = int(balance/day_price)
+        days_left = 0 if day_price == 0 else int(balance/day_price)
         is_subscribed = False if days_left == 0 else True
 
         # Send welcome message
@@ -143,7 +143,7 @@ async def main_menu_handler(
 
         day_price = await services.day_price(user_id)
         balance = user_data["balance"]
-        days_left = int(balance/day_price)
+        days_left = 0 if day_price == 0 else int(balance/day_price)
         is_subscribed = False if days_left == 0 else True
 
         keyboard=main_kb.main_kb(
