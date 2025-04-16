@@ -23,7 +23,8 @@ logging.basicConfig(
 )
 
 
-@payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance"))
+@payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance") | 
+                        F.text.in_(['Пополнить баланс', 'Add balnce']))
 @payment_router.callback_query(F.data == "balance")
 async def balance_button_handler(
     event: Union[CallbackQuery, Message],
@@ -59,10 +60,8 @@ async def balance_button_handler(
 
         balance = user_data["balance"]
         day_price = await services.day_price(user_id)
-        is_subscribed = False if day_price == 0 else True
         await state.update_data(
                 balance=balance, 
-                is_subscribed=is_subscribed,
                 day_price=day_price
                 )
 
@@ -93,7 +92,6 @@ async def balance_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
-@payment_router.message(F.text.in_(['Пополнить баланс', 'Add balnce']))
 @payment_router.callback_query(F.data.startswith("add_balance_"))
 async def add_balance_handler(
     callback: CallbackQuery,
@@ -114,28 +112,28 @@ async def add_balance_handler(
         None
     """
     user_id = callback.from_user.id
-    logger.info(f"User {user_id} adding balance")
 
     try:
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        is_subscribed = state_data.get("is_subscribed", False)
         day_price = state_data.get("day_price", 0)
 
         await state.update_data(payment_type="add_balance")
         _, _, amount = callback.data.split("_")
 
+        logger.info(f"User {user_id} adding balance: {amount}")
+        
         if amount == "custom":
             await state.set_state(PaymentSG.custom_balance)
-            keyboard = payment_kb.decline_custom_payment(i18n)
-            await callback.message.edit_text(text=i18n.fill.custom.balance(), reply_markup=keyboard)
+            await callback.message.edit_text(text=i18n.fill.custom.balance(), 
+                                             reply_markup=payment_kb.decline_custom_payment(i18n))
         else:
             await state.update_data(amount=int(amount))
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
             text = i18n.payment.menu(
                     balance=balance, 
-                    days = 0 if day_price == 0 else int(balance / day_price), 
-                    is_subscribed=is_subscribed
+                    days = 0 if day_price == 0 else int(balance / day_price),
+                    amount=amount
                     )
             await callback.message.edit_text(text=text, reply_markup=keyboard)
 
@@ -188,11 +186,12 @@ async def custom_balance_handler(
 
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        is_subscribed = state_data.get("is_subscribed", False)
+        day_price = state_data.get("day_price", 0)
+        days = 0 if day_price == 0 else int(balance/day_price)
 
         await state.update_data(amount=amount)
         keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
-        text = i18n.payment.menu(balance=balance, is_subscribed=is_subscribed)
+        text = i18n.payment.menu(balance=balance, days=days, amount=amount)
         await message.answer(text=text, reply_markup=keyboard)
 
     except Exception as e:

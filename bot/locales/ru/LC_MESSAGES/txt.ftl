@@ -1,4 +1,4 @@
-active-sub-button = До окончания подписки: { $days }
+active-sub-button = До окончания подписки: { $days } дней
 inactive-sub-button = Нет активной подписки
 balance-button = Баланс: { $balance }
 connect-vpn-button = Подключить VPN
@@ -14,6 +14,7 @@ device-macos-button = MacOS
 device-tv-button = TV
 device-router-button = Роутер 
 vpn-combo-button = Комбо набор
+device-instruction-button = Инструкция
 add-device-button = Добавить устройство
 remove-device-button = Удалить устройство
 payment-ukassa-button = ЮКАССА
@@ -89,26 +90,43 @@ device-menu = Это ключ для настройки приложения VPN
 
               ⬇️ ⬇️ Ваш ключ ⬇️ ⬇️
               { $device_key }
+
+device-removed = Устройство { $device } удалено!
  
-period-menu = Ваш баланс { $balance }₽ ({ $days } дней), аккаунт { $is_subscripted }
+period-menu = Ваш баланс { $balance }₽ ({ $days } дней)
 
               1 Месяц - 149₽
               3 Месяца - 400₽ (скидка 10%)
               Пол года - 625₽ (скидка 30%)
               Год - 900₽ (скидка 50%)
 
-period-menu-router = Ваш баланс { $balance }₽ ({ $days } дней), аккаунт { $is_subscripted }
+period-menu-router = Ваш баланс { $balance }₽ ({ $days } дней)
 
                      1 Месяц - 350₽
                      3 Месяца - 945₽ (скидка 10%)
                      Пол года - 1470₽ (скидка 30%)
                      Год - 2100₽ (скидка 50%)
 
-payment-menu = Ваш баланс { $balance }₽ ({ $days } дней), аккаунт { $is_subscripted }
+period-menu-combo5 = Ваш баланс { $balance }₽ ({ $days } дней)
+
+                     1 Месяц - 750₽
+                     3 Месяца - 2000₽ (скидка 10%)
+                     Пол года - 3150₽ (скидка 30%)
+                     Год - 4500₽ (скидка 50%)
+
+period-menu-combo10 = Ваш баланс { $balance }₽ ({ $days } дней)
+
+                      1 Месяц - 1500₽
+                      3 Месяца - 4000₽ (скидка 10%)
+                      Пол года - 6300₽ (скидка 30%)
+                      Год - 9000₽ (скидка 50%)
+
+payment-menu = Ваш баланс { $balance }₽ ({ $days } дней)
+               Вы пополняете счёт на { $amount }₽
 
                Выберите способ оплаты
 
-devices-category-menu = VPN для устройств
+devices-category-menu = Выбери тип
 stars-subscription-title = JeskoVPN
 stars-subscription-description = JeskoVPN
 payment-label = JeskoVPN
@@ -119,7 +137,7 @@ balance-menu = Ваш баланс равен: { $balance }₽ ({ $days } дне
 
                Хотите пополнить?
 
-fill-costum-balance = Введите сумму
+fill-custom-balance = Введите сумму
 subscription-menu-active = Рады видеть вас, { $name }!
 
                            Ваш баланс { $balance }₽ ({ $days } дней), аккаунт активен

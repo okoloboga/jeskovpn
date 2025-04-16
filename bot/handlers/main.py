@@ -1,5 +1,5 @@
 import logging
-from typing import Union, Optional
+from typing import Union
 from aiogram import Router, F
 from aiogram.utils.deep_linking import decode_payload
 from aiogram.exceptions import TelegramBadRequest
@@ -128,6 +128,11 @@ async def main_menu_handler(
         None
     """
     user_id = event.from_user.id
+    first_name = event.from_user.first_name
+    username = event.from_user.username
+
+    name = first_name if first_name is not None or first_name != '' else username
+
     logger.info(f"Showing main menu for user {user_id}")
 
     try:
@@ -156,14 +161,14 @@ async def main_menu_handler(
 
         # Handle event type
         if isinstance(event, CallbackQuery):
-            await event.message.edit_text(
-                text=i18n.start.default(),
+            await event.message.answer(
+                text=i18n.start.default(name=name),
                 reply_markup=keyboard
             )
             await event.answer()
         else:
             await event.answer(
-                text=i18n.start.default(),
+                text=i18n.start.default(name=name),
                 reply_markup=keyboard
             )
     except TelegramBadRequest as e:

@@ -84,6 +84,51 @@ async def day_price(user_id: int) -> float | int:
         logger.error(f"Failed to count total_day_price {user_id}: {e}")
         raise
 
-async def count_devices
+async def count_devices(user_id: int) -> int:
 
+    user = await get_user_data(user_id)
 
+    if user is None:
+        return 0
+    try:
+        devices_count = len(user['subscription']['device']['devices'])
+        router_duration = user['subscription']['router']['duration']
+        combo_duration = user['subscription']['combo']['duration']
+        combo_type = user['subscription']['combo']['type']
+        
+        if combo_type != '0' and str(combo_duration) != '0':
+            combo_count = len(user['subscription']['combo']['devices'])
+        else:
+            combo_count = 0
+        router_count = 1 if str(router_duration) != "0" else 0
+
+        total_devices = devices_count + router_count + combo_count
+
+        return total_devices
+
+    except Exception as e:
+        logger.error(f"Failed to count total_day_price {user_id}: {e}")
+        raise
+
+async def user_devices(user_id: int) -> list:
+
+    user = await get_user_data(user_id)
+
+    if user is None:
+        return []
+    try:
+        devices_list = user['subscription']['device']['devices']
+        router = str(user['subscription']['router']['duration'])
+        combo_devices = user['subscription']['combo']['devices']
+        
+        result_list = devices_list + combo_devices
+
+        if router != "0":
+            result_list += ['router']
+
+        return result_list
+
+    except Exception as e:
+        logger.error(f"Failed to get devices list for user {user_id}: {e}")
+        raise
+        

@@ -35,7 +35,7 @@ def my_devices_kb(
             builder.row(InlineKeyboardButton(text=combo_cell, callback_data=f"selected_cell_{combo_cell}"))
         builder.row(
             InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),
-            InlineKeyboardButton(text=i18n.remove.device.button(), callback_data="remove_device")
+            # InlineKeyboardButton(text=i18n.remove.device.button(), callback_data="remove_device")
         )
         builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
         return builder.as_markup()
@@ -74,7 +74,10 @@ def device_kb(i18n: TranslatorRunner, device: str) -> InlineKeyboardMarkup:
         url = device_url_dict.get(device, "https://example.com/default")
 
         builder = InlineKeyboardBuilder()
-        builder.row(InlineKeyboardButton(text=i18n.device.instruction.button(), url=url))
+        builder.row(
+                InlineKeyboardButton(text=i18n.device.instruction.button(), url=url),
+                InlineKeyboardButton(text=i18n.remove.device.button(), callback_data=f"remove_device_{device}")
+                )
         builder.row(InlineKeyboardButton(text=i18n.devices.button(), callback_data="devices_menu"))
         builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
         return builder.as_markup()
@@ -141,14 +144,14 @@ def devices_list_kb(i18n: TranslatorRunner, device_type: str) -> ReplyKeyboardMa
                 KeyboardButton(text=i18n.device.iphone.button())
             )
             builder.row(
-                KeyboardButton(text=i18n.decive.windows.button()),
+                KeyboardButton(text=i18n.device.windows.button()),
                 KeyboardButton(text=i18n.device.macos.button())
             )
             builder.row(
                 KeyboardButton(text=i18n.device.tv.button()),
                 KeyboardButton(text=i18n.device.router.button())
             )
-        elif device_type.lower() == "combo":
+        else:
             builder.row(
                 KeyboardButton(text=i18n.combo.five.button()),
                 KeyboardButton(text=i18n.combo.ten.button())
