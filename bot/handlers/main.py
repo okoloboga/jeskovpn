@@ -3,6 +3,7 @@ from typing import Union
 from aiogram import Router, F
 from aiogram.utils.deep_linking import decode_payload
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
 from aiogram.filters import CommandStart, Command
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
@@ -113,6 +114,7 @@ async def command_start_getter(
 @main_router.callback_query(F.data == "main_menu")
 async def main_menu_handler(
     event: Union[CallbackQuery, Message],
+    state: FSMContext,
     i18n: TranslatorRunner
 ) -> None:
     """
@@ -130,7 +132,7 @@ async def main_menu_handler(
     user_id = event.from_user.id
     first_name = event.from_user.first_name
     username = event.from_user.username
-
+    await state.clear()
     name = first_name if first_name is not None or first_name != '' else username
 
     logger.info(f"Showing main menu for user {user_id}")

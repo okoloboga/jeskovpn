@@ -45,6 +45,7 @@ async def balance_button_handler(
         None
     """
     user_id = event.from_user.id
+    await state.clear()
     logger.info(f"Showing balance for user {user_id}")
 
     try:

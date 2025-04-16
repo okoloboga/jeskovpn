@@ -43,6 +43,7 @@ payment-custom-button = Своя сумма
 decline-payment-button = Отменить
 increase-balance-button = Пополнить баланс 
 main-menu-button = В главное меню
+ticket-reply-button = Ответить пользователю { $user_id }
 
 start-invited = Привет, { $name }!
 

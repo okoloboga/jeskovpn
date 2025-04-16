@@ -152,10 +152,10 @@ async def add_device_handler(
         devices_list = await services.user_devices(user_id)
 
         if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=i18n.devices.menu(
+            await event.message.answer(text=i18n.devices.menu(
                                                 devices=devices,
                                                 subscription_fee=subscription_fee), 
-                                          reply_markup=devices_kb.add_device_kb(i18n))
+                                       reply_markup=devices_kb.add_device_kb(i18n))
             await event.answer()
         else:
             await event.answer(text=i18n.devices.menu(
@@ -199,6 +199,7 @@ async def select_device_type(
     """
     user_id = message.from_user.id
     device_type = message.text.lower()
+    await state.clear()
     logger.info(f"User {user_id} selected device type: {device_type}")
 
     try:
@@ -265,7 +266,7 @@ async def select_device_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@devices_router.message(F.text.in_(['5 устройств + роутер', '10 устройств + роутер', '5 devices + router', '10 devices + router']))
+@devices_router.message(F.text.startswith('5 ') | F.text.startswith('10 '))
 async def select_combo_handler(
     message: Message,
     state: FSMContext,
@@ -285,7 +286,7 @@ async def select_combo_handler(
         None
     """
     user_id = message.from_user.id
-    combo_type = "10" if message.text[0] == "1" else "5"
+    combo_type = "combo_10" if message.text[0] == "1" else "combo_5"
     logger.info(f"User {user_id} selected combo: {combo_type}")
 
     try:
@@ -299,19 +300,19 @@ async def select_combo_handler(
             is_subscribed = False if day_price == 0 else False
 
         await state.update_data(
-            device=device,
+            device=combo_type,
             balance=balance,
             days=int(balance/day_price),
             is_subscribed=is_subscribed
         )
         keyboard = devices_kb.period_select_kb(i18n)
-        if device != 'router' or device != 'роутер':
-            text = i18n.period.menu(
+        if combo_type == "combo5":
+            text = i18n.period.menu.combo5(
                 balance=balance,
                 days = 0 if day_price == 0 else int(balance/day_price)
             )
         else: 
-            text = i18n.period.menu.router(
+            text = i18n.period.menu.combo10(
                 balance=balance,
                 days = 0 if day_price == 0 else int(balance/day_price)
             )
@@ -319,8 +320,6 @@ async def select_combo_handler(
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
-
-
 
 @devices_router.callback_query(F.data.startswith("month_"))
 async def select_period_handler(
@@ -343,21 +342,37 @@ async def select_period_handler(
     """
     user_id = callback.from_user.id
     logger.info(f"User {user_id} selected subscription period")
-
+  
     try:
+
+        state_data = await state.get_data()
+        balance = state_data['balance']
+        device = state_data['device']
+
+        if state_data['device'] in ['android', 'iphone', 'macos', 'windows', 'tv']:
+            device = 'device'
+        elif state_data['device'] == 'router':
+            device = 'router'
+        else:
+            device = state_data['device']
+
         _, period = callback.data.split("_")
         payment_type = "buy_subscription"
         await state.update_data(period=period, payment_type=payment_type)
-        state_data = await state.get_data()
-        balance = state_data['balance']
+    
+        if device == 'combo_5' or device == 'combo_10':
+            combo, combo_type = device.split('_')
+            amount = services.MONTH_PRICE[combo][combo_type][period]
+        else:
+            amount = services.MONTH_PRICE[device][period]
+
         day_price = await services.day_price(user_id)
         days = 0 if day_price == 0 else int(balance / day_price)
         keyboard = payment_kb.payment_select(i18n, payment_type)
-
         text = i18n.payment.menu(
             balance=balance,
-            days = days,
-            is_subscribed=state_data.get("is_subscribed", False)
+            days=days,
+            amount=amount
         )
         await callback.message.edit_text(text=text, reply_markup=keyboard)
         await callback.answer()
@@ -369,29 +384,6 @@ async def select_period_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await callback.message.edit_text(text=i18n.error.unexpected())
         await callback.answer()
-
-@devices_router.message(F.text.startswith("# "))
-async def manage_device_handler(
-    message: Message,
-    i18n: TranslatorRunner
-) -> None:
-
-    user_id = message.from_user.id
-    device = message.text[2:]
-    device_key = await vpn_req.get_device_key(user_id, device)
-    logger.info(f"User {user_id} managing device {device}")
-
-    try:
-        await message.answer(text=i18n.device.menu(
-                                    device=device,
-                                    device_key=device_key),
-                             reply_markup=devices_kb.device_kb(
-                                    i18n=i18n,
-                                    device=device)
-                             )
-    except Exception as e:
-        logger.error(f"Unexpected error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.unexpected())
 
 @devices_router.callback_query(F.data.startswith('remove_device_'))
 async def remove_device_handler(
