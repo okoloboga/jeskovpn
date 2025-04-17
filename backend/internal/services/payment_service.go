@@ -10,53 +10,51 @@ import (
 
 // PaymentService defines methods for payment-related operations
 type PaymentService interface {
-	InitiateDeposit(userID int, amount float64, paymentType string) (string, error)
+	InitiateDeposit(userID int, amount float64, period int, paymentType string) (string, error)
 	ProcessPayment(paymentID string, status string) error
-	ProcessBalancePayment(userID int, amount float64, paymentType string) error
+	ProcessBalancePayment(userID int, amount float64, period int, paymentType string) error
 }
 
 // paymentService implements PaymentService
 type paymentService struct {
-	transactionRepo  repositories.TransactionRepository
-	userRepo         repositories.UserRepository
-	subscriptionRepo repositories.SubscriptionRepository
+	paymentRepo repositories.PaymentRepository
+	userRepo    repositories.UserRepository
 }
 
 // NewPaymentService creates a new payment service
 func NewPaymentService(
-	transactionRepo repositories.TransactionRepository,
+	paymentRepo repositories.PaymentRepository,
 	userRepo repositories.UserRepository,
-	subscriptionRepo repositories.SubscriptionRepository,
 ) PaymentService {
 	return &paymentService{
-		transactionRepo:  transactionRepo,
-		userRepo:         userRepo,
-		subscriptionRepo: subscriptionRepo,
+		paymentRepo: paymentRepo,
+		userRepo:    userRepo,
 	}
 }
 
-// InitiateDeposit initiates a deposit transaction
-func (s *paymentService) InitiateDeposit(userID int, amount float64, paymentType string) (string, error) {
+// InitiateDeposit initiates a deposit payment
+func (s *paymentService) InitiateDeposit(userID int, amount float64, period int, paymentType string) (string, error) {
 	// Check if user exists
 	_, err := s.userRepo.GetByID(userID)
 	if err != nil {
 		return "", errors.New("user not found")
 	}
 
-	// Generate a unique payment ID (in a real app, this would be more sophisticated)
+	// Generate a unique payment ID
 	paymentID := "pay_" + time.Now().Format("20060102150405")
 
-	// Create a pending transaction
-	transaction := &models.Transaction{
+	// Create a pending payment
+	payment := &models.Payment{
 		UserID:      userID,
 		Amount:      amount,
+		Period:      period,
 		PaymentType: paymentType,
 		Status:      "pending",
 		PaymentID:   paymentID,
 		CreatedAt:   time.Now(),
 	}
 
-	if err := s.transactionRepo.Create(transaction); err != nil {
+	if err := s.paymentRepo.Create(payment); err != nil {
 		return "", err
 	}
 
@@ -68,27 +66,27 @@ func (s *paymentService) InitiateDeposit(userID int, amount float64, paymentType
 
 // ProcessPayment processes a payment callback/webhook
 func (s *paymentService) ProcessPayment(paymentID string, status string) error {
-	// Get the transaction
-	transaction, err := s.transactionRepo.GetByPaymentID(paymentID)
+	// Get the payment
+	payment, err := s.paymentRepo.GetByPaymentID(paymentID)
 	if err != nil {
 		return err
 	}
 
-	// Update transaction status
-	if err := s.transactionRepo.UpdateStatus(paymentID, status); err != nil {
+	// Update payment status
+	if err := s.paymentRepo.UpdateStatus(paymentID, status); err != nil {
 		return err
 	}
 
 	// If payment was successful, update user's balance
 	if status == "succeeded" {
-		return s.userRepo.UpdateBalance(transaction.UserID, transaction.Amount)
+		return s.userRepo.UpdateBalance(payment.UserID, payment.Amount)
 	}
 
 	return nil
 }
 
 // ProcessBalancePayment processes a payment from user's balance
-func (s *paymentService) ProcessBalancePayment(userID int, amount float64, paymentType string) error {
+func (s *paymentService) ProcessBalancePayment(userID int, amount float64, period int, paymentType string) error {
 	// Get the user to check balance
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
@@ -105,32 +103,38 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, payme
 		return err
 	}
 
-	// Create a transaction record
-	transaction := &models.Transaction{
+	// Create a payment record
+	payment := &models.Payment{
 		UserID:      userID,
 		Amount:      amount,
+		Period:      period,
 		PaymentType: paymentType,
 		Status:      "succeeded",
 		PaymentID:   "balance_" + time.Now().Format("20060102150405"),
 		CreatedAt:   time.Now(),
 	}
 
-	if err := s.transactionRepo.Create(transaction); err != nil {
-		// If we can't create the transaction record, refund the balance
+	if err := s.paymentRepo.Create(payment); err != nil {
+		// If we can't create the payment record, refund the balance
 		_ = s.userRepo.UpdateBalance(userID, amount)
 		return err
 	}
 
-	// Update subscription based on payment type
-	// For example, if payment_type is "device_subscription", extend device subscription
-	if paymentType == "device_subscription" {
-		subscription, err := s.subscriptionRepo.GetByUserID(userID, "device")
-		if err != nil {
-			return err
-		}
+	// Update subscription duration in the user model based on payment type
+	switch paymentType {
+	case "device_subscription":
+		user.Subscription.Device.Duration = period
+	case "router_subscription":
+		user.Subscription.Router.Duration = period
+	case "combo_subscription":
+		user.Subscription.Combo.Duration = period
+	default:
+		return errors.New("unknown payment type")
+	}
 
-		// Extend subscription by 1 month (or whatever period the payment covers)
-		return s.subscriptionRepo.UpdateDuration(subscription.ID, 1)
+	// Save the updated user
+	if err := s.userRepo.Update(user); err != nil {
+		return err
 	}
 
 	return nil

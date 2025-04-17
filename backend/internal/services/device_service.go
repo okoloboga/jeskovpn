@@ -19,33 +19,43 @@ type DeviceService interface {
 
 // deviceService implements DeviceService
 type deviceService struct {
-	deviceRepo       repositories.DeviceRepository
-	subscriptionRepo repositories.SubscriptionRepository
-	vpnGenerator     vpn.KeyGenerator
+	deviceRepo   repositories.DeviceRepository
+	userRepo     repositories.UserRepository
+	vpnGenerator vpn.KeyGenerator
 }
 
 // NewDeviceService creates a new device service
 func NewDeviceService(
 	deviceRepo repositories.DeviceRepository,
-	subscriptionRepo repositories.SubscriptionRepository,
+	userRepo repositories.UserRepository,
 	vpnGenerator vpn.KeyGenerator,
 ) DeviceService {
 	return &deviceService{
-		deviceRepo:       deviceRepo,
-		subscriptionRepo: subscriptionRepo,
-		vpnGenerator:     vpnGenerator,
+		deviceRepo:   deviceRepo,
+		userRepo:     userRepo,
+		vpnGenerator: vpnGenerator,
 	}
 }
 
 // GenerateKey generates a VPN key for a device
 func (s *deviceService) GenerateKey(userID int, deviceName string) (string, error) {
 	// Check if user has an active device subscription
-	subscription, err := s.subscriptionRepo.GetByUserID(userID, "device")
+	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
 		return "", err
 	}
 
-	if subscription.Duration <= 0 {
+	var duration int
+
+	if deviceName == "device" {
+		duration = user.Subscription.Device.Duration
+	} else if deviceName == "router" {
+		duration = user.Subscription.Router.Duration
+	} else if deviceName == "combo" {
+		duration = user.Subscription.Combo.Duration
+	}
+
+	if duration <= 0 {
 		return "", errors.New("no active subscription")
 	}
 
@@ -64,11 +74,10 @@ func (s *deviceService) GenerateKey(userID int, deviceName string) (string, erro
 
 	// Create a new device record
 	device := &models.Device{
-		UserID:         userID,
-		SubscriptionID: subscription.ID,
-		DeviceName:     deviceName,
-		VpnKey:         vpnKey,
-		CreatedAt:      time.Now(),
+		UserID:     userID,
+		DeviceName: deviceName,
+		VpnKey:     vpnKey,
+		CreatedAt:  time.Now(),
 	}
 
 	if err := s.deviceRepo.Create(device); err != nil {
@@ -83,7 +92,7 @@ func (s *deviceService) GenerateKey(userID int, deviceName string) (string, erro
 // RemoveDevice removes a device
 func (s *deviceService) RemoveDevice(userID int, deviceName string) error {
 	// Get the device to ensure it exists
-	device, err := s.deviceRepo.GetByUserIDAndName(userID, deviceName)
+	_, err := s.deviceRepo.GetByUserIDAndName(userID, deviceName)
 	if err != nil {
 		return err
 	}

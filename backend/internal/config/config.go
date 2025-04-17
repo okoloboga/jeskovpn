@@ -10,6 +10,7 @@ type Config struct {
 	Port     int
 	LogLevel string
 	APIToken string
+	Outline  OutlineGenerator
 	DB       DBConfig
 }
 
@@ -22,8 +23,14 @@ type DBConfig struct {
 	Name     string
 }
 
+// OutlineGenerator contains Outline API settings
+type OutlineGenerator struct {
+	APIUrl string
+	APIKey string
+}
+
 // Load loads configuration from environment variables
-func Load() (*Config, error) {
+func LoadConfig() (*Config, error) {
 	port, err := strconv.Atoi(getEnv("APP_PORT", "8080"))
 	if err != nil {
 		return nil, err
@@ -38,6 +45,10 @@ func Load() (*Config, error) {
 		Port:     port,
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 		APIToken: getEnv("API_TOKEN", "your-api-token"),
+		Outline: OutlineGenerator{
+			APIUrl: getEnv("OUTLINE_API_URL", "https://api.outline.com"),
+			APIKey: getEnv("OUTLINE_API_KEY", "your-outline-api-key"),
+		},
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     dbPort,

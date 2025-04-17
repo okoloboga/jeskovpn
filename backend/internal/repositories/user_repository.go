@@ -12,8 +12,12 @@ import (
 type UserRepository interface {
 	GetByID(userID int) (*models.User, error)
 	Create(user *models.User) error
+	Update(user *models.User) error
 	UpdateBalance(userID int, amount float64) error
 	Exists(userID int) (bool, error)
+	CreateDevice(device *models.DeviceSubscription) error
+	CreateRouter(device *models.RouterSubscription) error
+	CreateCombo(device *models.ComboSubscription) error
 }
 
 // userRepository implements UserRepository
@@ -44,6 +48,10 @@ func (r *userRepository) Create(user *models.User) error {
 	return r.db.Create(user).Error
 }
 
+func (r *userRepository) Update(user *models.User) error {
+	return r.db.Save(user).Error
+}
+
 // UpdateBalance updates a user's balance
 func (r *userRepository) UpdateBalance(userID int, amount float64) error {
 	result := r.db.Model(&models.User{}).
@@ -65,4 +73,19 @@ func (r *userRepository) Exists(userID int) (bool, error) {
 		Where("user_id = ?", userID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// Create adds a new device
+func (r *userRepository) CreateDevice(device *models.DeviceSubscription) error {
+	return r.db.Create(device).Error
+}
+
+// Create adds a new router
+func (r *userRepository) CreateRouter(device *models.RouterSubscription) error {
+	return r.db.Create(device).Error
+}
+
+// Create adds a new combo
+func (r *userRepository) CreateCombo(device *models.ComboSubscription) error {
+	return r.db.Create(device).Error
 }

@@ -33,11 +33,6 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handlers, authMiddleware gin.Handler
 		// Device routes
 		api.POST("/devices/key", h.DeviceHandler.GenerateKey)
 		api.DELETE("/devices/key", h.DeviceHandler.RevokeKey)
-
-		// Subscription routes
-		api.GET("/subscriptions/:user_id/:type", h.SubscriptionHandler.GetSubscription)
-		api.POST("/subscriptions", h.SubscriptionHandler.CreateSubscription)
-		api.PUT("/subscriptions/:id/duration", h.SubscriptionHandler.UpdateDuration)
 	}
 
 	// Webhook routes (may have different authentication)

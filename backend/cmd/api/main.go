@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/okoloboga/jeskovpn/backend/internal/config"
@@ -18,16 +19,19 @@ import (
 
 func main() {
 	// Initialize logger
-	appLogger := logger.NewLogger()
+	appLogger := logger.New("info")
 	appLogger.Info("Starting VPN Backend API")
 
 	// Load configuration
-	cfg := config.LoadConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		// handle error, e.g. log.Fatal(err)
+	}
 
 	// Connect to database
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
-		cfg.Database.Password, cfg.Database.DBName)
+		cfg.DB.Host, cfg.DB.Port, cfg.DB.User,
+		cfg.DB.Password, cfg.DB.Name)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -37,7 +41,6 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
-	subscriptionRepo := repositories.NewSubscriptionRepository(db)
 	deviceRepo := repositories.NewDeviceRepository(db)
 	referralRepo := repositories.NewReferralRepository(db)
 	ticketRepo := repositories.NewTicketRepository(db)
@@ -47,12 +50,11 @@ func main() {
 	vpnGenerator := vpn.NewOutlineGenerator(cfg.Outline.APIUrl, cfg.Outline.APIKey)
 
 	// Initialize services
-	userService := services.NewUserService(userRepo, subscriptionRepo, deviceRepo)
-	subscriptionService := services.NewSubscriptionService(subscriptionRepo, deviceRepo)
-	deviceService := services.NewDeviceService(deviceRepo, subscriptionRepo, vpnGenerator)
+	userService := services.NewUserService(userRepo, deviceRepo)
+	deviceService := services.NewDeviceService(deviceRepo, userRepo, vpnGenerator)
 	referralService := services.NewReferralService(referralRepo, userRepo)
 	ticketService := services.NewTicketService(ticketRepo)
-	paymentService := services.NewPaymentService(transactionRepo, userRepo, subscriptionRepo)
+	paymentService := services.NewPaymentService(transactionRepo, userRepo)
 
 	// Initialize handlers
 	h := &handlers.Handlers{
@@ -61,11 +63,10 @@ func main() {
 		TicketHandler:   handlers.NewTicketHandler(ticketService, appLogger),
 		PaymentHandler:  handlers.NewPaymentHandler(paymentService, appLogger),
 		DeviceHandler:   handlers.NewDeviceHandler(deviceService, appLogger),
-		SubscriptionHandler: handlers.NewSubscriptionHandler(subscriptionService, appLogger)
 	}
 
 	// Initialize middleware
-	authMiddleware := middleware.AuthMiddleware(cfg)
+	authMiddleware := middleware.AuthMiddleware(cfg.APIToken)
 
 	// Setup router
 	r := gin.Default()
@@ -74,8 +75,8 @@ func main() {
 	routes.SetupRoutes(r, h, authMiddleware)
 
 	// Start server
-	appLogger.Info("Server starting on port " + cfg.Server.Port)
-	if err := r.Run(":" + cfg.Server.Port); err != nil {
+	appLogger.Info("Server starting on port " + strconv.Itoa(cfg.Port))
+	if err := r.Run(":" + strconv.Itoa(cfg.Port)); err != nil {
 		appLogger.Error("Failed to start server", map[string]interface{}{"error": err.Error()})
 		panic("Failed to start server")
 	}

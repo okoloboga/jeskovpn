@@ -28,6 +28,7 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 	var request struct {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
+		Period      int     `json:"period" binding:"required,gt=0"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
@@ -45,7 +46,7 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 	}
 
 	// Initiate deposit
-	paymentID, err := h.paymentService.InitiateDeposit(request.UserID, request.Amount, request.PaymentType)
+	paymentID, err := h.paymentService.InitiateDeposit(request.UserID, request.Amount, request.Period, request.PaymentType)
 	if err != nil {
 		h.logger.Error("Failed to initiate deposit", map[string]interface{}{
 			"error":        err.Error(),
@@ -161,6 +162,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 	var request struct {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
+		Period      int     `json:"period" binding:"required,gt=0"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
@@ -171,7 +173,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 	}
 
 	// Process balance payment
-	err := h.paymentService.ProcessBalancePayment(request.UserID, request.Amount, request.PaymentType)
+	err := h.paymentService.ProcessBalancePayment(request.UserID, request.Amount, request.Period, request.PaymentType)
 	if err != nil {
 		h.logger.Error("Failed to process balance payment", map[string]interface{}{
 			"error":        err.Error(),

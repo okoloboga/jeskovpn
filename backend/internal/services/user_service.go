@@ -17,21 +17,18 @@ type UserService interface {
 
 // userService implements UserService
 type userService struct {
-	userRepo         repositories.UserRepository
-	subscriptionRepo repositories.SubscriptionRepository
-	deviceRepo       repositories.DeviceRepository
+	userRepo   repositories.UserRepository
+	deviceRepo repositories.DeviceRepository
 }
 
 // NewUserService creates a new user service
 func NewUserService(
 	userRepo repositories.UserRepository,
-	subscriptionRepo repositories.SubscriptionRepository,
 	deviceRepo repositories.DeviceRepository,
 ) UserService {
 	return &userService{
-		userRepo:         userRepo,
-		subscriptionRepo: subscriptionRepo,
-		deviceRepo:       deviceRepo,
+		userRepo:   userRepo,
+		deviceRepo: deviceRepo,
 	}
 }
 
@@ -76,39 +73,30 @@ func (s *userService) CreateUser(userID int, firstName, lastName, username strin
 	}
 
 	// Create default subscriptions
-	deviceSub := &models.Subscription{
-		UserID:    userID,
-		Type:      "device",
-		Duration:  0,
-		ComboType: 0,
-		CreatedAt: time.Now(),
+	deviceSub := &models.DeviceSubscription{
+		Devices:  []string{},
+		Duration: 0,
 	}
 
-	routerSub := &models.Subscription{
-		UserID:    userID,
-		Type:      "router",
-		Duration:  0,
-		ComboType: 0,
-		CreatedAt: time.Now(),
+	routerSub := &models.RouterSubscription{
+		Duration: 0,
 	}
 
-	comboSub := &models.Subscription{
-		UserID:    userID,
-		Type:      "combo",
-		Duration:  0,
-		ComboType: 0,
-		CreatedAt: time.Now(),
+	comboSub := &models.ComboSubscription{
+		Devices:  []string{},
+		Duration: 0,
+		Type:     0,
 	}
 
-	if err := s.subscriptionRepo.Create(deviceSub); err != nil {
+	if err := s.userRepo.CreateDevice(deviceSub); err != nil {
 		return err
 	}
 
-	if err := s.subscriptionRepo.Create(routerSub); err != nil {
+	if err := s.userRepo.CreateRouter(routerSub); err != nil {
 		return err
 	}
 
-	if err := s.subscriptionRepo.Create(comboSub); err != nil {
+	if err := s.userRepo.CreateCombo(comboSub); err != nil {
 		return err
 	}
 
