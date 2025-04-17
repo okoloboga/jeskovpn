@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/okoloboga/jeskovpn/backend/internal/config"
 	"github.com/okoloboga/jeskovpn/backend/internal/handlers"
 	"github.com/okoloboga/jeskovpn/backend/internal/middleware"
@@ -18,6 +20,10 @@ import (
 )
 
 func main() {
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found (this is OK in production)")
+	}
 	// Initialize logger
 	appLogger := logger.New("info")
 	appLogger.Info("Starting VPN Backend API")
@@ -29,7 +35,7 @@ func main() {
 	}
 
 	// Connect to database
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DB.Host, cfg.DB.Port, cfg.DB.User,
 		cfg.DB.Password, cfg.DB.Name)
 

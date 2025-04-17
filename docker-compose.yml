@@ -1,38 +1,47 @@
 version: "3.8"
 services:
-  bot:
-    build:
-      context: .
-      dockerfile: bot/Dockerfile
-    ports:
-      - "8081:8080"
-    volumes:
-      - .:/app
-    command: ["python", "bot/__main__.py"]
-
-  # db:
-  #   image: postgres:15
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=secret
-  #     - POSTGRES_DB=vpn_bot_db
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
+  # bot:
+  #   build:
+  #     context: .
+  #     dockerfile: bot/Dockerfile
   #   ports:
-  #     - "5432:5432"
+  #     - "8081:8080"
+  #   volumes:
+  #     - .:/app
+  #   command: ["python", "bot/__main__.py"]
 
-#  app:  # Go-backend, закомментирован до готовности
-#    build: .
-#    ports:
-#      - "8080:8080"
-#    depends_on:
-#      - db
-#    environment:
-#      - DB_HOST=db
-#      - DB_USER=postgres
-#      - DB_PASSWORD=secret
-#      - DB_NAME=vpn_bot_db
-#      - DB_PORT=5432
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      APP_PORT: ${APP_PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      API_TOKEN: ${API_TOKEN}
+      OUTLINE_API_URL: ${OUTLINE_API_URL}
+      OUTLINE_API_KEY: ${OUTLINE_API_KEY}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    # Uncomment if you want to see logs in real time
+    # tty: true
 
 volumes:
   pgdata:
