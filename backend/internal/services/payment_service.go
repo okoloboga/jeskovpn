@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/okoloboga/backend/internal/models"
-	"github.com/okoloboga/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 )
 
 // PaymentService defines methods for payment-related operations

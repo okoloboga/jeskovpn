@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// Config содержит все настройки приложения
+// Config contains all application settings
 type Config struct {
 	Port     int
 	LogLevel string
@@ -13,7 +13,7 @@ type Config struct {
 	DB       DBConfig
 }
 
-// DBConfig содержит настройки базы данных
+// DBConfig contains database settings
 type DBConfig struct {
 	Host     string
 	Port     int
@@ -22,18 +22,18 @@ type DBConfig struct {
 	Name     string
 }
 
-// Load загружает конфигурацию из переменных окружения
+// Load loads configuration from environment variables
 func Load() (*Config, error) {
 	port, err := strconv.Atoi(getEnv("APP_PORT", "8080"))
 	if err != nil {
 		return nil, err
 	}
-	
+
 	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &Config{
 		Port:     port,
 		LogLevel: getEnv("LOG_LEVEL", "info"),
@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 	}, nil
 }
 
-// getEnv получает значение переменной окружения или возвращает значение по умолчанию
+// getEnv returns the value of the environment variable if set, otherwise returns the default value
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value

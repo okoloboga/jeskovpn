@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/backend/internal/services"
-	"github.com/yourusername/backend/pkg/logger"
+	"github.com/okoloboga/jeskovpn/backend/internal/services"
+	"github.com/okoloboga/jeskovpn/backend/pkg/logger"
 )
 
 // DeviceHandler handles device-related requests

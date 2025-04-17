@@ -3,8 +3,8 @@ package services
 import (
 	"time"
 
-	"github.com/okoloboga/backend/internal/models"
-	"github.com/okoloboga/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 )
 
 // TicketService defines methods for ticket-related operations

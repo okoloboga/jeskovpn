@@ -2,7 +2,8 @@ package repositories
 
 import (
 	"errors"
-	"vpn-bot-backend/internal/models"
+
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
 
 	"gorm.io/gorm"
 )

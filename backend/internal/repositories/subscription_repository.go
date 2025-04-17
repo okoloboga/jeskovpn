@@ -3,7 +3,7 @@ package repositories
 import (
 	"errors"
 
-	"github.com/yourusername/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
 	"gorm.io/gorm"
 )
 

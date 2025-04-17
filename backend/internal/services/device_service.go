@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/okoloboga/backend/internal/models"
-	"github.com/okoloboga/backend/internal/repositories"
-	"github.com/okoloboga/backend/pkg/vpn"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/pkg/vpn"
 )
 
 // DeviceService defines methods for device-related operations

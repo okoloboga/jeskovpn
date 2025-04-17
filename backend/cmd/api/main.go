@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/okoloboga/backend/internal/config"
-	"github.com/okoloboga/backend/internal/handlers"
-	"github.com/okoloboga/backend/internal/middleware"
-	"github.com/okoloboga/backend/internal/repositories"
-	"github.com/okoloboga/backend/internal/routes"
-	"github.com/okoloboga/backend/internal/services"
-	"github.com/okoloboga/backend/pkg/logger"
-	"github.com/okoloboga/backend/pkg/vpn"
+	"github.com/okoloboga/jeskovpn/backend/internal/config"
+	"github.com/okoloboga/jeskovpn/backend/internal/handlers"
+	"github.com/okoloboga/jeskovpn/backend/internal/middleware"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/internal/routes"
+	"github.com/okoloboga/jeskovpn/backend/internal/services"
+	"github.com/okoloboga/jeskovpn/backend/pkg/logger"
+	"github.com/okoloboga/jeskovpn/backend/pkg/vpn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -61,6 +61,7 @@ func main() {
 		TicketHandler:   handlers.NewTicketHandler(ticketService, appLogger),
 		PaymentHandler:  handlers.NewPaymentHandler(paymentService, appLogger),
 		DeviceHandler:   handlers.NewDeviceHandler(deviceService, appLogger),
+		SubscriptionHandler: handlers.NewSubscriptionHandler(subscriptionService, appLogger)
 	}
 
 	// Initialize middleware

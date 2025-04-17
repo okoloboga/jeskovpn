@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/okoloboga/backend/internal/services"
-	"github.com/okoloboga/backend/pkg/logger"
+	"github.com/okoloboga/jeskovpn/backend/internal/services"
+	"github.com/okoloboga/jeskovpn/backend/pkg/logger"
 )
 
 // ReferralHandler handles referral-related requests

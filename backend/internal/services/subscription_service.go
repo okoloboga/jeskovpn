@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/okoloboga/backend/internal/models"
-	"github.com/okoloboga/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 )
 
 // SubscriptionService defines methods for subscription-related operations

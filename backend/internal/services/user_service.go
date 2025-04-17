@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/services/backend/internal/models"
-	"github.com/services/backend/internal/repositories"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
+	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 )
 
 // UserService defines methods for user-related operations
