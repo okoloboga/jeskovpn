@@ -2,54 +2,80 @@ package main
 
 import (
 	"fmt"
-	"log"
-	
+
 	"github.com/gin-gonic/gin"
+	"github.com/okoloboga/backend/internal/config"
+	"github.com/okoloboga/backend/internal/handlers"
+	"github.com/okoloboga/backend/internal/middleware"
+	"github.com/okoloboga/backend/internal/repositories"
+	"github.com/okoloboga/backend/internal/routes"
+	"github.com/okoloboga/backend/internal/services"
+	"github.com/okoloboga/backend/pkg/logger"
+	"github.com/okoloboga/backend/pkg/vpn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	
-	"vpn-bot-backend/internal/config"
-	"vpn-bot-backend/internal/handlers"
-	"vpn-bot-backend/internal/middleware"
-	"vpn-bot-backend/pkg/logger"
 )
 
 func main() {
-	// Инициализация конфигурации
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-	
-	// Инициализация логгера
-	l := logger.New(cfg.LogLevel)
-	
-	// Подключение к базе данных
-	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.DB.Host, cfg.DB.Port, cfg.DB.User, cfg.DB.Password, cfg.DB.Name,
-	)
+	// Initialize logger
+	appLogger := logger.NewLogger()
+	appLogger.Info("Starting VPN Backend API")
+
+	// Load configuration
+	cfg := config.LoadConfig()
+
+	// Connect to database
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
+		cfg.Database.Password, cfg.Database.DBName)
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		l.Fatal("Failed to connect to database", "error", err)
+		appLogger.Error("Failed to connect to database", map[string]interface{}{"error": err.Error()})
+		panic("Failed to connect to database")
 	}
-	
-	// Инициализация роутера
-	router := gin.Default()
-	
-	// Добавление middleware
-	router.Use(middleware.Logger(l))
-	router.Use(middleware.Auth(cfg.APIToken))
-	
-	// Инициализация обработчиков
-	h := handlers.NewHandler(db, l, cfg)
-	
-	// Регистрация маршрутов
-	h.RegisterRoutes(router)
-	
-	// Запуск сервера
-	l.Info("Starting server", "port", cfg.Port)
-	if err := router.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
-		l.Fatal("Failed to start server", "error", err)
+
+	// Initialize repositories
+	userRepo := repositories.NewUserRepository(db)
+	subscriptionRepo := repositories.NewSubscriptionRepository(db)
+	deviceRepo := repositories.NewDeviceRepository(db)
+	referralRepo := repositories.NewReferralRepository(db)
+	ticketRepo := repositories.NewTicketRepository(db)
+	transactionRepo := repositories.NewTransactionRepository(db)
+
+	// Initialize VPN key generator
+	vpnGenerator := vpn.NewOutlineGenerator(cfg.Outline.APIUrl, cfg.Outline.APIKey)
+
+	// Initialize services
+	userService := services.NewUserService(userRepo, subscriptionRepo, deviceRepo)
+	subscriptionService := services.NewSubscriptionService(subscriptionRepo, deviceRepo)
+	deviceService := services.NewDeviceService(deviceRepo, subscriptionRepo, vpnGenerator)
+	referralService := services.NewReferralService(referralRepo, userRepo)
+	ticketService := services.NewTicketService(ticketRepo)
+	paymentService := services.NewPaymentService(transactionRepo, userRepo, subscriptionRepo)
+
+	// Initialize handlers
+	h := &handlers.Handlers{
+		UserHandler:     handlers.NewUserHandler(userService, appLogger),
+		ReferralHandler: handlers.NewReferralHandler(referralService, appLogger),
+		TicketHandler:   handlers.NewTicketHandler(ticketService, appLogger),
+		PaymentHandler:  handlers.NewPaymentHandler(paymentService, appLogger),
+		DeviceHandler:   handlers.NewDeviceHandler(deviceService, appLogger),
+	}
+
+	// Initialize middleware
+	authMiddleware := middleware.AuthMiddleware(cfg)
+
+	// Setup router
+	r := gin.Default()
+
+	// Register routes
+	routes.SetupRoutes(r, h, authMiddleware)
+
+	// Start server
+	appLogger.Info("Server starting on port " + cfg.Server.Port)
+	if err := r.Run(":" + cfg.Server.Port); err != nil {
+		appLogger.Error("Failed to start server", map[string]interface{}{"error": err.Error()})
+		panic("Failed to start server")
 	}
 }
