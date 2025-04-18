@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/okoloboga/jeskovpn/backend/internal/models"
 
@@ -69,10 +70,11 @@ func (r *userRepository) UpdateBalance(userID int, amount float64) error {
 // Exists checks if a user exists
 func (r *userRepository) Exists(userID int) (bool, error) {
 	var count int64
-	err := r.db.Model(&models.User{}).
-		Where("user_id = ?", userID).
-		Count(&count).Error
-	return count > 0, err
+	err := r.db.Model(&models.User{}).Where("user_id = ?", userID).Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to check user existence: %w", err)
+	}
+	return count > 0, nil
 }
 
 // Create adds a new device

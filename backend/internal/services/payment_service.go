@@ -13,6 +13,7 @@ type PaymentService interface {
 	InitiateDeposit(userID int, amount float64, period int, paymentType string) (string, error)
 	ProcessPayment(paymentID string, status string) error
 	ProcessBalancePayment(userID int, amount float64, period int, paymentType string) error
+	ProcessWebhookPayment(userID int, amount float64, period int, paymentType, paymentID, status string) error
 }
 
 // paymentService implements PaymentService
@@ -58,13 +59,10 @@ func (s *paymentService) InitiateDeposit(userID int, amount float64, period int,
 		return "", err
 	}
 
-	// In a real app, you would integrate with the payment provider here
-	// and return a payment URL or other payment details
-
 	return paymentID, nil
 }
 
-// ProcessPayment processes a payment callback/webhook
+// ProcessPayment processes a payment callback/webhook (legacy)
 func (s *paymentService) ProcessPayment(paymentID string, status string) error {
 	// Get the payment
 	payment, err := s.paymentRepo.GetByPaymentID(paymentID)
@@ -115,12 +113,12 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 	}
 
 	if err := s.paymentRepo.Create(payment); err != nil {
-		// If we can't create the payment record, refund the balance
+		// Refund the balance
 		_ = s.userRepo.UpdateBalance(userID, amount)
 		return err
 	}
 
-	// Update subscription duration in the user model based on payment type
+	// Update subscription duration
 	switch paymentType {
 	case "device_subscription":
 		user.Subscription.Device.Duration = period
@@ -135,6 +133,65 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 	// Save the updated user
 	if err := s.userRepo.Update(user); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ProcessWebhookPayment processes a payment from external webhook (Ukassa, CryptoBot)
+func (s *paymentService) ProcessWebhookPayment(userID int, amount float64, period int, paymentType, paymentID, status string) error {
+	// Check if user exists
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Check if payment already exists
+	existingPayment, _ := s.paymentRepo.GetByPaymentID(paymentID)
+	if existingPayment != nil {
+		// Update status if payment exists
+		if err := s.paymentRepo.UpdateStatus(paymentID, status); err != nil {
+			return err
+		}
+	} else {
+		// Create new payment record
+		payment := &models.Payment{
+			UserID:      userID,
+			Amount:      amount,
+			Period:      period,
+			PaymentType: paymentType,
+			Status:      status,
+			PaymentID:   paymentID,
+			CreatedAt:   time.Now(),
+		}
+		if err := s.paymentRepo.Create(payment); err != nil {
+			return err
+		}
+	}
+
+	// If payment is successful, update balance and subscription
+	if status == "succeeded" || status == "invoice_paid" {
+		// Add to balance
+		if err := s.userRepo.UpdateBalance(userID, amount); err != nil {
+			return err
+		}
+
+		// Update subscription duration
+		switch paymentType {
+		case "device_subscription":
+			user.Subscription.Device.Duration = period
+		case "router_subscription":
+			user.Subscription.Router.Duration = period
+		case "combo_subscription":
+			user.Subscription.Combo.Duration = period
+		default:
+			return errors.New("unknown payment type")
+		}
+
+		// Save updated user
+		if err := s.userRepo.Update(user); err != nil {
+			return err
+		}
 	}
 
 	return nil

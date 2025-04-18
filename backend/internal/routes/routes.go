@@ -17,6 +17,7 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handlers, authMiddleware gin.Handler
 	{
 		// User routes
 		api.GET("/users/:user_id", h.UserHandler.GetUser)
+		api.POST("/users/create", h.UserHandler.CreateUser)
 
 		// Referral routes
 		api.POST("/referrals", h.ReferralHandler.AddReferral)
@@ -35,7 +36,10 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handlers, authMiddleware gin.Handler
 		api.DELETE("/devices/key", h.DeviceHandler.RevokeKey)
 	}
 
-	// Webhook routes (may have different authentication)
-	r.POST("/payments/ukassa", h.PaymentHandler.ProcessUkassaWebhook)
-	r.POST("/payments/crypto", h.PaymentHandler.ProcessCryptoWebhook)
+	// Unauthenticated routes (for webhooks)
+	apiNoAuth := r.Group("/api")
+	{
+		apiNoAuth.POST("/payments/ukassa", h.PaymentHandler.ProcessUkassaWebhook)
+		apiNoAuth.POST("/payments/crypto", h.PaymentHandler.ProcessCryptoWebhook)
+	}
 }

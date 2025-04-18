@@ -1,7 +1,15 @@
 package handlers
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"io"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/okoloboga/jeskovpn/backend/internal/services"
@@ -82,12 +90,39 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 
 // ProcessUkassaWebhook handles POST /payments/ukassa
 func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
+	// Read raw body for signature verification
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		h.logger.Error("Failed to read request body", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	c.Request.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+
+	// Verify Ukassa signature
+	signature := c.GetHeader("X-Yoo-Signature") // Adjust based on Ukassa docs
+	if !verifyUkassaSignature(bodyBytes, signature) {
+		h.logger.Error("Invalid Ukassa signature")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
+		return
+	}
+
 	// Parse request body
 	var request struct {
-		UserID    int     `json:"user_id" binding:"required"`
-		Amount    float64 `json:"amount" binding:"required"`
-		PaymentID string  `json:"payment_id" binding:"required"`
-		Status    string  `json:"status" binding:"required"`
+		Event  string `json:"event" binding:"required"`
+		Object struct {
+			ID     string `json:"id" binding:"required"`
+			Status string `json:"status" binding:"required"`
+			Amount struct {
+				Value    string `json:"value" binding:"required"`
+				Currency string `json:"currency"`
+			} `json:"amount" binding:"required"`
+			Metadata struct {
+				UserID      string `json:"user_id" binding:"required"`
+				Period      string `json:"period" binding:"required"`
+				PaymentType string `json:"payment_type" binding:"required"`
+			} `json:"metadata" binding:"required"`
+		} `json:"object" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -96,23 +131,58 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 		return
 	}
 
-	// Process payment
-	err := h.paymentService.ProcessPayment(request.PaymentID, request.Status)
+	// Validate and convert fields
+	userID, err := strconv.Atoi(request.Object.Metadata.UserID)
 	if err != nil {
-		h.logger.Error("Failed to process payment", map[string]interface{}{
-			"error":      err.Error(),
-			"payment_id": request.PaymentID,
-			"status":     request.Status,
-		})
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process payment"})
+		h.logger.Error("Invalid user_id", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
 		return
 	}
 
-	h.logger.Info("Payment processed", map[string]interface{}{
-		"payment_id": request.PaymentID,
-		"status":     request.Status,
-		"user_id":    request.UserID,
-		"amount":     request.Amount,
+	amount, err := strconv.ParseFloat(request.Object.Amount.Value, 64)
+	if err != nil {
+		h.logger.Error("Invalid amount", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount"})
+		return
+	}
+
+	period, err := strconv.Atoi(request.Object.Metadata.Period)
+	if err != nil {
+		h.logger.Error("Invalid period", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid period"})
+		return
+	}
+
+	// Process payment
+	err = h.paymentService.ProcessWebhookPayment(
+		userID,
+		amount,
+		period,
+		request.Object.Metadata.PaymentType,
+		request.Object.ID,
+		request.Object.Status,
+	)
+	if err != nil {
+		h.logger.Error("Failed to process payment", map[string]interface{}{
+			"error":        err.Error(),
+			"payment_id":   request.Object.ID,
+			"status":       request.Object.Status,
+			"user_id":      userID,
+			"amount":       amount,
+			"period":       period,
+			"payment_type": request.Object.Metadata.PaymentType,
+		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process payment"})
+		return
+	}
+
+	h.logger.Info("Ukassa payment processed", map[string]interface{}{
+		"payment_id":   request.Object.ID,
+		"status":       request.Object.Status,
+		"user_id":      userID,
+		"amount":       amount,
+		"period":       period,
+		"payment_type": request.Object.Metadata.PaymentType,
 	})
 
 	c.JSON(http.StatusOK, gin.H{"status": "Processed"})
@@ -120,12 +190,31 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 
 // ProcessCryptoWebhook handles POST /payments/crypto
 func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
+	// Read raw body for signature verification
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		h.logger.Error("Failed to read request body", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	c.Request.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+
+	// Verify CryptoBot signature
+	signature := c.GetHeader("crypto-pay-api-signature")
+	if !verifyCryptoSignature(bodyBytes, signature) {
+		h.logger.Error("Invalid CryptoBot signature")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
+		return
+	}
+
 	// Parse request body
 	var request struct {
-		UserID    int     `json:"user_id" binding:"required"`
-		Amount    float64 `json:"amount" binding:"required"`
-		PaymentID string  `json:"payment_id" binding:"required"`
-		Status    string  `json:"status" binding:"required"`
+		UpdateID   int64  `json:"update_id" binding:"required"`
+		UpdateType string `json:"update_type" binding:"required"`
+		InvoiceID  string `json:"invoice_id" binding:"required"`
+		Amount     string `json:"amount" binding:"required"`
+		Currency   string `json:"currency"`
+		Payload    string `json:"payload" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -134,26 +223,107 @@ func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
 		return
 	}
 
+	// Parse payload (e.g., "user_id:123,period:3,payment_type:device_subscription")
+	payloadFields, err := parseCryptoPayload(request.Payload)
+	if err != nil {
+		h.logger.Error("Invalid payload", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	userID, err := strconv.Atoi(payloadFields["user_id"])
+	if err != nil {
+		h.logger.Error("Invalid user_id", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
+		return
+	}
+
+	period, err := strconv.Atoi(payloadFields["period"])
+	if err != nil {
+		h.logger.Error("Invalid period", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid period"})
+		return
+	}
+
+	paymentType := payloadFields["payment_type"]
+	if paymentType == "" {
+		h.logger.Error("Missing payment_type")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing payment_type"})
+		return
+	}
+
+	amount, err := strconv.ParseFloat(request.Amount, 64)
+	if err != nil {
+		h.logger.Error("Invalid amount", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid amount"})
+		return
+	}
+
 	// Process payment
-	err := h.paymentService.ProcessPayment(request.PaymentID, request.Status)
+	err = h.paymentService.ProcessWebhookPayment(
+		userID,
+		amount,
+		period,
+		paymentType,
+		request.InvoiceID,
+		request.UpdateType,
+	)
 	if err != nil {
 		h.logger.Error("Failed to process payment", map[string]interface{}{
-			"error":      err.Error(),
-			"payment_id": request.PaymentID,
-			"status":     request.Status,
+			"error":        err.Error(),
+			"payment_id":   request.InvoiceID,
+			"status":       request.UpdateType,
+			"user_id":      userID,
+			"amount":       amount,
+			"period":       period,
+			"payment_type": paymentType,
 		})
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process payment"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process payment"})
 		return
 	}
 
 	h.logger.Info("Crypto payment processed", map[string]interface{}{
-		"payment_id": request.PaymentID,
-		"status":     request.Status,
-		"user_id":    request.UserID,
-		"amount":     request.Amount,
+		"payment_id":   request.InvoiceID,
+		"status":       request.UpdateType,
+		"user_id":      userID,
+		"amount":       amount,
+		"period":       period,
+		"payment_type": paymentType,
 	})
 
 	c.JSON(http.StatusOK, gin.H{"status": "Processed"})
+}
+
+// verifyUkassaSignature verifies the Ukassa webhook signature
+func verifyUkassaSignature(body []byte, signature string) bool {
+	secret := []byte(os.Getenv("UKASSA_WEBHOOK_SECRET"))
+	hash := hmac.New(sha256.New, secret)
+	hash.Write(body)
+	expected := hex.EncodeToString(hash.Sum(nil))
+	return signature == expected
+}
+
+// verifyCryptoSignature verifies the CryptoBot webhook signature
+func verifyCryptoSignature(body []byte, signature string) bool {
+	secret := []byte(os.Getenv("CRYPTOBOT_API_TOKEN"))
+	hash := hmac.New(sha256.New, secret)
+	hash.Write(body)
+	expected := hex.EncodeToString(hash.Sum(nil))
+	return signature == expected
+}
+
+// parseCryptoPayload parses CryptoBot payload (e.g., "user_id:123,period:3,payment_type:device_subscription")
+func parseCryptoPayload(payload string) (map[string]string, error) {
+	fields := map[string]string{}
+	pairs := strings.Split(payload, ",")
+	for _, pair := range pairs {
+		parts := strings.Split(pair, ":")
+		if len(parts) != 2 {
+			return nil, errors.New("invalid payload format")
+		}
+		fields[parts[0]] = parts[1]
+	}
+	return fields, nil
 }
 
 // ProcessBalancePayment handles POST /payments/balance
@@ -179,6 +349,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 			"error":        err.Error(),
 			"user_id":      request.UserID,
 			"amount":       request.Amount,
+			"period":       request.Period,
 			"payment_type": request.PaymentType,
 		})
 
@@ -199,6 +370,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 	h.logger.Info("Balance payment processed", map[string]interface{}{
 		"user_id":      request.UserID,
 		"amount":       request.Amount,
+		"period":       request.Period,
 		"payment_type": request.PaymentType,
 	})
 

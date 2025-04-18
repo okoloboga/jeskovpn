@@ -44,7 +44,7 @@ func LoadConfig() (*Config, error) {
 	return &Config{
 		Port:     port,
 		LogLevel: getEnv("LOG_LEVEL", "info"),
-		APIToken: getEnv("API_TOKEN", "your-api-token"),
+		APIToken: getEnv("API_TOKEN", "super-secret"),
 		Outline: OutlineGenerator{
 			APIUrl: getEnv("OUTLINE_API_URL", "https://api.outline.com"),
 			APIKey: getEnv("OUTLINE_API_KEY", "your-outline-api-key"),

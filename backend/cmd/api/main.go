@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/okoloboga/jeskovpn/backend/internal/config"
 	"github.com/okoloboga/jeskovpn/backend/internal/handlers"
 	"github.com/okoloboga/jeskovpn/backend/internal/middleware"
+	"github.com/okoloboga/jeskovpn/backend/internal/models"
 	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 	"github.com/okoloboga/jeskovpn/backend/internal/routes"
 	"github.com/okoloboga/jeskovpn/backend/internal/services"
@@ -19,11 +21,58 @@ import (
 	"gorm.io/gorm"
 )
 
-func main() {
+func ConnectDB() *gorm.DB {
+	log.Println("Attempting to connect to database...")
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), os.Getenv("DB_PORT"))
+	log.Printf("DSN: %s", dsn)
 
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found (this is OK in production)")
+	var db *gorm.DB
+	var err error
+
+	// Retry connection up to 5 times
+	for i := 0; i < 5; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Println("Successfully connected to database")
+			break
+		}
+		log.Printf("Failed to connect to database (attempt %d/5): %v", i+1, err)
+		time.Sleep(5 * time.Second)
 	}
+
+	if err != nil {
+		log.Fatal("Failed to connect to database after retries:", err)
+	}
+
+	// Test the connection
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to get database instance:", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
+	}
+	log.Println("Database ping successful")
+
+	// Auto-migrate the User model (and other models if needed)
+	log.Println("Running AutoMigrate for models")
+	err = db.AutoMigrate(
+		&models.User{},
+		&models.Device{},
+		&models.Payment{},
+		&models.Referral{},
+		&models.Ticket{},
+	)
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+	log.Println("AutoMigrate completed successfully")
+
+	return db
+}
+
+func main() {
 	// Initialize logger
 	appLogger := logger.New("info")
 	appLogger.Info("Starting VPN Backend API")
@@ -31,19 +80,12 @@ func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		// handle error, e.g. log.Fatal(err)
+		appLogger.Error("Failed to load config", map[string]interface{}{"error": err.Error()})
+		log.Fatal("Failed to load config:", err)
 	}
 
-	// Connect to database
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.DB.Host, cfg.DB.Port, cfg.DB.User,
-		cfg.DB.Password, cfg.DB.Name)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		appLogger.Error("Failed to connect to database", map[string]interface{}{"error": err.Error()})
-		panic("Failed to connect to database")
-	}
+	// Connect to database using ConnectDB
+	db := ConnectDB()
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
@@ -84,6 +126,6 @@ func main() {
 	appLogger.Info("Server starting on port " + strconv.Itoa(cfg.Port))
 	if err := r.Run(":" + strconv.Itoa(cfg.Port)); err != nil {
 		appLogger.Error("Failed to start server", map[string]interface{}{"error": err.Error()})
-		panic("Failed to start server")
+		log.Fatal("Failed to start server:", err)
 	}
 }

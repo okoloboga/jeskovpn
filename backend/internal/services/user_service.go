@@ -65,38 +65,24 @@ func (s *userService) CreateUser(userID int, firstName, lastName, username strin
 		Username:  username,
 		Balance:   0,
 		CreatedAt: time.Now(),
+		Subscription: models.SubscriptionCollection{
+			Device: models.DeviceSubscription{
+				Devices:  []string{},
+				Duration: 0,
+			},
+			Router: models.RouterSubscription{
+				Duration: 0,
+			},
+			Combo: models.ComboSubscription{
+				Devices:  []string{},
+				Duration: 0,
+				Type:     0,
+			},
+		},
 	}
 
 	err = s.userRepo.Create(user)
 	if err != nil {
-		return err
-	}
-
-	// Create default subscriptions
-	deviceSub := &models.DeviceSubscription{
-		Devices:  []string{},
-		Duration: 0,
-	}
-
-	routerSub := &models.RouterSubscription{
-		Duration: 0,
-	}
-
-	comboSub := &models.ComboSubscription{
-		Devices:  []string{},
-		Duration: 0,
-		Type:     0,
-	}
-
-	if err := s.userRepo.CreateDevice(deviceSub); err != nil {
-		return err
-	}
-
-	if err := s.userRepo.CreateRouter(routerSub); err != nil {
-		return err
-	}
-
-	if err := s.userRepo.CreateCombo(comboSub); err != nil {
 		return err
 	}
 
