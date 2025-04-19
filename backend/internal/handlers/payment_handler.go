@@ -37,6 +37,7 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
 		Period      int     `json:"period" binding:"required,gt=0"`
+		DeviceType  string  `json:"device_type" binding:"required"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
@@ -47,19 +48,20 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 	}
 
 	// Validate payment type
-	if request.PaymentType != "ukassa" && request.PaymentType != "crypto" && request.PaymentType != "stars" {
+	if request.PaymentType != "ukassa" && request.PaymentType != "crypto" {
 		h.logger.Error("Invalid payment type", map[string]interface{}{"payment_type": request.PaymentType})
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment type"})
 		return
 	}
 
 	// Initiate deposit
-	paymentID, err := h.paymentService.InitiateDeposit(request.UserID, request.Amount, request.Period, request.PaymentType)
+	paymentID, err := h.paymentService.InitiateDeposit(request.UserID, request.Amount, request.Period, request.DeviceType, request.PaymentType)
 	if err != nil {
 		h.logger.Error("Failed to initiate deposit", map[string]interface{}{
 			"error":        err.Error(),
 			"user_id":      request.UserID,
 			"amount":       request.Amount,
+			"period":       request.Period,
 			"payment_type": request.PaymentType,
 		})
 
@@ -120,6 +122,7 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 			Metadata struct {
 				UserID      string `json:"user_id" binding:"required"`
 				Period      string `json:"period" binding:"required"`
+				DeviceType  string `json:"device_type" binding:"required"`
 				PaymentType string `json:"payment_type" binding:"required"`
 			} `json:"metadata" binding:"required"`
 		} `json:"object" binding:"required"`
@@ -158,6 +161,7 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 		userID,
 		amount,
 		period,
+		request.Object.Metadata.DeviceType,
 		request.Object.Metadata.PaymentType,
 		request.Object.ID,
 		request.Object.Status,
@@ -170,6 +174,7 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 			"user_id":      userID,
 			"amount":       amount,
 			"period":       period,
+			"device_type":  request.Object.Metadata.DeviceType,
 			"payment_type": request.Object.Metadata.PaymentType,
 		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process payment"})
@@ -182,6 +187,7 @@ func (h *PaymentHandler) ProcessUkassaWebhook(c *gin.Context) {
 		"user_id":      userID,
 		"amount":       amount,
 		"period":       period,
+		"device_type":  request.Object.Metadata.DeviceType,
 		"payment_type": request.Object.Metadata.PaymentType,
 	})
 
@@ -252,6 +258,13 @@ func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
 		return
 	}
 
+	deviceType := payloadFields["device_type"]
+	if paymentType == "" {
+		h.logger.Error("Missing device_type")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing device_type"})
+		return
+	}
+
 	amount, err := strconv.ParseFloat(request.Amount, 64)
 	if err != nil {
 		h.logger.Error("Invalid amount", map[string]interface{}{"error": err.Error()})
@@ -264,6 +277,7 @@ func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
 		userID,
 		amount,
 		period,
+		deviceType,
 		paymentType,
 		request.InvoiceID,
 		request.UpdateType,
@@ -276,6 +290,7 @@ func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
 			"user_id":      userID,
 			"amount":       amount,
 			"period":       period,
+			"device_type":  deviceType,
 			"payment_type": paymentType,
 		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process payment"})
@@ -288,6 +303,7 @@ func (h *PaymentHandler) ProcessCryptoWebhook(c *gin.Context) {
 		"user_id":      userID,
 		"amount":       amount,
 		"period":       period,
+		"device_type":  deviceType,
 		"payment_type": paymentType,
 	})
 
@@ -333,6 +349,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
 		Period      int     `json:"period" binding:"required,gt=0"`
+		DeviceType  string  `json:"device_type" binding:"required"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
@@ -343,13 +360,14 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 	}
 
 	// Process balance payment
-	err := h.paymentService.ProcessBalancePayment(request.UserID, request.Amount, request.Period, request.PaymentType)
+	err := h.paymentService.ProcessBalancePayment(request.UserID, request.Amount, request.Period, request.DeviceType, request.PaymentType)
 	if err != nil {
 		h.logger.Error("Failed to process balance payment", map[string]interface{}{
 			"error":        err.Error(),
 			"user_id":      request.UserID,
 			"amount":       request.Amount,
 			"period":       request.Period,
+			"device_type":  request.DeviceType,
 			"payment_type": request.PaymentType,
 		})
 
@@ -371,6 +389,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 		"user_id":      request.UserID,
 		"amount":       request.Amount,
 		"period":       request.Period,
+		"device_type":  request.DeviceType,
 		"payment_type": request.PaymentType,
 	})
 

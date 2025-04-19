@@ -119,7 +119,10 @@ async def add_balance_handler(
         balance = state_data.get("balance", 0)
         day_price = state_data.get("day_price", 0)
 
-        await state.update_data(payment_type="add_balance")
+        await state.update_data(
+            payment_type="add_balance",
+            device_type="balance"
+        )
         _, _, amount = callback.data.split("_")
 
         logger.info(f"User {user_id} adding balance: {amount}")
@@ -173,6 +176,7 @@ async def custom_balance_handler(
         None
     """
     user_id = message.from_user.id
+    payment_type = "add_balance"
     logger.info(f"User {user_id} entered custom balance")
 
     try:
@@ -190,8 +194,12 @@ async def custom_balance_handler(
         day_price = state_data.get("day_price", 0)
         days = 0 if day_price == 0 else int(balance/day_price)
 
-        await state.update_data(amount=amount)
-        keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
+        await state.update_data(
+            amount=amount,
+            payment_type=payment_type,
+            device_type="balance"
+            )
+        keyboard = payment_kb.payment_select(i18n, payment_type=payment_type)
         text = i18n.payment.menu(balance=balance, days=days, amount=amount)
         await message.answer(text=text, reply_markup=keyboard)
 
@@ -250,13 +258,13 @@ async def payment_handler(
         _, method = callback.data.split("_")
 
         if method == "ukassa":
-            await payment_req.payment_ukassa_process(user_id, amount, payment_type)
+            await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
             await callback.message.edit_text(text=i18n.payment.pending())
         elif method == "crypto":
-            await payment_req.payment_crypto_process(user_id, amount, payment_type)
+            await payment_req.payment_crypto_process(user_id, amount, period, device_type, payment_type)
             await callback.message.edit_text(text=i18n.payment.pending())
         elif method == "balance":
-            await payment_req.payment_balance_process(user_id, amount, payment_type)
+            await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
             await callback.message.edit_text(text=i18n.payment.success())
         elif method == "stars":
             # Convert rubles to Telegram Stars (approx. 1 RUB = 1 Star)

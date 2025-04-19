@@ -10,7 +10,8 @@ type Payment struct {
 	UserID      int       `json:"user_id"`
 	Amount      float64   `json:"amount"`
 	Period      int       `json:"period"`
-	PaymentType string    `json:"payment_type"` // ukassa, crypto, balance, stars
+	DeviceType  string    `json:"device_type"`
+	PaymentType string    `json:"payment_type"` // ukassa, crypto, balance
 	Status      string    `json:"status"`       // pending, succeeded, failed
 	PaymentID   string    `json:"payment_id"`
 	CreatedAt   time.Time `json:"created_at"`

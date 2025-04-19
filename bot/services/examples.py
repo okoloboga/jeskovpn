@@ -20,6 +20,24 @@ curl -v -X POST http://localhost:8080/payments/balance \
   -H "Authorization: Bearer super-secret" \
   -d '{"user_id": 123, "amount": 400, "period": 3, "payment_type": "device"}'
 
+create ticket
+curl -v -X POST http://localhost:8080/api/tickets \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your_api_token" \
+  -d '{
+    "user_id": 123,
+    "username": "john_doe",
+    "content": "I need help with my VPN connection."
+  }'
+
+get ticket by user id
+curl -v -X GET http://localhost:8080/api/tickets/123 \
+  -H "Authorization: Bearer your_api_token"
+
+delete ticket
+curl -v -X DELETE http://localhost:8080/api/tickets/123 \
+  -H "Authorization: Bearer your_api_token"
+
 test for Ukassa
 curl -v -X POST http://localhost:8080/api/payments/ukassa \
   -H "Content-Type: application/json" \
@@ -35,6 +53,7 @@ curl -v -X POST http://localhost:8080/api/payments/ukassa \
       "metadata": {
         "user_id": "123",
         "period": "3",
+        "device_type": "device",
         "payment_type": "device_subscription"
       }
     }
@@ -49,5 +68,5 @@ curl -v -X POST http://localhost:8080/api/payments/crypto \
     "invoice_id": "crypto_12345",
     "amount": "0.53",
     "currency": "TON",
-    "payload": "user_id:123,period:3,payment_type:device_subscription"
+    "payload": "user_id:123,period:3,device_type:device,payment_type:device_subscription"
     }'

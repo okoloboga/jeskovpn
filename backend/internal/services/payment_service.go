@@ -4,16 +4,17 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/okoloboga/jeskovpn/backend/internal/models"
 	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
 )
 
 // PaymentService defines methods for payment-related operations
 type PaymentService interface {
-	InitiateDeposit(userID int, amount float64, period int, paymentType string) (string, error)
+	InitiateDeposit(userID int, amount float64, period int, DeviceType string, paymentType string) (string, error)
 	ProcessPayment(paymentID string, status string) error
-	ProcessBalancePayment(userID int, amount float64, period int, paymentType string) error
-	ProcessWebhookPayment(userID int, amount float64, period int, paymentType, paymentID, status string) error
+	ProcessBalancePayment(userID int, amount float64, period int, deviceType string, paymentType string) error
+	ProcessWebhookPayment(userID int, amount float64, period int, deviceType string, paymentType string, paymentID, status string) error
 }
 
 // paymentService implements PaymentService
@@ -34,7 +35,7 @@ func NewPaymentService(
 }
 
 // InitiateDeposit initiates a deposit payment
-func (s *paymentService) InitiateDeposit(userID int, amount float64, period int, paymentType string) (string, error) {
+func (s *paymentService) InitiateDeposit(userID int, amount float64, period int, deviceType string, paymentType string) (string, error) {
 	// Check if user exists
 	_, err := s.userRepo.GetByID(userID)
 	if err != nil {
@@ -42,13 +43,14 @@ func (s *paymentService) InitiateDeposit(userID int, amount float64, period int,
 	}
 
 	// Generate a unique payment ID
-	paymentID := "pay_" + time.Now().Format("20060102150405")
+	paymentID := "pay_" + uuid.New().String()
 
 	// Create a pending payment
 	payment := &models.Payment{
 		UserID:      userID,
 		Amount:      amount,
 		Period:      period,
+		DeviceType:  deviceType,
 		PaymentType: paymentType,
 		Status:      "pending",
 		PaymentID:   paymentID,
@@ -84,7 +86,7 @@ func (s *paymentService) ProcessPayment(paymentID string, status string) error {
 }
 
 // ProcessBalancePayment processes a payment from user's balance
-func (s *paymentService) ProcessBalancePayment(userID int, amount float64, period int, paymentType string) error {
+func (s *paymentService) ProcessBalancePayment(userID int, amount float64, period int, deviceType string, paymentType string) error {
 	// Get the user to check balance
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
@@ -108,7 +110,7 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 		Period:      period,
 		PaymentType: paymentType,
 		Status:      "succeeded",
-		PaymentID:   "balance_" + time.Now().Format("20060102150405"),
+		PaymentID:   "balance_" + uuid.New().String(),
 		CreatedAt:   time.Now(),
 	}
 
@@ -139,7 +141,7 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 }
 
 // ProcessWebhookPayment processes a payment from external webhook (Ukassa, CryptoBot)
-func (s *paymentService) ProcessWebhookPayment(userID int, amount float64, period int, paymentType, paymentID, status string) error {
+func (s *paymentService) ProcessWebhookPayment(userID int, amount float64, period int, deviceType string, paymentType, paymentID, status string) error {
 	// Check if user exists
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {

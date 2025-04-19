@@ -59,7 +59,16 @@ func (s *referralService) AddReferral(userID int, referrerID int) error {
 
 	// Add bonus to referrer's balance (e.g., 100 units)
 	const referralBonus = 100.0
-	return s.userRepo.UpdateBalance(referrerID, referralBonus)
+	if err := s.userRepo.UpdateBalance(userID, referralBonus); err != nil {
+		return err
+	}
+
+	const inviterBonus = 50.0
+	if err := s.userRepo.UpdateBalance(referrerID, inviterBonus); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetReferrals retrieves all referrals for a user
