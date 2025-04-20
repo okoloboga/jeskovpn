@@ -36,7 +36,7 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
+	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5433"))
 	if err != nil {
 		return nil, err
 	}
