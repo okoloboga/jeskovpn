@@ -23,21 +23,22 @@ def add_balance_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
         builder.row(
+            InlineKeyboardButton(text=i18n.add.balance50.button(), callback_data="add_balance_50"),
             InlineKeyboardButton(text=i18n.add.balance100.button(), callback_data="add_balance_100"),
             InlineKeyboardButton(text=i18n.add.balance200.button(), callback_data="add_balance_200"),
-            InlineKeyboardButton(text=i18n.add.balance300.button(), callback_data="add_balance_300")
         )
         builder.row(
+            InlineKeyboardButton(text=i18n.add.balance300.button(), callback_data="add_balance_300"),
             InlineKeyboardButton(text=i18n.add.balance400.button(), callback_data="add_balance_400"),
             InlineKeyboardButton(text=i18n.add.balance500.button(), callback_data="add_balance_500"),
-            InlineKeyboardButton(text=i18n.add.balance650.button(), callback_data="add_balance_650")
         )
         builder.row(
+            InlineKeyboardButton(text=i18n.add.balance650.button(), callback_data="add_balance_650"),
             InlineKeyboardButton(text=i18n.add.balance750.button(), callback_data="add_balance_750"),
             InlineKeyboardButton(text=i18n.add.balance900.button(), callback_data="add_balance_900"),
-            InlineKeyboardButton(text=i18n.add.balance1000.button(), callback_data="add_balance_1000")
         )
         builder.row(
+            InlineKeyboardButton(text=i18n.add.balance1000.button(), callback_data="add_balance_1000"),
             InlineKeyboardButton(text=i18n.add.balance2000.button(), callback_data="add_balance_2000"),
             InlineKeyboardButton(text=i18n.add.balance3000.button(), callback_data="add_balance_3000")
         )

@@ -2,7 +2,9 @@ import aiohttp
 import asyncio
 import json
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple, Union
+
+from config import get_config, Backend
 
 backend = get_config(Backend, "backend")
 api_key = backend.key

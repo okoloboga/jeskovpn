@@ -43,42 +43,41 @@ async def command_start_getter(
         None
     """
     user_id = message.from_user.id
-    first_name = message.from_user.first_name
+    first_name = message.from_user.first_name 
     last_name = message.from_user.last_name
     username = message.from_user.username
 
-    logger.info(f"Processing /start for user {user_id}")
+    logger.info(f"Processing /start for user {user_id}, first_name: {first_name}, last_name: {last_name}, username: {username}")
+    logger.info(f"Command arguments: {command.args}")
 
     # Process referral payload
     is_invited = False
-    referral_id = None
+    inviter_id = None
     name = first_name if first_name is not None or first_name != '' else username
     if command.args:
         try:
-            referral_id = decode_payload(command.args)
-            logger.info(f"Referral payload decoded: {referral_id}")
+            inviter_id = decode_payload(command.args)
+            logger.info(f"Referral payload decoded: {inviter_id}")
         except Exception as e:
             logger.error(f"Failed to decode referral payload: {e}")
 
     # Check if user exists
     try:
-        user = await user_req.get_user(user_id)
-        if user is None:
-            logger.info(f"Creating new user {user_id}")
-            await user_req.create_user(
-                user_id=user_id,
-                first_name=first_name,
-                last_name=last_name,
-                username=username
-            )
-            # Add referral if provided
-            if referral_id and referral_id != str(user_id):
-                try:
-                    await user_req.add_referral(referral_id, user_id)
-                    is_invited = True
-                    logger.info(f"Referral added: {referral_id} invited {user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to add referral {referral_id} for {user_id}: {e}")
+        logger.info(f"Creating new user {user_id}")
+        await user_req.create_user(
+            user_id=user_id,
+            first_name=first_name if first_name is not None else 'no_first_name',
+            last_name=last_name if last_name is not None else 'no_last_name',
+            username=username if username is not None else 'no_username'
+        )
+        # Add referral if provided
+        if inviter_id and inviter_id != str(user_id):
+            try:
+                await user_req.add_referral(inviter_id, user_id)
+                is_invited = True
+                logger.info(f"Referral added: {inviter_id} invited {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to add referral {inviter_id} for {user_id}: {e}")
 
         # Fetch user data
         user_data = await services.get_user_data(user_id)
@@ -93,7 +92,7 @@ async def command_start_getter(
         is_subscribed = False if days_left == 0 else True
         
         # Send welcome message
-        text = i18n.start.invited(name=name) if is_invited else i18n.start.default(name=name)
+        text = i18n.start.invited(name=name, inviter=inviter_id) if is_invited else i18n.start.default(name=name)
         await message.answer(
             text=text,
             reply_markup=main_kb.main_kb(
@@ -110,7 +109,7 @@ async def command_start_getter(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@main_router.message(F.text.in_(["Main Menu", "/menu", "В главное меню"]))
+@main_router.message(F.text.in_(["To Main Menu 🏠", "/menu", "В главное меню 🏠"]))
 @main_router.callback_query(F.data == "main_menu")
 async def main_menu_handler(
     event: Union[CallbackQuery, Message],

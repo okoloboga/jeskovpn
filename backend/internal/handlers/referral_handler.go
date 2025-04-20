@@ -27,8 +27,8 @@ func NewReferralHandler(referralService services.ReferralService, logger logger.
 func (h *ReferralHandler) AddReferral(c *gin.Context) {
 	// Parse request body
 	var request struct {
-		Payload string `json:"payload" binding:"required"` // referrer_id
-		UserID  string `json:"user_id" binding:"required"` // user_id
+		Inviter string `json:"inviter_id" binding:"required"`
+		UserID  string `json:"user_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -45,10 +45,10 @@ func (h *ReferralHandler) AddReferral(c *gin.Context) {
 		return
 	}
 
-	referrerID, err := strconv.Atoi(request.Payload)
+	referrerID, err := strconv.Atoi(request.Inviter)
 	if err != nil {
-		h.logger.Error("Invalid referrer_id format", map[string]interface{}{"referrer_id": request.Payload})
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid referrer_id"})
+		h.logger.Error("Invalid inviter_id format", map[string]interface{}{"inviter_id": request.Inviter})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid inviter_id"})
 		return
 	}
 

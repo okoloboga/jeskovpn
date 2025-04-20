@@ -2,6 +2,7 @@ import requests
 
 from typing import Optional, Dict, Any
 from datetime import datetime
+from config import get_config, Backend
 
 async def get_device_key(user_id: int, device: str) -> Optional[str]:
     """Mock VPN device key."""

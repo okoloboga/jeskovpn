@@ -2,7 +2,8 @@ import aiohttp
 import asyncio
 import json
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple, Union
+from config import get_config, Backend
 
 backend = get_config(Backend, "backend")
 api_key = backend.key
@@ -32,8 +33,8 @@ async def get_user(user_id: int) -> Tuple[int, Union[Dict, str]]:
                 status = response.status
                 response_json = await response.json()
                 logger.info(f"Get User: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
-                return status, response_json
+                # logger.info(json.dumps(response_json, indent=2))
+                return response_json
         except aiohttp.ClientError as e:
             logger.error(f"Get User: Error - {e}")
             return 0, str(e)
@@ -58,19 +59,19 @@ async def create_user(
                 response_json = await response.json()
                 logger.info(f"Create User: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return status, response_json
+                return response_json
         except aiohttp.ClientError as e:
             logger.error(f"Create User: Error - {e}")
             return 0, str(e)
 
 async def add_referral(
-    user_id: int, referrer_id: int, payload: Optional[Dict] = None
+    inviter_id: int, user_id: int, payload: Optional[Dict] = None
 ) -> Tuple[int, Union[Dict, str]]:
     """Test POST /referrals"""
     url = f"{BASE_URL}/referrals"
     default_payload = {
-        "user_id": user_id,
-        "referrer_id": referrer_id
+        "inviter_id": str(inviter_id),
+        "user_id": str(user_id)
     }
     request_payload = payload if payload is not None else default_payload
 
@@ -81,7 +82,7 @@ async def add_referral(
                 response_json = await response.json()
                 logger.info(f"Add Referral: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return status, response_json
+                return response_json
         except aiohttp.ClientError as e:
             logger.error(f"Add Referral: Error - {e}")
             return 0, str(e)
@@ -105,7 +106,7 @@ async def create_ticket(
                 response_json = await response.json()
                 logger.info(f"Create Ticket: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return status, response_json
+                return response_json
         except aiohttp.ClientError as e:
             logger.error(f"Create Ticket: Error - {e}")
             return 0, str(e)
@@ -120,7 +121,7 @@ async def get_ticket(user_id: int) -> Tuple[int, Union[Dict, str]]:
                 response_json = await response.json()
                 logger.info(f"Get Ticket: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return status, response_json
+                return response_json
         except aiohttp.ClientError as e:
             logger.error(f"Get Ticket: Error - {e}")
             return 0, str(e)

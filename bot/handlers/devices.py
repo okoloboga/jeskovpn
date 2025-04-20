@@ -20,7 +20,7 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s'
 )
 
-@devices_router.message(F.text.in_(["Мои устройства", "My Devices"]))
+@devices_router.message(F.text.in_(["Мои устройства 📱", "My Devices 📱"]))
 @devices_router.callback_query(F.data == "devices_menu")
 async def devices_button_handler(
     event: Union[CallbackQuery, Message],
@@ -124,7 +124,7 @@ async def select_devices_handler(
         await callback.message.edit_text(text=i18n.error.unexpected())
         await callback.answer()
 
-@devices_router.message(F.text.in_(['Подключить VPN', 'Connect VPN']))
+@devices_router.message(F.text.in_(['Подключить VPN 🚀', 'Connect VPN 🚀']))
 @devices_router.callback_query(F.data == "add_device")
 async def add_device_handler(
     event: Union[CallbackQuery, Message],
@@ -178,7 +178,7 @@ async def add_device_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
-@devices_router.message(F.text.in_(["Устройство", "Device", "Комбо набор", "Combo"]))
+@devices_router.message(F.text.in_(["Устройство", "Device", "Комбо набор", "Combo Package"]))
 async def select_device_type(
     message: Message,
     state: FSMContext,
@@ -247,7 +247,7 @@ async def select_device_handler(
         await state.update_data(
             device=device,
             balance=balance,
-            days=int(balance/day_price),
+            days = 0 if day_price == 0 else int(balance/day_price),
             is_subscribed=is_subscribed
         )
         keyboard = devices_kb.period_select_kb(i18n)
@@ -302,7 +302,7 @@ async def select_combo_handler(
         await state.update_data(
             device=combo_type,
             balance=balance,
-            days=int(balance/day_price),
+            days = 0 if day_price == 0 else int(balance/day_price),
             is_subscribed=is_subscribed
         )
         keyboard = devices_kb.period_select_kb(i18n)

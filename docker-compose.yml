@@ -1,14 +1,18 @@
 version: "3.8"
 services:
-  # bot:
-  #   build:
-  #     context: .
-  #     dockerfile: bot/Dockerfile
-  #   ports:
-  #     - "8081:8080"
-  #   volumes:
-  #     - .:/app
-  #   command: ["python", "bot/__main__.py"]
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    ports:
+      - "8081:8080"  # Map host port 8081 to container port 8080
+    volumes:
+      - .:/app
+    command: ["python", "bot/__main__.py"]
+    depends_on:
+      - app  # Ensure bot starts after app if it makes API calls
+    networks:
+      - app-network
 
   db:
     image: postgres:15
@@ -25,13 +29,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   app:
     build: 
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8080:8080"  # Keep backend on 8080
     depends_on:
       db:
         condition: service_healthy
@@ -41,12 +47,17 @@ services:
       API_TOKEN: ${API_TOKEN}
       OUTLINE_API_URL: ${OUTLINE_API_URL}
       OUTLINE_API_KEY: ${OUTLINE_API_KEY}
-      DB_HOST: ${DB_HOST}
+      DB_HOST: db  # Use service name for Docker network
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-    # tty: true
+    networks:
+      - app-network
 
 volumes:
   pgdata:
+
+networks:
+  app-network:
+    driver: bridge

@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 
 @another_router.message(F.text.startswith("До окончания") | F.text.startswith("Until")) 
-@another_router.message(F.text.in_(["Нет активной подписки", "No active subscription"]))
+@another_router.message(F.text.in_(["Нет активной подписки 😔", "No active subscription 😔"]))
 async def subscription_handler(
     message: Message,
     i18n: TranslatorRunner
@@ -57,7 +57,7 @@ async def subscription_handler(
         balance = user_data["balance"]
         day_price = await services.day_price(user_id)
         is_subscribed = False if day_price == 0 else True
-        min_subscription_price = 149  # Minimum price for "device" for 1 month
+        min_subscription_price = 100  # Minimum price for "device" for 1 month
 
         if is_subscribed:
             text = i18n.subscription.menu.active(
@@ -77,7 +77,7 @@ async def subscription_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@another_router.message(F.text.in_(["Тех. Поддержка", "Support"]))
+@another_router.message(F.text.in_(["Тех. Поддержка 🛠️", "Tech Support 🛠️"]))
 async def support_handler(
     message: Message,
     state: FSMContext,
@@ -175,7 +175,7 @@ async def ticket_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@another_router.message(F.text.in_(["Пригласить друга", "Invite Friend"]))
+@another_router.message(F.text.in_(["Пригласить друга 👥", "Invite a Friend 👥"]))
 async def referral_handler(
     message: Message,
     bot: Bot,

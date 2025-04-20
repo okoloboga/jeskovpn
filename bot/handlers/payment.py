@@ -24,7 +24,7 @@ logging.basicConfig(
 
 
 @payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance") | 
-                        F.text.in_(['Пополнить баланс', 'Add balnce']))
+                        F.text.in_(['Пополнить баланс ➕💰', 'Add balnce ➕💰']))
 @payment_router.callback_query(F.data == "balance")
 async def balance_button_handler(
     event: Union[CallbackQuery, Message],
@@ -121,7 +121,8 @@ async def add_balance_handler(
 
         await state.update_data(
             payment_type="add_balance",
-            device_type="balance"
+            device_type="balance",
+            period="balance"
         )
         _, _, amount = callback.data.split("_")
 
@@ -183,8 +184,8 @@ async def custom_balance_handler(
         amount = message.text.strip()
         try:
             amount = int(amount)
-            if amount <= 0:
-                raise ValueError("Amount must be positive")
+            if amount <= 49:
+                raise ValueError("Amount must be positive and above 49")
         except ValueError:
             await message.answer(text=i18n.error.invalid_amount())
             return
@@ -235,11 +236,12 @@ async def payment_handler(
         state_data = await state.get_data()
         payment_type = state_data.get("payment_type", "add_balance")
         amount = state_data.get("amount")
-
+        balance = state_data.get("balance")
+        device_type = state_data.get("device_type")
+        period = state_data.get("period", "balance")
+        
         # For subscriptions, calculate amount from month_price
         if payment_type == "buy_subscription":
-            period = state_data.get("period")
-            device_type = state_data.get("device_type")
             if not (period and device_type):
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
@@ -249,26 +251,36 @@ async def payment_handler(
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
                 return
-
+    
         if amount is None:
             await callback.message.edit_text(text=i18n.error.invalid_amount())
             await callback.answer()
             return
 
         _, method = callback.data.split("_")
-
+        payload = f"{payment_type} {device_type} {amount}"
         if method == "ukassa":
-            await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
-            await callback.message.edit_text(text=i18n.payment.pending())
+            # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
+            await callback.message.edit_text(text=i18n.payment.indevelopment())
+            # await callback.message.edit_text(text=i18n.payment.pending())
         elif method == "crypto":
-            await payment_req.payment_crypto_process(user_id, amount, period, device_type, payment_type)
-            await callback.message.edit_text(text=i18n.payment.pending())
+            asset = 'TON'
+            rate = await payment_req.exchange_rate(asset)
+            rated_amount = amount / rate
+            result = await payment_req.create_cryptobot_invoice(rated_amount, asset, payload)
+            (invoice_url, invoice_id) = result
+            await state.update_data(invoice_id=invoice_id)
+            await callback.message.edit_text(text=i18n.cryptobot.invoice(invoice_url=invoice_url, invoice_id=invoice_id))
         elif method == "balance":
-            await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
-            await callback.message.edit_text(text=i18n.payment.success())
+            if amount > balance:
+                await callback.message.edit_text(text=i18n.notenough.balance())
+                await callback.answer()
+                return
+            else:
+                await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
+                await callback.message.edit_text(text=i18n.payment.success())
         elif method == "stars":
-            # Convert rubles to Telegram Stars (approx. 1 RUB = 1 Star)
-            stars_amount = amount
+            stars_amount = int(amount * 0.02418956)
             await bot.send_invoice(
                 chat_id=callback.message.chat.id,
                 title=i18n.stars.subscription.title(),

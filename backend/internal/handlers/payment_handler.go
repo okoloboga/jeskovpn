@@ -4,8 +4,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -321,6 +322,10 @@ func verifyUkassaSignature(body []byte, signature string) bool {
 
 // verifyCryptoSignature verifies the CryptoBot webhook signature
 func verifyCryptoSignature(body []byte, signature string) bool {
+	if signature == "" {
+		log.Println("Missing crypto-pay-api-signature header")
+		return false
+	}
 	secret := []byte(os.Getenv("CRYPTOBOT_API_TOKEN"))
 	hash := hmac.New(sha256.New, secret)
 	hash.Write(body)
@@ -334,10 +339,16 @@ func parseCryptoPayload(payload string) (map[string]string, error) {
 	pairs := strings.Split(payload, ",")
 	for _, pair := range pairs {
 		parts := strings.Split(pair, ":")
-		if len(parts) != 2 {
-			return nil, errors.New("invalid payload format")
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf("invalid payload format: %s", pair)
 		}
 		fields[parts[0]] = parts[1]
+	}
+	requiredFields := []string{"user_id", "period", "device_type", "payment_type"}
+	for _, field := range requiredFields {
+		if fields[field] == "" {
+			return nil, fmt.Errorf("missing required field: %s", field)
+		}
 	}
 	return fields, nil
 }

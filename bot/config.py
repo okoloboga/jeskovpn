@@ -13,8 +13,12 @@ class Admin(BaseModel):
     id: str
 
 class Backend(BaseModel):
-    ur: str
-    key: SecretStr
+    url: str
+    key: str
+
+class CryptoBot(BaseModel):
+    url: str
+    key: str
 
 @lru_cache(maxsize=1)
 def parse_config_file() -> dict:
