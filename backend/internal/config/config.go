@@ -31,7 +31,7 @@ type OutlineGenerator struct {
 
 // Load loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	port, err := strconv.Atoi(getEnv("APP_PORT", "8080"))
+	port, err := strconv.Atoi(getEnv("APP_PORT", "8081"))
 	if err != nil {
 		return nil, err
 	}

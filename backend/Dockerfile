@@ -19,6 +19,6 @@ RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /app/jeskovpn .
 
-EXPOSE 8080
+EXPOSE 8081
 
 CMD ["./jeskovpn"]
