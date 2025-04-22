@@ -100,13 +100,13 @@ async def support_handler(
     logger.info(f"User {user_id} accessing на русском языке: Показ меню поддержки для пользователя {user_id}")
 
     try:
-        ticket_data = await user_req.get_ticket_by_id(user_id)
-        ticket_content = ticket_data.get("content") if ticket_data else None
-        ticket_text = i18n.noticket() if ticket_content is None else str(ticket_content)
+        # ticket_data = await user_req.get_ticket_by_id(user_id)
+        # ticket_content = ticket_data.get("content") if ticket_data else None
+        # ticket_text = i18n.noticket() if ticket_content is None else str(ticket_content)
 
         await state.set_state(SupportSG.create_ticket)
         keyboard = main_kb.back_inline_kb(i18n)
-        await message.answer(text=i18n.ticket.menu(ticket=ticket_text), reply_markup=keyboard)
+        await message.answer(text=i18n.ticket.menu(), reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
