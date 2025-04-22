@@ -8,48 +8,44 @@ logger = logging.getLogger(__name__)
 def add_balance_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard for selecting balance top-up amounts.
-
     Includes fixed amounts, a custom option, and navigation to the main menu.
-
     Args:
         i18n (TranslatorRunner): Translator for localized button texts.
-
     Returns:
         InlineKeyboardMarkup: The balance top-up keyboard.
-
     Raises:
         KeyError: If localization keys are missing.
     """
     try:
-        builder = ReplyKeyboardBuilder()
+        builder = InlineKeyboardBuilder()
         builder.row(
-            KeyboardButton(text=i18n.add.balance50.button()),
-            KeyboardButton(text=i18n.add.balance100.button()),
-            KeyboardButton(text=i18n.add.balance200.button()),
+            InlineKeyboardButton(text=i18n.add.balance50.button(), callback_data="add_balance_50"),
+            InlineKeyboardButton(text=i18n.add.balance100.button(), callback_data="add_balance_100"),
+            InlineKeyboardButton(text=i18n.add.balance200.button(), callback_data="add_balance_200"),
         )
         builder.row(
-            KeyboardButton(text=i18n.add.balance300.button()),
-            KeyboardButton(text=i18n.add.balance400.button()),
-            KeyboardButton(text=i18n.add.balance500.button()),
+            InlineKeyboardButton(text=i18n.add.balance300.button(), callback_data="add_balance_300"),
+            InlineKeyboardButton(text=i18n.add.balance400.button(), callback_data="add_balance_400"),
+            InlineKeyboardButton(text=i18n.add.balance500.button(), callback_data="add_balance_500"),
         )
         builder.row(
-            KeyboardButton(text=i18n.add.balance650.button()),
-            KeyboardButton(text=i18n.add.balance750.button()),
-            KeyboardButton(text=i18n.add.balance900.button()),
+            InlineKeyboardButton(text=i18n.add.balance650.button(), callback_data="add_balance_650"),
+            InlineKeyboardButton(text=i18n.add.balance750.button(), callback_data="add_balance_750"),
+            InlineKeyboardButton(text=i18n.add.balance900.button(), callback_data="add_balance_900"),
         )
         builder.row(
-            KeyboardButton(text=i18n.add.balance1000.button()),
-            KeyboardButton(text=i18n.add.balance2000.button()),
-            KeyboardButton(text=i18n.add.balance3000.button())
+            InlineKeyboardButton(text=i18n.add.balance1000.button(), callback_data="add_balance_1000"),
+            InlineKeyboardButton(text=i18n.add.balance2000.button(), callback_data="add_balance_2000"),
+            InlineKeyboardButton(text=i18n.add.balance3000.button(), callback_data="add_balance_3000")
         )
         builder.row(
-            KeyboardButton(text=i18n.payment.custom.button(), callback_data="add_balance_custom"),
-            KeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu")
+            InlineKeyboardButton(text=i18n.payment.custom.button(), callback_data="add_balance_custom"),
+            InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu")
         )
         return builder.as_markup()
     except (KeyError, AttributeError) as e:
         logger.error(f"Localization error in add_balance_kb: {e}")
-        return ReplyKeyboardMarkup()
+        return InlineKeyboardMarkup()
     except Exception as e:
         logger.error(f"Unexpected error in add_balance_kb: {e}")
         raise

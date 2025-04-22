@@ -137,7 +137,7 @@ stars-payment-successful = Successful payment { $payload } 🎉
 notenough-balance = Not enough balance!
 balance-menu = Your balance is: { $balance }₽ ({ $days } days). 💰
 
-               Want to top up? ➕
+balance-advice = Want to top up? ➕
 
 fill-custom-balance = Enter the amount ✏️
 subscription-menu-active = Glad to see you, { $name }! 👋

@@ -9,7 +9,7 @@ from fluentogram import TranslatorRunner
 from services import services, payment_req
 from services.services import day_price
 from services.states import PaymentSG
-from keyboards import payment_kb
+from keyboards import payment_kb, main_kb
 
 payment_router = Router()
 
@@ -66,17 +66,31 @@ async def balance_button_handler(
                 day_price=day_price
                 )
 
-        keyboard = payment_kb.add_balance_kb(i18n)
-        text = i18n.balance.menu(
-                balance=balance, 
-                days = 0 if day_price == 0 else (int(balance/day_price))
-                )
+        inline_keyboard = payment_kb.add_balance_kb(i18n)
+        days = 0 if day_price == 0 else (int(balance/day_price))
+        is_subscribed = True if days > 0 else False
+        text_head = i18n.balance.menu(
+                        balance=balance, 
+                        days = days
+                    )
+        text_tail = i18n.balance.advice()
 
         if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=text, reply_markup=keyboard)
-            await event.answer()
+            await event.message.answer(text=text_head, reply_markup=main_kb.main_kb(
+                i18n=i18n,
+                is_subscribed=is_subscribed,
+                balance=balance,
+                days_left=days
+                ))
+            await event.message.answer(text=text_tail, reply_markup=inline_keyboard)
         else:
-            await event.answer(text=text, reply_markup=keyboard)
+            await event.answer(text=text_head, reply_markup=main_kb.main_kb(
+                i18n=i18n,
+                is_subscribed=is_subscribed,
+                balance=balance,
+                days_left=days
+                ))
+            await event.answer(text=text_tail, reply_markup=inline_keyboard)
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
@@ -93,9 +107,9 @@ async def balance_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
-@payment_router.message(F.text.in_(['50₽ 💵', '100₽ 💵', '200₽ 💵', '300₽ 💵', '400₽ 💵', '500₽ 💵', '650₽ 💵', '750₽ 💵', '900₽ 💵', '1000₽ 💵', '2000₽ 💵', '3000₽ 💵', ]))
+@payment_router.callback_query(F.data.startswith("add_balance_"))
 async def add_balance_handler(
-    message: Message,
+    callback: CallbackQuery,
     state: FSMContext,
     i18n: TranslatorRunner
 ) -> None:
@@ -112,7 +126,7 @@ async def add_balance_handler(
     Returns:
         None
     """
-    user_id = message.from_user.id
+    user_id = callback.from_user.id
 
     try:
         state_data = await state.get_data()
@@ -122,16 +136,16 @@ async def add_balance_handler(
         await state.update_data(
             payment_type="add_balance",
             device_type="balance",
-        period=0
+            period=0
         )
-        amount, _ = message.text.split("₽")
+        _, _, amount = callback.data.split("_")
 
         logger.info(f"User {user_id} adding balance: {amount}")
         
         if amount == "custom":
             await state.set_state(PaymentSG.custom_balance)
-            await message.answer(text=i18n.fill.custom.balance(), 
-                                 reply_markup=payment_kb.decline_custom_payment(i18n))
+            await callback.message.edit_text(text=i18n.fill.custom.balance(), 
+                                             reply_markup=payment_kb.decline_custom_payment(i18n))
         else:
             await state.update_data(amount=int(amount))
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
@@ -140,13 +154,22 @@ async def add_balance_handler(
                     days = 0 if day_price == 0 else int(balance / day_price),
                     amount=amount
                     )
-            await message.answer(text=text, reply_markup=keyboard)
+            await callback.message.edit_text(text=text, reply_markup=keyboard)
+
+        await callback.answer()
+
+    except TelegramBadRequest as e:
+        logger.error(f"Telegram API error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.telegram_failed())
+        await callback.answer()
     except ValueError as e:
         logger.error(f"Invalid amount for user {user_id}: {e}")
-        await message.answer(text=i18n.error.invalid_amount())
+        await callback.message.edit_text(text=i18n.error.invalid_amount())
+        await callback.answer()
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.unexpected())
+        await callback.message.edit_text(text=i18n.error.unexpected())
+        await callback.answer()
 
 @payment_router.message(PaymentSG.custom_balance)
 async def custom_balance_handler(
