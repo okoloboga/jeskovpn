@@ -24,7 +24,7 @@ logging.basicConfig(
 
 
 @payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance") | 
-                        F.text.in_(['Пополнить баланс ➕💰', 'Add balnce ➕💰']))
+                        F.text.in_(['Пополнить баланс 💰', 'Top Up Balance 💰']))
 @payment_router.callback_query(F.data == "balance")
 async def balance_button_handler(
     event: Union[CallbackQuery, Message],
@@ -93,9 +93,9 @@ async def balance_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
-@payment_router.callback_query(F.data.startswith("add_balance_"))
+@payment_router.message(F.text.in_(['50₽ 💵', '100₽ 💵', '200₽ 💵', '300₽ 💵', '400₽ 💵', '500₽ 💵', '650₽ 💵', '750₽ 💵', '900₽ 💵', '1000₽ 💵', '2000₽ 💵', '3000₽ 💵', ]))
 async def add_balance_handler(
-    callback: CallbackQuery,
+    message: Message,
     state: FSMContext,
     i18n: TranslatorRunner
 ) -> None:
@@ -112,7 +112,7 @@ async def add_balance_handler(
     Returns:
         None
     """
-    user_id = callback.from_user.id
+    user_id = message.from_user.id
 
     try:
         state_data = await state.get_data()
@@ -122,16 +122,16 @@ async def add_balance_handler(
         await state.update_data(
             payment_type="add_balance",
             device_type="balance",
-            period="balance"
+        period=0
         )
-        _, _, amount = callback.data.split("_")
+        amount, _ = message.text.split("₽")
 
         logger.info(f"User {user_id} adding balance: {amount}")
         
         if amount == "custom":
             await state.set_state(PaymentSG.custom_balance)
-            await callback.message.edit_text(text=i18n.fill.custom.balance(), 
-                                             reply_markup=payment_kb.decline_custom_payment(i18n))
+            await message.answer(text=i18n.fill.custom.balance(), 
+                                 reply_markup=payment_kb.decline_custom_payment(i18n))
         else:
             await state.update_data(amount=int(amount))
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
@@ -140,22 +140,13 @@ async def add_balance_handler(
                     days = 0 if day_price == 0 else int(balance / day_price),
                     amount=amount
                     )
-            await callback.message.edit_text(text=text, reply_markup=keyboard)
-
-        await callback.answer()
-
-    except TelegramBadRequest as e:
-        logger.error(f"Telegram API error for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.telegram_failed())
-        await callback.answer()
+            await message.answer(text=text, reply_markup=keyboard)
     except ValueError as e:
         logger.error(f"Invalid amount for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.invalid_amount())
-        await callback.answer()
+        await message.answer(text=i18n.error.invalid_amount())
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.unexpected())
-        await callback.answer()
+        await message.answer(text=i18n.error.unexpected())
 
 @payment_router.message(PaymentSG.custom_balance)
 async def custom_balance_handler(
@@ -238,7 +229,7 @@ async def payment_handler(
         amount = state_data.get("amount")
         balance = state_data.get("balance")
         device_type = state_data.get("device_type")
-        period = state_data.get("period", "balance")
+        period = state_data.get("period", "0")
         
         # For subscriptions, calculate amount from month_price
         if payment_type == "buy_subscription":
@@ -258,7 +249,7 @@ async def payment_handler(
             return
 
         _, method = callback.data.split("_")
-        payload = f"{payment_type} {device_type} {amount}"
+        payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
         if method == "ukassa":
             # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
             await callback.message.edit_text(text=i18n.payment.indevelopment())
@@ -284,8 +275,8 @@ async def payment_handler(
             await bot.send_invoice(
                 chat_id=callback.message.chat.id,
                 title=i18n.stars.subscription.title(),
-                description=i18n.stars.subscription.description(),
-                payload=f"{payment_type}:{user_id}:{amount}",
+                description=i18n.stars.subscription.description(amount=amount),
+                payload=payload,
                 provider_token="",
                 currency="XTR",
                 prices=[LabeledPrice(label=i18n.payment.label(), amount=stars_amount)],
@@ -358,12 +349,21 @@ async def process_payment(
 
     try:
         payment = message.successful_payment
-        payload = payment.invoice_payload
-        # Example payload: "buy_subscription:12345:900"
-        payment_type, _, amount = payload.split(":")
-        await message.answer(
-            text=i18n.stars.payment.successful(payload=payment_type, amount=amount)
-        )
+        user_id, payment_type, device_type, period, amount = payment.invoice_payload.split(':')
+        result = await payment_req.payment_balance_process(
+                user_id=user_id,
+                amount=amount,
+                period=period,
+                device_type=device_type,
+                payment_type=payment_type
+                )
+        if 'error' not in result:
+            await message.answer(
+                text=i18n.stars.payment.successful(payload=payment_type, amount=amount)
+            )
+        else:
+            logger.error(f"Failed to process payment for user {user_id}: {e}")
+            await message.answer(text=i18n.error.unexpected())
         await state.clear()
     except Exception as e:
         logger.error(f"Failed to process payment for user {user_id}: {e}")

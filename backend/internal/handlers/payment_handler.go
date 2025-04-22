@@ -11,8 +11,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"errors"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/okoloboga/jeskovpn/backend/internal/services"
 	"github.com/okoloboga/jeskovpn/backend/pkg/logger"
 )
@@ -37,16 +39,40 @@ func (h *PaymentHandler) Deposit(c *gin.Context) {
 	var request struct {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
-		Period      int     `json:"period" binding:"required,gt=0"`
+		Period      int     `json:"period", binding: "gte=0"`
 		DeviceType  string  `json:"device_type" binding:"required"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		h.logger.Error("Invalid request body", map[string]interface{}{"error": err.Error()})
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		// Логируем ошибки валидации
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, e := range validationErrors {
+				h.logger.Error("Validation error", map[string]interface{}{
+					"field":   e.Field(),
+					"tag":     e.Tag(),
+					"value":   e.Value(),
+					"message": e.Error(),
+				})
+			}
+		} else {
+			h.logger.Error("Failed to parse JSON", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
+
+	// Логируем успешный парсинг
+	h.logger.Info("Parsed request", map[string]interface{}{
+		"user_id":      request.UserID,
+		"amount":       request.Amount,
+		"period":       request.Period,
+		"device_type":  request.DeviceType,
+		"payment_type": request.PaymentType,
+	})
 
 	// Validate payment type
 	if request.PaymentType != "ukassa" && request.PaymentType != "crypto" {
@@ -359,16 +385,38 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 	var request struct {
 		UserID      int     `json:"user_id" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required,gt=0"`
-		Period      int     `json:"period" binding:"required,gt=0"`
+		Period      int     `json:"period" binding: "gte=0"`
 		DeviceType  string  `json:"device_type" binding:"required"`
 		PaymentType string  `json:"payment_type" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		h.logger.Error("Invalid request body", map[string]interface{}{"error": err.Error()})
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, e := range validationErrors {
+				h.logger.Error("Validation error", map[string]interface{}{
+					"field":   e.Field(),
+					"tag":     e.Tag(),
+					"value":   e.Value(),
+					"message": e.Error(),
+				})
+			}
+		} else {
+			h.logger.Error("Failed to parse JSON", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
+
+	h.logger.Info("Parsed request", map[string]interface{}{
+		"user_id":      request.UserID,
+		"amount":       request.Amount,
+		"period":       request.Period,
+		"device_type":  request.DeviceType,
+		"payment_type": request.PaymentType,
+	})
 
 	// Process balance payment
 	err := h.paymentService.ProcessBalancePayment(request.UserID, request.Amount, request.Period, request.DeviceType, request.PaymentType)

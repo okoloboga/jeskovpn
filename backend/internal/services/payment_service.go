@@ -93,16 +93,6 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 		return errors.New("user not found")
 	}
 
-	// Check if user has enough balance
-	if user.Balance < amount {
-		return errors.New("insufficient balance")
-	}
-
-	// Deduct from user's balance
-	if err := s.userRepo.UpdateBalance(userID, -amount); err != nil {
-		return err
-	}
-
 	// Create a payment record
 	payment := &models.Payment{
 		UserID:      userID,
@@ -120,14 +110,25 @@ func (s *paymentService) ProcessBalancePayment(userID int, amount float64, perio
 		return err
 	}
 
+	if period < 0 {
+		return errors.New("Period cannot be negative")
+	} 
+
 	// Update subscription duration
 	switch paymentType {
-	case "device_subscription":
-		user.Subscription.Device.Duration = period
-	case "router_subscription":
-		user.Subscription.Router.Duration = period
-	case "combo_subscription":
-		user.Subscription.Combo.Duration = period
+	case "buy_subscription":
+		switch deviceType {
+		case "device":		
+			user.Subscription.Device.Duration = period
+		case "router":	
+			user.Subscription.Router.Duration = period
+		case "combo":
+			user.Subscription.Combo.Duration = period
+		default:
+			return errors.New("unknown device type")
+		}
+	case "add_balance":
+		user.Balance = user.Balance + amount
 	default:
 		return errors.New("unknown payment type")
 	}
@@ -177,18 +178,24 @@ func (s *paymentService) ProcessWebhookPayment(userID int, amount float64, perio
 		if err := s.userRepo.UpdateBalance(userID, amount); err != nil {
 			return err
 		}
-
-		// Update subscription duration
-		switch paymentType {
-		case "device_subscription":
+	
+	switch paymentType {
+	case "buy_subscription":
+		switch deviceType {
+		case "device":
 			user.Subscription.Device.Duration = period
-		case "router_subscription":
+		case "router":	
 			user.Subscription.Router.Duration = period
-		case "combo_subscription":
+		case "combo":
 			user.Subscription.Combo.Duration = period
 		default:
-			return errors.New("unknown payment type")
+			return errors.New("unknown device type")
 		}
+	case "add_balance":
+		user.Balance = user.Balance + amount
+	default:
+		return errors.New("unknown payment type")
+	}
 
 		// Save updated user
 		if err := s.userRepo.Update(user); err != nil {

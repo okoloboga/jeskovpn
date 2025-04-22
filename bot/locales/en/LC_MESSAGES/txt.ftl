@@ -7,12 +7,12 @@ invite-button = Invite a Friend 👥
 support-button = Tech Support 🛠️
 vpn-devices-button = Device
 change-language-button = Change Language { $language } 🌐
-device-android-button = Android
-device-iphone-button = iPhone/iPad
-device-windows-button = Windows
-device-macos-button = MacOS
-device-tv-button = TV
-device-router-button = Router
+device-android-button = Android 🤖
+device-iphone-button = iPhone/iPad 📱
+device-windows-button = Windows 💻
+device-macos-button = MacOS 🍎
+device-tv-button = TV 📺
+device-router-button = Router 🌐
 vpn-combo-button = Combo Package
 device-instruction-button = Instruction 📖
 add-device-button = Add Device ➕
@@ -42,30 +42,20 @@ add-balance2000-button = 2000₽ 💵
 add-balance3000-button = 3000₽ 💵
 payment-custom-button = Custom Amount ✏️
 decline-payment-button = Cancel 🚫
-increase-balance-button = Top Up Balance ➕💰
+increase-balance-button = Top Up Balance 💰
 main-menu-button = To Main Menu 🏠
 ticket-reply-button = Reply to User { $user_id } 💬
 
-start-invited = Hello, { $name }! 👋
+start-invited-head = Hello, { $name }! 👋
 
-                You were invited by { $inviter }, so you can connect to VPN for free and get 100₽ on your balance! 🎁
+                     You were invited by { $inviter }, so you can connect to VPN for free and get 100₽ on your balance! 🎁
 
-                💰 One of the lowest prices on the market!
-                🚀 High speed
-                💃 Access to all websites
-                💳 Payment via SBP, Crypto, Telegram Stars
-                    
-                Price: 100₽/month for 1 device.
+start-head = Hello, { $name }! 👋
 
-                👥 Invite friends to our service and get 50₽ on your balance for each friend. Your friends will receive 100₽ on their balance!
+             Connect to VPN for free! We’re giving you 100₽ on your balance! 🎁
 
-                ⬇️ Press the button! ⬇️
 
-start-default = Hello, { $name }! 👋
-
-                Connect to VPN for free! We’re giving you 100₽ on your balance! 🎁
-
-                💰 One of the lowest prices on the market!
+start-body =    💰 One of the lowest prices on the market!
                 🚀 High speed
                 💃 Access to all websites
                 💳 Payment via SBP, Crypto, Telegram Stars
@@ -138,7 +128,8 @@ cryptobot-invoice = Your payment link:
 devices-category-menu = Choose type 📱
 
 stars-subscription-title = JeskoVPN 🌟
-stars-subscription-description = JeskoVPN 🌟
+stars-subscription-description = Payment for JeskoVPN 🌟 service
+                                 Amount { $amount }
 payment-label = JeskoVPN 💳
 payment-pending = Payment in progress ⏳
 payment-success = Payment successful 🎉
@@ -176,8 +167,8 @@ referral-link = Send this link to a friend: 👥
 
                 When your friend joins our bot via this link and buys a subscription, you’ll get 75₽ on your balance! 💰
 
-ticket-menu = Write a message to tech support. 💬
-              Your last message: { $ticket }
+ticket-menu = Tech support: 💬
+              @Jesko_support
 noticket = Write your first message to tech support. 💬
 ticket-sended = Message sent ✅
 reply-ticket = Reply to the message 💬

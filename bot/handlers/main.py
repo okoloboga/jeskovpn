@@ -64,20 +64,21 @@ async def command_start_getter(
     # Check if user exists
     try:
         logger.info(f"Creating new user {user_id}")
-        await user_req.create_user(
+        result = await user_req.create_user(
             user_id=user_id,
             first_name=first_name if first_name is not None else 'no_first_name',
             last_name=last_name if last_name is not None else 'no_last_name',
             username=username if username is not None else 'no_username'
         )
-        # Add referral if provided
-        if inviter_id and inviter_id != str(user_id):
-            try:
-                await user_req.add_referral(inviter_id, user_id)
-                is_invited = True
-                logger.info(f"Referral added: {inviter_id} invited {user_id}")
-            except Exception as e:
-                logger.error(f"Failed to add referral {inviter_id} for {user_id}: {e}")
+        if 'error' not in result:
+            # Add referral if provided
+            if inviter_id and inviter_id != str(user_id):
+                try:
+                    await user_req.add_referral(inviter_id, user_id)
+                    is_invited = True
+                    logger.info(f"Referral added: {inviter_id} invited {user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to add referral {inviter_id} for {user_id}: {e}")
 
         # Fetch user data
         user_data = await services.get_user_data(user_id)
@@ -92,9 +93,9 @@ async def command_start_getter(
         is_subscribed = False if days_left == 0 else True
         
         # Send welcome message
-        text = i18n.start.invited(name=name, inviter=inviter_id) if is_invited else i18n.start.default(name=name)
+        head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head(name=name)
         await message.answer(
-            text=text,
+            text=head_text,
             reply_markup=main_kb.main_kb(
                 i18n=i18n,
                 is_subscribed=is_subscribed,
@@ -102,6 +103,11 @@ async def command_start_getter(
                 days_left=days_left
             )
         )
+        keyboard_inline = main_kb.connect_vpn_inline_kb(i18n)
+        await message.answer(
+            text=i18n.start.body(),
+            reply_markup=keyboard_inline
+            )
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
         await message.answer(text=i18n.error.telegram_failed())
@@ -160,17 +166,27 @@ async def main_menu_handler(
             days_left=days_left
         )
 
+        keyboard_inline=main_kb.connect_vpn_inline_kb(i18n)
+
         # Handle event type
         if isinstance(event, CallbackQuery):
             await event.message.answer(
-                text=i18n.start.default(name=name),
+                text=i18n.start.head(name=name),
                 reply_markup=keyboard
+                    )
+            await event.message.answer(
+                text=i18n.start.body(),
+                reply_markup=keyboard_inline
             )
             await event.answer()
         else:
             await event.answer(
-                text=i18n.start.default(name=name),
+                text=i18n.start.head(name=name),
                 reply_markup=keyboard
+                    )
+            await event.answer(
+                text=i18n.start.body(),
+                reply_markup=keyboard_inline
             )
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")

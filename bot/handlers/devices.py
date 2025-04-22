@@ -211,7 +211,7 @@ async def select_device_type(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@devices_router.message(F.text.in_(["Android", "iPhone/iPad", "Windows", "MacOS", "TV", "Роутер", "Router"]))
+@devices_router.message(F.text.in_(["Android 🤖", "iPhone/iPad 📱", "Windows 💻", "MacOS 🍎", "TV 📺", "Роутер 🌐", "Router 🌐"]))
 async def select_device_handler(
     message: Message,
     state: FSMContext,
@@ -231,7 +231,7 @@ async def select_device_handler(
         None
     """
     user_id = message.from_user.id
-    device = message.text.lower()
+    device, _ = message.text.lower().split(' ')
     logger.info(f"User {user_id} selected device: {device}")
 
     try:

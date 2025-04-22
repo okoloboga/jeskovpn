@@ -78,6 +78,24 @@ def main_kb(
         logger.error(f"Unexpected error in main_kb: {e}")
         raise
 
+def connect_vpn_inline_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
+
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(
+                text=i18n.connect.vpn.button(),
+                callback_data="add_device"
+            )
+        )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in connect_vpn_inline_kb: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in connect_vpn_inlnie_kb: {e}")
+        raise
+
 def back_inline_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard with a "Back to Main Menu" button.

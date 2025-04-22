@@ -33,18 +33,20 @@ HEADERS = {
 #     print(f"Balance payment of {amount} for user {user_id}, type: {payment_type}")
 
 async def payment_balance_process(
-    user_id: int, amount: float, period: int, device_type: str, payment_type: str, payload: Optional[Dict] = None
+    user_id: int, amount: float, period: int, device_type: str, payment_type: str,
 ) -> Tuple[int, Union[Dict, str]]:
     """Test POST /payments/balance
     Note: Using 'device_subscription' instead of 'device' as per handler validation."""
     url = f"{BASE_URL}/payments/balance"
-    default_payload = {
-        "user_id": user_id,
-        "amount": amount,
-        "period": period,
-        "payment_type": payment_type
+    payload = {
+        "user_id": int(user_id),
+        "amount": float(amount),
+        "period": int(period),
+        "device_type": str(device_type),
+        "payment_type": str(payment_type)
     }
-    request_payload = payload if payload is not None else default_payload
+    logger.info(f"Sending request to backend: {json.dumps(payload, ensure_ascii=False)}")
+    request_payload = payload
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -118,10 +120,10 @@ async def create_cryptobot_invoice(amount, asset, payload, description=None):
         "Content-Type": "application/json"
     }
     data = {
-        "asset": asset,           # Например, "USDT", "BTC", "TON"
-        "amount": str(amount),    # Сумма (строкой)
-        "payload": payload,       # Любая строка, которую ты получишь в webhook
-    }
+        "asset": asset,         
+        "amount": str(amount),        
+        "payload": payload,          
+        }
     if description:
         data["description"] = description
 
