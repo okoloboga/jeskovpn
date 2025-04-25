@@ -6,8 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
 
-from services import services, vpn_req
-from keyboards import payment_kb, devices_kb, main_kb
+from services import services, vpn_req, PaymentSG
+from keyboards import payment_kb, devices_kb, main_kb, another_kb
 
 devices_router = Router()
 
@@ -43,7 +43,8 @@ async def devices_button_handler(
 
     try:
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
                 await event.message.edit_text(text=text)
@@ -54,8 +55,9 @@ async def devices_button_handler(
 
         devices = user_data["subscription"]["device"]["devices"]
         combo_cells = user_data["subscription"]["combo"]["devices"]
-        count_devices = await services.count_devices(user_id)
-        subscription_fee = await services.day_price(user_id)
+
+        count_devices = user_info['total_devices']
+        subscription_fee = user_info['day_price']
         keyboard = devices_kb.my_devices_kb(i18n, devices, combo_cells)
         text = i18n.devices.menu(
                 devices=count_devices,
@@ -126,7 +128,7 @@ async def select_devices_handler(
 
 @devices_router.message(F.text.in_(['Подключить VPN 🚀', 'Connect VPN 🚀']))
 @devices_router.callback_query(F.data == "add_device")
-async def add_device_handler(
+async def connect_vpn_handler(
     event: Union[CallbackQuery, Message],
     i18n: TranslatorRunner
 ) -> None:
@@ -146,10 +148,11 @@ async def add_device_handler(
     logger.info(f"User {user_id} wants to add a device")
 
     try:
-        day_price = await services.day_price(user_id)
+        user_info = await services.user_info(user_id)
+        day_price = user_info['day_price']
         subscription_fee = int(day_price * 30)
-        devices = await services.count_devices(user_id)
-        devices_list = await services.user_devices(user_id)
+        devices = user_info['total_devices']
+        devices_list = user_info['devices_list']
 
         if isinstance(event, CallbackQuery):
             await event.message.answer(text=i18n.devices.menu(
@@ -236,11 +239,12 @@ async def select_device_handler(
 
     try:
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
         else:
-            day_price = await services.day_price(user_id)
+            day_price = user_info['day_price']
             balance = user_data['balance']
             is_subscribed = False if day_price == 0 else False
 
@@ -291,11 +295,12 @@ async def select_combo_handler(
 
     try:
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
         else:
-            day_price = await services.day_price(user_id)
+            day_price = user_info['day_price']
             balance = user_data['balance']
             is_subscribed = False if day_price == 0 else False
 
@@ -344,7 +349,7 @@ async def select_period_handler(
     logger.info(f"User {user_id} selected subscription period")
   
     try:
-
+        user_info = await services.user_info(user_id)
         state_data = await state.get_data()
         balance = state_data['balance']
         device = state_data['device']
@@ -358,6 +363,7 @@ async def select_period_handler(
 
         _, period = callback.data.split("_")
         payment_type = "buy_subscription"
+        await state.set_state(PaymentSG.buy_subscription)
         await state.update_data(period=period, payment_type=payment_type)
     
         if device == 'combo_5' or device == 'combo_10':
@@ -366,7 +372,7 @@ async def select_period_handler(
         else:
             amount = services.MONTH_PRICE[device][period]
 
-        day_price = await services.day_price(user_id)
+        day_price = user_info['day_price']
         days = 0 if day_price == 0 else int(balance / day_price)
         keyboard = payment_kb.payment_select(i18n, payment_type)
         text = i18n.payment.menu(
@@ -384,6 +390,49 @@ async def select_period_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await callback.message.edit_text(text=i18n.error.unexpected())
         await callback.answer()
+
+@devices_router.message(
+        PaymentSG.add_device, 
+        F.text.in_(["Android 🤖", "iPhone/iPad 📱", "Windows 💻", "MacOS 🍎", "TV 📺", "Роутер 🌐", "Router 🌐"]))
+async def add_device_handler(
+    message: Message,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+
+    user_id = message.from_user.id
+    user_info = await services.user_info(user_id)
+    durations = user_info['durations']
+    device, _ = message.text.lower().split(' ')
+    device = 'router' if device == 'роутер' else device
+
+    if durations['device'] == durations['router'] == durations['combo'] == 0:
+        logger.info(f'User {user_id} hasnt durations: {durations}')
+        await message.answer(text=i18n.nosubscription.have.balance,
+                             reply_markup=another_kb.subscription_menu(i18n))
+        return
+    if device == 'router' and durations['router'] == 0:
+        logger.info(f'User {user_id} hasnt duration for {device}: {durations}')
+        await message.answer(text=i18n.nosubscription.selected_device,
+                             reply_markup=another_kb.subscription_menu(i18n))
+        return
+    elif device
+    
+    await state.clear()
+    logger.info(f"User {user_id} add device: {device}")
+
+    try:
+        result = await vpn_req.get_device_key(user_id=user_id, device=device)
+        if 'error' not in result:   
+            await message.answer(
+                    text=i18n.device.menu(device=device, device_key=result),
+                    reply_markup=devices_kb.device_kb(i18n=i18n, device=device)
+                    )
+        else:
+            await message.answer(text=i18n.error.unexpected())
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await message.answer(text=i18n.error.unexpected())
 
 @devices_router.callback_query(F.data.startswith('remove_device_'))
 async def remove_device_handler(

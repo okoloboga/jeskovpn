@@ -6,10 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
-from services import services, payment_req
-from services.services import day_price
-from services.states import PaymentSG
-from keyboards import payment_kb, main_kb
+from services import services, payment_req, PaymentSG
+from keyboards import devices_kb, payment_kb, main_kb
 
 payment_router = Router()
 
@@ -50,7 +48,8 @@ async def balance_button_handler(
 
     try:
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
                 await event.message.edit_text(text=text)
@@ -60,7 +59,7 @@ async def balance_button_handler(
             return
 
         balance = user_data["balance"]
-        day_price = await services.day_price(user_id)
+        day_price = user_info['day_price']
         await state.update_data(
                 balance=balance, 
                 day_price=day_price
@@ -108,7 +107,7 @@ async def balance_button_handler(
             await event.answer(text=i18n.error.unexpected())
 
 @payment_router.callback_query(F.data.startswith("add_balance_"))
-async def add_balance_handler(
+async def top_up_balance_handler(
     callback: CallbackQuery,
     state: FSMContext,
     i18n: TranslatorRunner
@@ -129,6 +128,7 @@ async def add_balance_handler(
     user_id = callback.from_user.id
 
     try:
+        await state.set_state(PaymentSG.add_balance)
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
         day_price = state_data.get("day_price", 0)
@@ -222,8 +222,8 @@ async def custom_balance_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@payment_router.callback_query(F.data.startswith("payment_"))
-async def payment_handler(
+@payment_router.callback_query(PaymentSG.buy_subscription, F.data.startswith("payment_"))
+async def buy_subscription_handler(
     callback: CallbackQuery,
     state: FSMContext,
     bot: Bot,
@@ -265,7 +265,7 @@ async def payment_handler(
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
                 return
-    
+   
         if amount is None:
             await callback.message.edit_text(text=i18n.error.invalid_amount())
             await callback.answer()
@@ -273,10 +273,130 @@ async def payment_handler(
 
         _, method = callback.data.split("_")
         payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
+
+        # UKASSA BUY SUBSCRIPTION
         if method == "ukassa":
             # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
             await callback.message.edit_text(text=i18n.payment.indevelopment())
             # await callback.message.edit_text(text=i18n.payment.pending())
+
+        # CRYPTOBOT BUY SUBSCRIPTION
+        elif method == "crypto":
+            asset = 'TON'
+            rate = await payment_req.exchange_rate(asset)
+            rated_amount = amount / rate
+            result = await payment_req.create_cryptobot_invoice(rated_amount, asset, payload)
+            if 'error' not in result:
+                (invoice_url, invoice_id) = result
+                await state.update_data(invoice_id=invoice_id)
+                await callback.message.edit_text(text=i18n.cryptobot.invoice(
+                        invoice_url=invoice_url, 
+                        invoice_id=invoice_id))
+            else:
+                logger.error(f"Unexpected error for user {user_id} in buy subscription by cryptobot")
+                await callback.message.edit_text(text=i18n.error.unexpected())
+                await callback.answer()
+                return
+
+        # BALANCE BUY SUBSCRIPTION
+        elif method == "balance":
+            if amount > balance:
+                await callback.message.edit_text(text=i18n.notenough.balance())
+                await callback.answer()
+                return
+            else:
+                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
+                if 'error' not in result:
+                    await callback.message.edit_text(
+                            text=i18n.buy.subscription.success(balance=balance),
+                            reply_markup=devices_kb.devices_list_kb(i18n))
+                    await state.set_state(PaymentSG.add_device)
+                else:
+                    logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
+                    await callback.message.edit_text(text=i18n.error.unexpected())
+                    await callback.answer()
+                    return
+
+        # TELEGRAM STARS BUY SUBSCRIPTION
+        elif method == "stars":
+            stars_amount = int(amount * 0.02418956)
+            await bot.send_invoice(
+                chat_id=callback.message.chat.id,
+                title=i18n.stars.subscription.title(),
+                description=i18n.stars.subscription.description(amount=amount),
+                payload=payload,
+                provider_token="",
+                currency="XTR",
+                prices=[LabeledPrice(label=i18n.payment.label(), amount=stars_amount)],
+                start_parameter=payment_type
+            )
+        else:
+            await callback.message.edit_text(text=i18n.error.invalid_payment_method())
+            await callback.answer()
+            return
+
+        # Clear state only after successful initiation
+        if method != "stars":  # Stars payment requires state until completion
+            await state.clear()
+
+        await callback.answer()
+
+    except TelegramBadRequest as e:
+        logger.error(f"Telegram API error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.telegram_failed())
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.unexpected())
+        await callback.answer()
+
+@payment_router.callback_query(PaymentSG.add_balance, F.data.startswith("payment_"))
+async def add_balance_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+    bot: Bot,
+    i18n: TranslatorRunner
+) -> None:
+    """
+    Handle payment method selection and initiate payment.
+
+    Supports ukassa, crypto, balance, and Telegram Stars payment methods.
+
+    Args:
+        callback (CallbackQuery): The incoming callback query with payment method.
+        state (FSMContext): Finite state machine context for storing data.
+        bot (Bot): Aiogram Bot instance for sending invoices.
+        i18n (TranslatorRunner): Translator for localized responses.
+
+    Returns:
+        None
+    """
+    user_id = callback.from_user.id
+    logger.info(f"User {user_id} initiating payment")
+
+    try:
+        state_data = await state.get_data()
+        payment_type = state_data.get("payment_type", "add_balance")
+        amount = state_data.get("amount")
+        balance = state_data.get("balance")
+        device_type = state_data.get("device_type", "balance")
+        period = state_data.get("period", "0")
+        
+        if amount is None:
+            await callback.message.edit_text(text=i18n.error.invalid_amount())
+            await callback.answer()
+            return
+
+        _, method = callback.data.split("_")
+        payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
+
+        # UKASSA ADD BALANCE
+        if method == "ukassa":
+            # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
+            await callback.message.edit_text(text=i18n.payment.indevelopment())
+            # await callback.message.edit_text(text=i18n.payment.pending())
+
+        # CRYPTOBOT ADD BALANCE
         elif method == "crypto":
             asset = 'TON'
             rate = await payment_req.exchange_rate(asset)
@@ -284,15 +404,11 @@ async def payment_handler(
             result = await payment_req.create_cryptobot_invoice(rated_amount, asset, payload)
             (invoice_url, invoice_id) = result
             await state.update_data(invoice_id=invoice_id)
-            await callback.message.edit_text(text=i18n.cryptobot.invoice(invoice_url=invoice_url, invoice_id=invoice_id))
-        elif method == "balance":
-            if amount > balance:
-                await callback.message.edit_text(text=i18n.notenough.balance())
-                await callback.answer()
-                return
-            else:
-                await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
-                await callback.message.edit_text(text=i18n.payment.success())
+            await callback.message.edit_text(text=i18n.cryptobot.invoice(
+                    invoice_url=invoice_url, 
+                    invoice_id=invoice_id))
+
+        # TELEGRAM STARS ADD BALANCE
         elif method == "stars":
             stars_amount = int(amount * 0.02418956)
             await bot.send_invoice(

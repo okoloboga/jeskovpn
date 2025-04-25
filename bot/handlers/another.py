@@ -8,7 +8,6 @@ from aiogram.types import Message
 from fluentogram import TranslatorRunner
 
 from services import user_req, services
-from services.services import day_price
 from services.states import SupportSG
 from keyboards import another_kb, main_kb
 from config import get_config, Admin
@@ -55,7 +54,8 @@ async def subscription_handler(
             return
 
         balance = user_data["balance"]
-        day_price = await services.day_price(user_id)
+        user_info = await services.user_info(user_id)
+        day_price = user_info['day_price']
         is_subscribed = False if day_price == 0 else True
         min_subscription_price = 100  # Minimum price for "device" for 1 month
 
@@ -139,7 +139,6 @@ async def ticket_handler(
     logger.info(f"User {user_id} creating support ticket")
 
     try:
-        await user_req.send_ticket(content, user_id, username)
         user_data = await user_req.get_user(user_id)
 
         if user_data is None:
@@ -147,7 +146,8 @@ async def ticket_handler(
             await message.answer(text=i18n.error.unexpected())
             return
 
-        day_price = await services.day_price(user_id)
+        user_info = await services.user_info(user_id)
+        day_price = user_info['day_price']
         is_subscribed = False if day_price == 0 else True
         balance = user_data['balance']
         days_left = 0 if day_price == 0 else int(balance / day_price)

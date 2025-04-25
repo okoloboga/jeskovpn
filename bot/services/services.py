@@ -56,79 +56,70 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-async def day_price(user_id: int) -> float | int:
+async def user_info(user_id: int) -> dict | None:
 
     user = await get_user_data(user_id)
     
     if user is None:
-        return 0
+        return None
+
     try:
         device_duration = user['subscription']['device']['duration']
         router_duration = user['subscription']['router']['duration']
         combo_duration = user['subscription']['combo']['duration']
         combo_type = user['subscription']['combo']['type']
+        devices_count = len(user['subscription']['device']['devices'])
+        devices_list = user['subscription']['device']['devices']
+        router = str(user['subscription']['router']['duration'])
+        combo_devices = user['subscription']['combo']['devices']
 
         if device_duration == 0 and router_duration == 0 and combo_duration == 0:
-            return 0
-        
-        devices_count = len(user['subscription']['device']['devices'])
-        devices_price = devices_count * DAY_PRICE['device'][str(device_duration)]
-        router_price = DAY_PRICE['router'][str(router_duration)]
-        combo_price = DAY_PRICE['combo'][str(combo_type)][str(combo_duration)]
+            day_price = 0
+        else:
+            devices_count = len(user['subscription']['device']['devices'])
+            devices_price = devices_count * DAY_PRICE['device'][str(device_duration)]
+            router_price = DAY_PRICE['router'][str(router_duration)]
+            combo_price = DAY_PRICE['combo'][str(combo_type)][str(combo_duration)]
 
-        total_day_price = devices_price + router_price + combo_price
-        
-        return total_day_price
- 
-    except Exception as e:
-        logger.error(f"Failed to count total_day_price {user_id}: {e}")
-        raise
-
-async def count_devices(user_id: int) -> int:
-
-    user = await get_user_data(user_id)
-
-    if user is None:
-        return 0
-    try:
-        devices_count = len(user['subscription']['device']['devices'])
-        router_duration = user['subscription']['router']['duration']
-        combo_duration = user['subscription']['combo']['duration']
-        combo_type = user['subscription']['combo']['type']
+            day_price = devices_price + router_price + combo_price
         
         if combo_type != '0' and str(combo_duration) != '0':
             combo_count = len(user['subscription']['combo']['devices'])
         else:
             combo_count = 0
         router_count = 1 if str(router_duration) != "0" else 0
-
         total_devices = devices_count + router_count + combo_count
+        devices_list += combo_devices
 
-        return total_devices
+        if router != "0":
+            devices_list += ['router']
 
+        durations = (device_duration, router_duration, combo_duration)
+
+        result = {'day_price': day_price,
+                  'total_devices': total_devices,
+                  'devices_list': devices_list,
+                  'durations': durations}
+
+        return result
+ 
     except Exception as e:
         logger.error(f"Failed to count total_day_price {user_id}: {e}")
         raise
 
-async def user_devices(user_id: int) -> list:
+async def check_slot(user_id: int, device: str) -> str:
 
-    user = await get_user_data(user_id)
+    user_info = await user_info(user_id)
+    user_data = await get_user_data(user_id)
+    DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
 
-    if user is None:
-        return []
-    try:
-        devices_list = user['subscription']['device']['devices']
-        router = str(user['subscription']['router']['duration'])
-        combo_devices = user['subscription']['combo']['devices']
-        
-        result_list = devices_list + combo_devices
+    
+    if user_info['durations'][0] == user_info['durations'][1] == user_info['durations'][2] == 0:
+        return 'no_subscription'
+    elif user_info['durations'][0] != 0 and device in DEVICES:
+        return 'device'
+    elif user_info['durations'][1] != 0 and device == 'router':
+        return 'router'
+    elif 
 
-        if router != "0":
-            result_list += ['router']
-
-        return result_list
-
-    except Exception as e:
-        logger.error(f"Failed to get devices list for user {user_id}: {e}")
-        raise
         

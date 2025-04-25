@@ -161,11 +161,23 @@ nosubscription-nobalance = Unfortunately, your balance ({ $balance }₽) is not 
 
                            To use the service, top up your balance by clicking the "Top Up Balance" button ➕
 
+
+nosubscription-selected-device = К сожалению, у вас нет активной подписки на выбранное устройство!
+                                 
+                                 Офомирте подписку в пару кликов или выберите другое устройство
+
+
 referral-link = Send this link to a friend: 👥
 
                 { $link }
 
-                When your friend joins our bot via this link and buys a subscription, you’ll get 75₽ on your balance! 💰
+                When your friend joins our bot via this link and buys a subscription, you’ll get 50₽ on your balance! 💰
+
+buy-subscription-success = 🎉 Поздравляем, вы активировали аккаунт JeskoVPN, { $balance }₽ у вас на балансе!
+
+                           Теперь давайте настроим ваш VPN!
+
+                           Пожалуйста, выберите тип устройства, для которого вы хотите использовать эти настройки:
 
 ticket-menu = Tech support: 💬
               @Jesko_support

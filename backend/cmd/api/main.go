@@ -95,7 +95,8 @@ func main() {
 	transactionRepo := repositories.NewTransactionRepository(db)
 
 	// Initialize VPN key generator
-	vpnGenerator := vpn.NewOutlineGenerator(cfg.Outline.APIUrl, cfg.Outline.APIKey)
+	// vpnGenerator := vpn.NewOutlineGenerator(cfg.Outline.APIUrl, cfg.Outline.APIKey)
+	vpnGenerator := &vpn.MockKeyGenerator{}
 
 	// Initialize services
 	userService := services.NewUserService(userRepo, deviceRepo)

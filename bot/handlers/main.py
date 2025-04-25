@@ -82,11 +82,12 @@ async def command_start_getter(
 
         # Fetch user data
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
 
-        day_price = await services.day_price(user_id)
+        day_price = user_info['day_price']
 
         balance = user_data["balance"]
         days_left = 0 if day_price == 0 else int(balance/day_price)
@@ -145,7 +146,8 @@ async def main_menu_handler(
     try:
         # Fetch user data
         user_data = await services.get_user_data(user_id)
-        if user_data is None:
+        user_info = await services.user_info(user_id)
+        if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
                 await event.message.edit_text(text=text)
@@ -154,7 +156,7 @@ async def main_menu_handler(
                 await event.answer(text=text)
             return
 
-        day_price = await services.day_price(user_id)
+        day_price = user_info['day_price']
         balance = user_data["balance"]
         days_left = 0 if day_price == 0 else int(balance/day_price)
         is_subscribed = False if days_left == 0 else True
