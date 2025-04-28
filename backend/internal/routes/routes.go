@@ -33,6 +33,7 @@ func SetupRoutes(r *gin.Engine, h *handlers.Handlers, authMiddleware gin.Handler
 
 		// Device routes
 		api.POST("/devices/key", h.DeviceHandler.GenerateKey)
+		api.GET("/devices/key", h.DeviceHandler.GetKey)
 		api.DELETE("/devices/key", h.DeviceHandler.RevokeKey)
 	}
 

@@ -29,7 +29,8 @@ type DeviceSubscription struct {
 }
 
 type RouterSubscription struct {
-	Duration int `json:"duration"`
+	Devices  []string `json:"devices"`
+	Duration int 	  `json:"duration"`
 }
 
 type ComboSubscription struct {

@@ -410,7 +410,7 @@ func (h *PaymentHandler) ProcessBalancePayment(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Parsed request", map[string]interface{}{
+	h.logger.Info("Parsed request in Handler", map[string]interface{}{
 		"user_id":      request.UserID,
 		"amount":       request.Amount,
 		"period":       request.Period,

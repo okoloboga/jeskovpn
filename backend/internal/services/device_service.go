@@ -4,6 +4,7 @@ package services
 import (
 	"errors"
 	"time"
+	"fmt"
 
 	"github.com/okoloboga/jeskovpn/backend/internal/models"
 	"github.com/okoloboga/jeskovpn/backend/internal/repositories"
@@ -12,9 +13,10 @@ import (
 
 // DeviceService defines methods for device-related operations
 type DeviceService interface {
-	GenerateKey(userID int, deviceName string) (string, error)
+	GenerateKey(userID int, deviceName string, slot string) (string, error)
 	RemoveDevice(userID int, deviceName string) error
 	GetDevices(userID int) ([]string, error)
+	GetKey(userID int, deviceName string) (string, error)
 }
 
 // deviceService implements DeviceService
@@ -38,11 +40,16 @@ func NewDeviceService(
 }
 
 // GenerateKey generates a VPN key for a device
-func (s *deviceService) GenerateKey(userID int, deviceName string) (string, error) {
+func (s *deviceService) GenerateKey(userID int, deviceName string, slot string) (string, error) {
+	// Slot validation
+	if slot != "device" && slot != "router" && slot != "combo" {
+		return "", fmt.Errorf("invalid slot: %s", slot)
+	}
+
 	// Check if user has an active device subscription
 	user, err := s.userRepo.GetByID(userID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get user: %w", err)
 	}
 
 	var duration int
@@ -83,8 +90,24 @@ func (s *deviceService) GenerateKey(userID int, deviceName string) (string, erro
 	if err := s.deviceRepo.Create(device); err != nil {
 		// Try to revoke the key if we failed to save it
 		_ = s.vpnGenerator.RevokeKey(userID, deviceName)
-		return "", err
+		return "", fmt.Errorf("failed to create device: %w", err)
 	}
+
+	switch slot {
+    case "device":
+        user.Subscription.Device.Devices = append(user.Subscription.Device.Devices, deviceName)
+    case "router":
+        user.Subscription.Router.Devices = append(user.Subscription.Router.Devices, deviceName)
+    case "combo":
+        user.Subscription.Combo.Devices = append(user.Subscription.Combo.Devices, deviceName)
+    }
+
+    // Save updated user
+    if err := s.userRepo.Update(user); err != nil {
+        _ = s.deviceRepo.Delete(userID, deviceName)
+        _ = s.vpnGenerator.RevokeKey(userID, deviceName)
+        return "", fmt.Errorf("failed to update user subscription: %w", err)
+    }
 
 	return vpnKey, nil
 }
@@ -119,4 +142,14 @@ func (s *deviceService) GetDevices(userID int) ([]string, error) {
 	}
 
 	return deviceNames, nil
+}
+
+// GetKey get Device key for User 
+func (s *deviceService) GetKey(userID int, deviceName string) (string, error) {
+	device, err := s.deviceRepo.GetByUserIDAndName(userID, deviceName)
+	if err != nil {
+		return "Error in GetKey", err 
+	}
+	
+	return device.VpnKey, nil
 }

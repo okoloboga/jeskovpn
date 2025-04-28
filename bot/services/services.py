@@ -56,7 +56,7 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-async def user_info(user_id: int) -> dict | None:
+async def get_user_info(user_id: int) -> dict | None:
 
     user = await get_user_data(user_id)
     
@@ -109,17 +109,33 @@ async def user_info(user_id: int) -> dict | None:
 
 async def check_slot(user_id: int, device: str) -> str:
 
-    user_info = await user_info(user_id)
+    user_info = await get_user_info(user_id)
     user_data = await get_user_data(user_id)
-    DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
+    
+    if user_info is None or user_data is None:
+        return 'no_user'
 
+    DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
     
     if user_info['durations'][0] == user_info['durations'][1] == user_info['durations'][2] == 0:
         return 'no_subscription'
     elif user_info['durations'][0] != 0 and device in DEVICES:
-        return 'device'
+        slot = 'device'
     elif user_info['durations'][1] != 0 and device == 'router':
-        return 'router'
-    elif 
+        slot = 'router'
+    elif user_info['durations'][2] != 0:
+        slot = 'combo'
+    else:
+        return 'error'
+
+    if slot == 'combo':
+        current_slot = len(user_data['subscription'][slot]['devices'])
+        limit = 5 if user_info['subscription'][slot]['type'] == 5 else 10
+        if limit >= current_slot:
+            return slot
+        else:
+            return 'combo'
+    else:
+        return slot
 
         

@@ -82,7 +82,7 @@ async def command_start_getter(
 
         # Fetch user data
         user_data = await services.get_user_data(user_id)
-        user_info = await services.user_info(user_id)
+        user_info = await services.get_user_info(user_id)
         if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
@@ -146,7 +146,7 @@ async def main_menu_handler(
     try:
         # Fetch user data
         user_data = await services.get_user_data(user_id)
-        user_info = await services.user_info(user_id)
+        user_info = await services.get_user_info(user_id)
         if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):

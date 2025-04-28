@@ -26,11 +26,12 @@ HEADERS = {
     "Authorization": f"Bearer {api_key}"
 }
 
-async def get_device_key(user_id: int, device: str) -> Optional[str]:
+async def generate_device_key(user_id: int, device: str, slot: str) -> Optional[str]:
     url = f"{BASE_URL}/device/key"
     request_payload = {
             "user_id": user_id,
-            "device": device
+            "device": device,
+            "slot": slot
     }
     async with aiohttp.ClientSession() as session:
         try:
@@ -42,6 +43,23 @@ async def get_device_key(user_id: int, device: str) -> Optional[str]:
                 return response_json
         except aiohttp.BaseDefaultEventLoopPolicyhttp.ClientError as e:
             logger.error(f"Add Device: Error - {e}")
+
+async def get_device_key(user_id: int, device: str, slot: str) -> Optional[str]:
+    url = f"{BASE_URL}/device/key"
+    request_payload = {
+            "user_id": user_id,
+            "device": device,
+            }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=request_payload) as response:
+                status = response.status
+                response_json = await response.json()
+                logger.info(f"Get device {device}, user: {user_id}. Status: {status}")
+                logger.info(json.dumps(response_json))
+                return response_json
+        except aiohttp.BaseDefaultEventLoopPolicyhttp.ClientError as e:
+            logger.error(f"Get Device: Error - {e}")
 
 async def remove_device_key(user_id: int, device: str) -> Optional[str]:
     url = f"{BASE_URL}/device/key"

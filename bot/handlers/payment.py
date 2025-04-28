@@ -1,3 +1,4 @@
+from asyncio import current_task
 import logging
 from typing import Union
 from aiogram import Router, F, Bot
@@ -48,7 +49,7 @@ async def balance_button_handler(
 
     try:
         user_data = await services.get_user_data(user_id)
-        user_info = await services.user_info(user_id)
+        user_info = await services.get_user_info(user_id)
         if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
@@ -307,10 +308,10 @@ async def buy_subscription_handler(
             else:
                 result = await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
                 if 'error' not in result:
-                    await callback.message.edit_text(
-                            text=i18n.buy.subscription.success(balance=balance),
-                            reply_markup=devices_kb.devices_list_kb(i18n))
                     await state.set_state(PaymentSG.add_device)
+                    await callback.message.answer(
+                            text=i18n.buy.subscription.success(balance=balance),
+                            reply_markup=devices_kb.devices_list_kb(i18n=i18n, device_type=device_type))
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
                     await callback.message.edit_text(text=i18n.error.unexpected())
@@ -336,9 +337,8 @@ async def buy_subscription_handler(
             return
 
         # Clear state only after successful initiation
-        if method != "stars":  # Stars payment requires state until completion
-            await state.clear()
-
+        # if method != "stars" or method != "balance":  # Stars payment requires state until completion
+        #    await state.clear()
         await callback.answer()
 
     except TelegramBadRequest as e:

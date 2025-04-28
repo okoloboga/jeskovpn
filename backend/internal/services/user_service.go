@@ -63,7 +63,7 @@ func (s *userService) CreateUser(userID int, firstName, lastName, username strin
 		FirstName: firstName,
 		LastName:  lastName,
 		Username:  username,
-		Balance:   0,
+		Balance:   2000,
 		CreatedAt: time.Now(),
 		Subscription: models.SubscriptionCollection{
 			Device: models.DeviceSubscription{
@@ -71,6 +71,7 @@ func (s *userService) CreateUser(userID int, firstName, lastName, username strin
 				Duration: 0,
 			},
 			Router: models.RouterSubscription{
+				Devices:  []string{},
 				Duration: 0,
 			},
 			Combo: models.ComboSubscription{

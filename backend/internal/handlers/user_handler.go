@@ -1,4 +1,3 @@
-// internal/handlers/user_handler.go
 package handlers
 
 import (
@@ -52,6 +51,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 				"duration": 0,          // This should be populated from the subscription service
 			},
 			"router": gin.H{
+				"devices":  []string{},
 				"duration": 0, // This should be populated from the subscription service
 			},
 			"combo": gin.H{
