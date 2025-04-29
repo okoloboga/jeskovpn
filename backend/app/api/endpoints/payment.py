@@ -1,3 +1,5 @@
+import copy
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any
@@ -34,10 +36,7 @@ async def process_balance_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Insufficient balance"
         )
-    
-    # Deduct amount from user's balance
-    user.balance -= payment.amount
-    
+      
     # Create payment record
     db_payment = Payment(
         user_id=payment.user_id,
@@ -52,16 +51,19 @@ async def process_balance_payment(
     db.commit()
     
     # Update user's subscription
-    subscription = user.subscription
+    subscription = copy.deepcopy(user.subscription)
     
     if payment.device_type == "device":
-        subscription["device"]["duration"] += payment.period
+        subscription["device"]["duration"] = payment.period
     elif payment.device_type == "router":
-        subscription["router"]["duration"] += payment.period
+        subscription["router"]["duration"] = payment.period
     elif payment.device_type == "combo":
-        subscription["combo"]["duration"] += payment.period
+        subscription["combo"]["duration"] = payment.period
     
     user.subscription = subscription
+
+    logger.info(f'User subscription: {user.subscription}')
+
     db.commit()
     
     logger.info(f"Balance payment processed successfully: user_id={payment.user_id}, amount={payment.amount}")

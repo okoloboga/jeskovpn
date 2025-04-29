@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any
 import uuid
+import copy
 
 from app.core.logging import logger
 from app.core.security import get_api_key
@@ -29,8 +30,10 @@ async def generate_key(
         )
     
     # Check if user has an active subscription
-    subscription = user.subscription
+    subscription = copy.deepcopy(user.subscription)
     has_subscription = False
+
+    logger.info(f'Users subscription {subscription}')
     
     if device_data.slot == "device" and subscription["device"]["duration"] > 0:
         has_subscription = True
@@ -47,7 +50,7 @@ async def generate_key(
         )
     
     # Generate a dummy VPN key (in a real app, this would call the Outline API)
-    vpn_key = f"https://vpn.example.com/access?key={uuid.uuid4().hex}"
+    vpn_key = f"{uuid.uuid4().hex}"
     outline_key_id = str(uuid.uuid4())
     
     # Create device record
@@ -74,7 +77,7 @@ async def generate_key(
     logger.info(f"Key generated successfully: user_id={device_data.user_id}, device={device_data.device}")
     return {"key": vpn_key}
 
-@router.post("/key/get", status_code=status.HTTP_200_OK)
+@router.get("/key", status_code=status.HTTP_200_OK)
 async def get_key(
     device_data: DeviceKeyGet,
     db: Session = Depends(get_db),
@@ -121,7 +124,7 @@ async def remove_key(
     
     # Remove device from user's subscription
     user = db.query(User).filter(User.user_id == device_data.user_id).first()
-    subscription = user.subscription
+    subscription = copy.deepcopy(user.subscription)
     
     # Check in which subscription type the device exists
     for sub_type in ["device", "router", "combo"]:

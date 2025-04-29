@@ -287,8 +287,8 @@ async def buy_subscription_handler(
             rate = await payment_req.exchange_rate(asset)
             rated_amount = amount / rate
             result = await payment_req.create_cryptobot_invoice(rated_amount, asset, payload)
-            if 'error' not in result:
-                (invoice_url, invoice_id) = result
+            if result is not None:
+                invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
                 await callback.message.edit_text(text=i18n.cryptobot.invoice(
                         invoice_url=invoice_url, 
@@ -307,11 +307,15 @@ async def buy_subscription_handler(
                 return
             else:
                 result = await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
-                if 'error' not in result:
+                if result is not None:
                     await state.set_state(PaymentSG.add_device)
                     await callback.message.answer(
                             text=i18n.buy.subscription.success(balance=balance),
-                            reply_markup=devices_kb.devices_list_kb(i18n=i18n, device_type=device_type))
+                            reply_markup=devices_kb.devices_list_kb(
+                                i18n=i18n, 
+                                device_type=device_type, 
+                                only=device_type)
+                            )
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
                     await callback.message.edit_text(text=i18n.error.unexpected())
@@ -378,7 +382,6 @@ async def add_balance_handler(
         state_data = await state.get_data()
         payment_type = state_data.get("payment_type", "add_balance")
         amount = state_data.get("amount")
-        balance = state_data.get("balance")
         device_type = state_data.get("device_type", "balance")
         period = state_data.get("period", "0")
         
@@ -402,11 +405,15 @@ async def add_balance_handler(
             rate = await payment_req.exchange_rate(asset)
             rated_amount = amount / rate
             result = await payment_req.create_cryptobot_invoice(rated_amount, asset, payload)
-            (invoice_url, invoice_id) = result
-            await state.update_data(invoice_id=invoice_id)
-            await callback.message.edit_text(text=i18n.cryptobot.invoice(
-                    invoice_url=invoice_url, 
-                    invoice_id=invoice_id))
+            if result is not None:
+                invoice_url, invoice_id = result
+                await state.update_data(invoice_id=invoice_id)
+                await callback.message.edit_text(text=i18n.cryptobot.invoice(
+                        invoice_url=invoice_url, 
+                        invoice_id=invoice_id))
+            else:
+                await callback.message.edit_text(text=i18n.error.unexpected())
+                await callback.answer()
 
         # TELEGRAM STARS ADD BALANCE
         elif method == "stars":
@@ -496,12 +503,11 @@ async def process_payment(
                 device_type=device_type,
                 payment_type=payment_type
                 )
-        if 'error' not in result:
+        if result is not None:
             await message.answer(
                 text=i18n.stars.payment.successful(payload=payment_type, amount=amount)
             )
         else:
-            logger.error(f"Failed to process payment for user {user_id}: {e}")
             await message.answer(text=i18n.error.unexpected())
         await state.clear()
     except Exception as e:

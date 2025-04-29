@@ -120,7 +120,7 @@ def add_device_kb(i18n: TranslatorRunner) -> ReplyKeyboardMarkup:
         logger.error(f"Unexpected error in add_device_kb: {e}")
         raise
 
-def devices_list_kb(i18n: TranslatorRunner, device_type: str) -> ReplyKeyboardMarkup:
+def devices_list_kb(i18n: TranslatorRunner, device_type: str, only: str = 'none') -> ReplyKeyboardMarkup:
     """
     Create a reply keyboard for selecting a specific device or combo cell.
 
@@ -138,19 +138,34 @@ def devices_list_kb(i18n: TranslatorRunner, device_type: str) -> ReplyKeyboardMa
     """
     try:
         builder = ReplyKeyboardBuilder()
-        if device_type.lower() == "device":
-            builder.row(
-                KeyboardButton(text=i18n.device.android.button()),
-                KeyboardButton(text=i18n.device.iphone.button())
-            )
-            builder.row(
-                KeyboardButton(text=i18n.device.windows.button()),
-                KeyboardButton(text=i18n.device.macos.button())
-            )
-            builder.row(
-                KeyboardButton(text=i18n.device.tv.button()),
-                KeyboardButton(text=i18n.device.router.button())
-            )
+        if device_type.lower() == "device" or device_type.lower() == 'router':
+            if only == 'none':
+                builder.row(
+                    KeyboardButton(text=i18n.device.android.button()),
+                    KeyboardButton(text=i18n.device.iphone.button())
+                )
+                builder.row(
+                    KeyboardButton(text=i18n.device.windows.button()),
+                    KeyboardButton(text=i18n.device.macos.button())
+                )
+                builder.row(
+                    KeyboardButton(text=i18n.device.tv.button()),
+                    KeyboardButton(text=i18n.device.router.button())
+                )
+            elif only == "device":
+                builder.row(
+                    KeyboardButton(text=i18n.device.android.button()),
+                    KeyboardButton(text=i18n.device.iphone.button())
+                )
+                builder.row(
+                    KeyboardButton(text=i18n.device.windows.button()),
+                    KeyboardButton(text=i18n.device.macos.button())
+                )
+                builder.row(
+                    KeyboardButton(text=i18n.device.tv.button())
+                )
+            elif only == "router":
+                builder.row(KeyboardButton(text=i18n.device.router.button()))
         else:
             builder.row(
                 KeyboardButton(text=i18n.combo.five.button()),

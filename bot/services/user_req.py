@@ -2,7 +2,7 @@ import aiohttp
 import asyncio
 import json
 import logging
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Any
 from config import get_config, Backend
 
 backend = get_config(Backend, "backend")
@@ -24,8 +24,8 @@ HEADERS = {
     "Authorization": f"Bearer {api_key}"
 }
 
-async def get_user(user_id: int) -> Tuple[int, Union[Dict, str]]:
-    """Test GET /users/{user_id}"""
+async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
+    """GET /users/{user_id}"""
     url = f"{BASE_URL}/users/{user_id}"
     async with aiohttp.ClientSession() as session:
         try:
@@ -34,15 +34,19 @@ async def get_user(user_id: int) -> Tuple[int, Union[Dict, str]]:
                 response_json = await response.json()
                 logger.info(f"Get User: Status {status}")
                 # logger.info(json.dumps(response_json, indent=2))
-                return response_json
+                if status in (200, 201):
+                    return response_json
+                else:
+                    logger.error(f"Get User: Failed with status {status}")
+                    return None
         except aiohttp.ClientError as e:
             logger.error(f"Get User: Error - {e}")
-            return 0, str(e)
+            return None
 
 async def create_user(
     user_id: int, first_name: str, last_name: str, username: str, payload: Optional[Dict] = None
-) -> Tuple[int, Union[Dict, str]]:
-    """Test POST /users/create"""
+) -> Optional[Dict[str, Any]]:
+    """POST /users/create"""
     url = f"{BASE_URL}/users/create"
     default_payload = {
         "user_id": user_id,
@@ -59,15 +63,19 @@ async def create_user(
                 response_json = await response.json()
                 logger.info(f"Create User: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return response_json
+                if status in (200, 201, 409):
+                    return response_json
+                else:
+                    logger.error(f"Create User: Failed with status {status}")
+                    return None
         except aiohttp.ClientError as e:
             logger.error(f"Create User: Error - {e}")
-            return 0, str(e)
+            return None
 
 async def add_referral(
     inviter_id: int, user_id: int, payload: Optional[Dict] = None
-) -> Tuple[int, Union[Dict, str]]:
-    """Test POST /referrals"""
+) -> Optional[Dict[str, Any]]:
+    """POST /referrals"""
     url = f"{BASE_URL}/referrals"
     default_payload = {
         "inviter_id": str(inviter_id),
@@ -82,50 +90,14 @@ async def add_referral(
                 response_json = await response.json()
                 logger.info(f"Add Referral: Status {status}")
                 logger.info(json.dumps(response_json, indent=2))
-                return response_json
+                if status in (200, 201):
+                    return response_json
+                else:
+                    logger.error(f"Add Referral: Failed with status {status}")
+                    return None
         except aiohttp.ClientError as e:
             logger.error(f"Add Referral: Error - {e}")
-            return 0, str(e)
-
-async def create_ticket(
-    user_id: int, username: str, content: str, payload: Optional[Dict] = None
-) -> Tuple[int, Union[Dict, str]]:
-    """Test POST /api/tickets"""
-    url = f"{BASE_URL}/api/tickets"
-    default_payload = {
-        "user_id": user_id,
-        "username": username,
-        "content": content
-    }
-    request_payload = payload if payload is not None else default_payload
-
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(url, headers=HEADERS, json=request_payload) as response:
-                status = response.status
-                response_json = await response.json()
-                logger.info(f"Create Ticket: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
-                return response_json
-        except aiohttp.ClientError as e:
-            logger.error(f"Create Ticket: Error - {e}")
-            return 0, str(e)
-
-async def get_ticket(user_id: int) -> Tuple[int, Union[Dict, str]]:
-    """Test GET /api/tickets/{user_id}"""
-    url = f"{BASE_URL}/api/tickets/{user_id}"
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, headers=HEADERS) as response:
-                status = response.status
-                response_json = await response.json()
-                logger.info(f"Get Ticket: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
-                return response_json
-        except aiohttp.ClientError as e:
-            logger.error(f"Get Ticket: Error - {e}")
-            return 0, str(e)
-
+            return None
 
 # async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
 #     """Mock user data."""

@@ -19,6 +19,8 @@ async def get_user(
     logger.info(f"Getting user with ID: {user_id}")
     
     user = db.query(User).filter(User.user_id == user_id).first()
+
+    logger.info(f"BACKEDN USER SUB: {user.subscription}")
     if not user:
         logger.error(f"User with ID {user_id} not found")
         raise HTTPException(
@@ -51,7 +53,7 @@ async def create_user(
         first_name=user.first_name,
         last_name=user.last_name,
         username=user.username,
-        balance=0.0,
+        balance=1000.0,
         subscription={
             "device": {"devices": [], "duration": 0},
             "router": {"devices": [], "duration": 0},

@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers with authentication
 app.include_router(user.router, prefix="/users", tags=["users"], dependencies=[Depends(get_api_key)])
 app.include_router(referral.router, prefix="/referrals", tags=["referrals"], dependencies=[Depends(get_api_key)])
 app.include_router(payment.router, prefix="/payments", tags=["payments"], dependencies=[Depends(get_api_key)])

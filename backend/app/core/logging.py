@@ -16,7 +16,9 @@ def setup_logging():
     handler.setLevel(log_level)
     
     # Create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(filename)s:%(lineno)d #%(levelname)-8s '
+                                  '[%(asctime)s] - %(name)s - %(message)s')
+
     handler.setFormatter(formatter)
     
     # Add handler to logger

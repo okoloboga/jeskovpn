@@ -59,6 +59,8 @@ async def get_user_data(user_id: int) -> Optional[dict]:
 async def get_user_info(user_id: int) -> dict | None:
 
     user = await get_user_data(user_id)
+
+    logger.info(f'USER: {user}')
     
     if user is None:
         return None
@@ -117,7 +119,9 @@ async def check_slot(user_id: int, device: str) -> str:
 
     DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
     
-    if user_info['durations'][0] == user_info['durations'][1] == user_info['durations'][2] == 0:
+    if (user_info['durations'][0] == user_info['durations'][1] == user_info['durations'][2] == 0) or (
+            user_info['durations'][1] == 0 and device == 'router') or (
+                    user_info['durations'][0] == 0 and user_info['durations'][2] == 0 and device in DEVICES):
         return 'no_subscription'
     elif user_info['durations'][0] != 0 and device in DEVICES:
         slot = 'device'
