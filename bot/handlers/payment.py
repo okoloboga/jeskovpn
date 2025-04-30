@@ -281,13 +281,15 @@ async def buy_subscription_handler(
             return
 
         _, method = callback.data.split("_")
-        payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
+        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}"
         if device_type == 'combo':
-            device_type = 'device'
+            device_type_kb = 'device'
             only = 'none'
         elif device_type == 'device':
-            only = 'device'
+            device_type_kb = device_type
+            only = device_type
         else:
+            device_type_kb = device_type
             only = 'router'
 
         # UKASSA BUY SUBSCRIPTION
@@ -321,14 +323,14 @@ async def buy_subscription_handler(
                 await callback.answer()
                 return
             else:
-                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, payment_type)
+                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type)
                 if result is not None:
                     await state.set_state(PaymentSG.add_device)
                     await callback.message.answer(
                             text=i18n.buy.subscription.success(balance=balance),
                             reply_markup=devices_kb.devices_list_kb(
                                 i18n=i18n, 
-                                device_type=device_type, 
+                                device_type=device_type_kb, 
                                 only=only)
                             )
                 else:

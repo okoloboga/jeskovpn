@@ -59,8 +59,8 @@ async def devices_button_handler(
         devices = devices + routers
         combo_cells = user_data["subscription"]["combo"]["devices"]
 
-        count_devices = user_info['total_devices']
-        subscription_fee = user_info['day_price']
+        count_devices = user_info.get('total_devices', 0)
+        subscription_fee = user_info.get('day_price', 0)
         keyboard = devices_kb.my_devices_kb(i18n, devices, combo_cells)
         text = i18n.devices.menu(
                 devices=count_devices,
@@ -169,10 +169,10 @@ async def connect_vpn_handler(
         devices = user_info['total_devices']
 
         if isinstance(event, CallbackQuery):
-            await event.message.answer(text=i18n.devices.menu(
+            await event.message.edit_text(text=i18n.devices.menu(
                                                 devices=devices,
                                                 subscription_fee=subscription_fee), 
-                                       reply_markup=devices_kb.add_device_kb(i18n))
+                                          reply_markup=devices_kb.add_device_kb(i18n))
             await state.set_state(PaymentSG.add_device)
             await event.answer()
         else:

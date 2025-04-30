@@ -7,6 +7,7 @@ class PaymentBase(BaseModel):
     amount: float
     period: int
     device_type: str
+    device: str
     payment_type: str
     
     @validator('amount')

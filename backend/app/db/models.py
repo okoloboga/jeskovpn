@@ -33,6 +33,7 @@ class Payment(Base):
     amount = Column(Float)
     period = Column(Integer)
     device_type = Column(String)
+    device = Column(String)
     payment_type = Column(String)
     status = Column(String, default="pending")
     payment_id = Column(String, nullable=True)

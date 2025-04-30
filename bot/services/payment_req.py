@@ -28,7 +28,7 @@ HEADERS = {
 }
 
 async def payment_balance_process(
-    user_id: int, amount: float, period: int, device_type: str, payment_type: str,
+        user_id: int, amount: float, period: int, device_type: str, device: str, payment_type: str,
 ) -> Optional[Dict[str, Any]]:
     """POST /payments/balance"""
     url = f"{BASE_URL}/payments/balance"
@@ -37,6 +37,7 @@ async def payment_balance_process(
         "amount": float(amount),
         "period": int(period),
         "device_type": str(device_type),
+        "device": str(device),
         "payment_type": str(payment_type)
     }
     logger.info(f"Sending request to backend: {json.dumps(payload, ensure_ascii=False)}")

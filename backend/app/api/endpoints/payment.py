@@ -18,7 +18,7 @@ async def process_balance_payment(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}")
+    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, device={payment.device}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == payment.user_id).first()
@@ -59,6 +59,7 @@ async def process_balance_payment(
         subscription["router"]["duration"] = payment.period
     elif payment.device_type == "combo":
         subscription["combo"]["duration"] = payment.period
+        subscription["combo"]["type"] = payment.device
     
     user.subscription = subscription
 

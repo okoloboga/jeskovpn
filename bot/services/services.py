@@ -140,23 +140,19 @@ async def check_slot(user_id: int, device: str) -> str:
                     user_info['durations'][0] == 0 and user_info['durations'][2] == 0 and device in DEVICES):
         return 'no_subscription'
     elif user_info['durations'][2] != 0:
-        slot = 'combo'
+        combo_type = user_data['subscription']['combo']['type']
+        combo_fullnes = user_data['subscription']['combo']['devices']
+        if combo_fullnes >= combo_type and device in DEVICES and user_info['durations'][0] != 0:
+            return 'device'
+        elif combo_fullnes >= combo_type and device == 'router' and user_info['durations'][1] != 0:
+            return 'router'    
+        return 'combo'
     elif user_info['durations'][0] != 0 and device in DEVICES:
-        slot = 'device'
+        return 'device'
     elif user_info['durations'][1] != 0 and device == 'router':
-        slot = 'router'
+        return 'router'
     else:
         return 'error'
-
-    if slot == 'combo':
-        current_slot = len(user_data['subscription'][slot]['devices'])
-        limit = 5 if user_data['subscription'][slot]['type'] == 5 else 10
-        if limit >= current_slot:
-            return slot
-        else:
-            return 'combo'
-    else:
-        return slot
 
 def validate_device_name(name: str) -> str:
     
