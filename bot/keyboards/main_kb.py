@@ -44,7 +44,7 @@ def main_kb(
                 if days_left > 0:
                     sub_text = i18n.active.sub.button(days=str(days_left))
                 else:
-                    sub_text = i18n.inactive.sub.button()
+                    sub_text = i18n.active.sub.withoutdays.button()
             except ValueError:
                 sub_text = i18n.inactive.sub.button()
         else:

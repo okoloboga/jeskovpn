@@ -59,8 +59,8 @@ async def balance_button_handler(
                 await event.answer(text=text)
             return
 
-        balance = user_data["balance"]
-        day_price = user_info['day_price']
+        balance = user_data.get("balance", 0)
+        day_price = user_info.get('day_price', 0)
         await state.update_data(
                 balance=balance, 
                 day_price=day_price
@@ -68,7 +68,7 @@ async def balance_button_handler(
 
         inline_keyboard = payment_kb.add_balance_kb(i18n)
         days = 0 if day_price == 0 else (int(balance/day_price))
-        is_subscribed = True if days > 0 else False
+        is_subscribed = user_info.get('is_subscribed', False)
         text_head = i18n.balance.menu(
                         balance=balance, 
                         days = days
@@ -254,14 +254,22 @@ async def buy_subscription_handler(
         balance = state_data.get("balance")
         device_type = state_data.get("device_type")
         period = state_data.get("period", "0")
+        device = state_data.get("device")
+
+        logger.info(f'Payment type: {payment_type}; device: {device}; amount: {amount}; balance: {balance}; device type: {device_type}; period: {period}')
         
         # For subscriptions, calculate amount from month_price
         if payment_type == "buy_subscription":
+
+            if device in ('5', '10'):
+                amount = services.MONTH_PRICE[device_type][device][str(period)]
+            else:
+                amount = services.MONTH_PRICE[device_type][str(period)]
+
             if not (period and device_type):
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
                 return
-            amount = services.MONTH_PRICE.get(device_type, {}).get(period)
             if amount is None:
                 await callback.message.edit_text(text=i18n.error.invalid_payment_data())
                 await callback.answer()
@@ -274,6 +282,13 @@ async def buy_subscription_handler(
 
         _, method = callback.data.split("_")
         payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
+        if device_type == 'combo':
+            device_type = 'device'
+            only = 'none'
+        elif device_type == 'device':
+            only = 'device'
+        else:
+            only = 'router'
 
         # UKASSA BUY SUBSCRIPTION
         if method == "ukassa":
@@ -314,7 +329,7 @@ async def buy_subscription_handler(
                             reply_markup=devices_kb.devices_list_kb(
                                 i18n=i18n, 
                                 device_type=device_type, 
-                                only=device_type)
+                                only=only)
                             )
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")

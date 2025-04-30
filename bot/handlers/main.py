@@ -70,7 +70,7 @@ async def command_start_getter(
             last_name=last_name if last_name is not None else 'no_last_name',
             username=username if username is not None else 'no_username'
         )
-        if 'error' not in result:
+        if result is not None:
             # Add referral if provided
             if inviter_id and inviter_id != str(user_id):
                 try:
@@ -83,32 +83,32 @@ async def command_start_getter(
         # Fetch user data
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
+
         if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
-
-        day_price = user_info['day_price']
-
-        balance = user_data["balance"]
-        days_left = 0 if day_price == 0 else int(balance/day_price)
-        is_subscribed = False if days_left == 0 else True
+        else:
+            day_price = user_info.get('day_price', 0)
+            balance = user_data.get("balance", 0)
+            days_left = 0 if day_price == 0 else int(balance/day_price)
+            is_subscribed = user_info.get('is_subscribed', False)
         
-        # Send welcome message
-        head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head(name=name)
-        await message.answer(
-            text=head_text,
-            reply_markup=main_kb.main_kb(
-                i18n=i18n,
-                is_subscribed=is_subscribed,
-                balance=balance,
-                days_left=days_left
+            # Send welcome message
+            head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head(name=name)
+            await message.answer(
+                text=head_text,
+                reply_markup=main_kb.main_kb(
+                    i18n=i18n,
+                    is_subscribed=is_subscribed,
+                    balance=balance,
+                    days_left=days_left
+                )
             )
-        )
-        keyboard_inline = main_kb.connect_vpn_inline_kb(i18n)
-        await message.answer(
-            text=i18n.start.body(),
-            reply_markup=keyboard_inline
-            )
+            keyboard_inline = main_kb.connect_vpn_inline_kb(i18n)
+            await message.answer(
+                text=i18n.start.body(),
+                reply_markup=keyboard_inline
+                )
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
         await message.answer(text=i18n.error.telegram_failed())
@@ -156,10 +156,10 @@ async def main_menu_handler(
                 await event.answer(text=text)
             return
 
-        day_price = user_info['day_price']
-        balance = user_data["balance"]
+        day_price = user_info.get('day_price')
+        balance = user_data.get("balance", 0)
         days_left = 0 if day_price == 0 else int(balance/day_price)
-        is_subscribed = False if days_left == 0 else True
+        is_subscribed = user_info.get('is_subscribed', False)
 
         keyboard=main_kb.main_kb(
             i18n=i18n,

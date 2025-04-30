@@ -17,8 +17,8 @@ async def generate_key(
     device_data: DeviceKeyCreate,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
-) -> Any:
-    logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, slot={device_data.slot}")
+) -> dict:
+    logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == device_data.user_id).first()
@@ -27,6 +27,17 @@ async def generate_key(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+
+    existing_device = db.query(Device).filter(
+            Device.user_id == device_data.user_id,
+            Device.device_name == device_data.device_name
+        ).first()
+    if existing_device:
+        logger.error(f"Device name '{device_data.device_name}' already exists for user {device_data.user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Device name already exists for this user"
         )
     
     # Check if user has an active subscription
@@ -56,7 +67,8 @@ async def generate_key(
     # Create device record
     db_device = Device(
         user_id=device_data.user_id,
-        device_name=device_data.device,
+        device=device_data.device,
+        device_name=device_data.device_name,
         vpn_key=vpn_key,
         outline_key_id=outline_key_id
     )
@@ -64,13 +76,8 @@ async def generate_key(
     db.add(db_device)
     
     # Update user's subscription to add the device
-    if device_data.slot == "device":
-        subscription["device"]["devices"].append(device_data.device)
-    elif device_data.slot == "router":
-        subscription["router"]["devices"].append(device_data.device)
-    elif device_data.slot == "combo":
-        subscription["combo"]["devices"].append(device_data.device)
-    
+    subscription[device_data.slot]["devices"].append(device_data.device_name)
+
     user.subscription = subscription
     db.commit()
     
@@ -83,23 +90,24 @@ async def get_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Getting key: user_id={device_data.user_id}, device={device_data.device}")
+    logger.info(f"Getting key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
     # Check if device exists
     device = db.query(Device).filter(
         Device.user_id == device_data.user_id,
-        Device.device_name == device_data.device
+        Device.device_name == device_data.device_name
     ).first()
     
     if not device:
-        logger.error(f"Device {device_data.device} not found for user {device_data.user_id}")
+        logger.error(f"Device {device_data.device_name} not found for user {device_data.user_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device not found"
         )
     
-    logger.info(f"Key retrieved successfully: user_id={device_data.user_id}, device={device_data.device}")
-    return {"key": device.vpn_key}
+    logger.info(f"Key retrieved successfully: user_id={device_data.user_id}, device_name={device_data.device_name}, device_type={device.device}")
+    return {"key": device.vpn_key,
+            "device_type": device.device}
 
 @router.delete("/key", status_code=status.HTTP_200_OK)
 async def remove_key(
@@ -107,16 +115,16 @@ async def remove_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Removing key: user_id={device_data.user_id}, device={device_data.device}")
+    logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
     # Check if device exists
     device = db.query(Device).filter(
         Device.user_id == device_data.user_id,
-        Device.device_name == device_data.device
+        Device.device_name == device_data.device_name
     ).first()
     
     if not device:
-        logger.error(f"Device {device_data.device} not found for user {device_data.user_id}")
+        logger.error(f"Device {device_data.device_name} not found for user {device_data.user_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Device not found"
@@ -128,8 +136,8 @@ async def remove_key(
     
     # Check in which subscription type the device exists
     for sub_type in ["device", "router", "combo"]:
-        if device_data.device in subscription[sub_type]["devices"]:
-            subscription[sub_type]["devices"].remove(device_data.device)
+        if device_data.device_name in subscription[sub_type]["devices"]:
+            subscription[sub_type]["devices"].remove(device_data.device_name)
     
     user.subscription = subscription
     
@@ -137,5 +145,5 @@ async def remove_key(
     db.delete(device)
     db.commit()
     
-    logger.info(f"Key removed successfully: user_id={device_data.user_id}, device={device_data.device}")
+    logger.info(f"Key removed successfully: user_id={device_data.user_id}, device_name={device_data.device_name}")
     return {"status": "Device removed"}

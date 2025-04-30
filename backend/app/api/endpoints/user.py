@@ -20,7 +20,6 @@ async def get_user(
     
     user = db.query(User).filter(User.user_id == user_id).first()
 
-    logger.info(f"BACKEDN USER SUB: {user.subscription}")
     if not user:
         logger.error(f"User with ID {user_id} not found")
         raise HTTPException(

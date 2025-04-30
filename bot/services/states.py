@@ -6,6 +6,9 @@ class PaymentSG(StatesGroup):
     buy_subscription = State()
     add_device = State()
 
+class DevicesSG(StatesGroup):
+    device_name = State()
+
 class SupportSG(StatesGroup):
     create_ticket = State()
 

@@ -5,15 +5,16 @@ from typing import Optional
 class DeviceKeyCreate(BaseModel):
     user_id: int
     device: str
+    device_name: str
     slot: str
 
 class DeviceKeyGet(BaseModel):
     user_id: int
-    device: str
+    device_name: str
 
 class DeviceKeyDelete(BaseModel):
     user_id: int
-    device: str
+    device_name: str
 
 class DeviceResponse(BaseModel):
     id: int

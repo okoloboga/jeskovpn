@@ -25,11 +25,12 @@ HEADERS = {
     "Authorization": f"Bearer {api_key}"
 }
 
-async def generate_device_key(user_id: int, device: str, slot: str) -> Optional[Any]:
+async def generate_device_key(user_id: int, device: str, device_name: str, slot: str) -> Optional[Any]:
     url = f"{BASE_URL}/devices/key"
     request_payload = {
         "user_id": user_id,
         "device": device,
+        "device_name": device_name,
         "slot": slot
     }
     async with aiohttp.ClientSession() as session:
@@ -41,6 +42,8 @@ async def generate_device_key(user_id: int, device: str, slot: str) -> Optional[
                 logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
+                elif status == 409:
+                    return "already_exists"
                 else:
                     logger.error(f"Add Device: Failed with status {status}")
                     return None
@@ -48,18 +51,18 @@ async def generate_device_key(user_id: int, device: str, slot: str) -> Optional[
             logger.error(f"Add Device: Error - {e}")
             return None
 
-async def get_device_key(user_id: int, device: str) -> Optional[Any]:
+async def get_device_key(user_id: int, device_name: str) -> Optional[Any]:
     url = f"{BASE_URL}/devices/key"
     request_payload = {
         "user_id": user_id,
-        "device": device,
+        "device_name": device_name,
     }
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get device {device}, user: {user_id}. Status: {status}")
+                logger.info(f"Get device {device_name}, user: {user_id}. Status: {status}")
                 logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
@@ -70,18 +73,18 @@ async def get_device_key(user_id: int, device: str) -> Optional[Any]:
             logger.error(f"Get Device: Error - {e}")
             return None
 
-async def remove_device_key(user_id: int, device: str) -> Optional[Any]:
+async def remove_device_key(user_id: int, device_name: str) -> Optional[Any]:
     url = f"{BASE_URL}/devices/key"
     request_payload = {
         "user_id": user_id,
-        "device": device
+        "device_name": device_name
     }
     async with aiohttp.ClientSession() as session:
         try:
             async with session.delete(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Remove device {device}, user: {user_id}. Status: {status}")
+                logger.info(f"Remove device {device_name}, user: {user_id}. Status: {status}")
                 logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
