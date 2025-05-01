@@ -164,15 +164,14 @@ async def connect_vpn_handler(
                 await event.answer(text=text)
             return
 
-        day_price = user_info['day_price']
-        subscription_fee = int(day_price * 30)
-        devices = user_info['total_devices']
+        subscription_fee = user_info.get('day_price', 0)
+        devices = user_info.get('total_devices')
 
         if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=i18n.devices.menu(
+            await event.message.answer(text=i18n.devices.menu(
                                                 devices=devices,
-                                                subscription_fee=subscription_fee), 
-                                          reply_markup=devices_kb.add_device_kb(i18n))
+                                                subscription_fee=subscription_fee),
+                                       reply_markup=devices_kb.add_device_kb(i18n))
             await state.set_state(PaymentSG.add_device)
             await event.answer()
         else:
@@ -289,6 +288,7 @@ async def select_device_handler(
         except Exception as e:
             logger.error(f"Unexpected error for user {user_id}: {e}")
             await message.answer(text=i18n.error.unexpected())
+
     # IF NOT ADD DEVICE - WHANT TO BUY        
     else:
         try:
@@ -310,14 +310,17 @@ async def select_device_handler(
                 is_subscribed=is_subscribed
             )
             keyboard = devices_kb.period_select_kb(i18n)
-            if device != 'router' or device != 'роутер':
-                text = i18n.period.menu(
+
+            logger.info(f"BUY ROUTER SUB; device {device}")
+
+            if device == 'router':
+                text = i18n.period.menu.router(
                     balance=balance,
                     days = 0 if day_price == 0 else int(balance/day_price)
                 )
             else: 
-                text = i18n.period.menu.router(
-                        balance=balance,
+                text = i18n.period.menu(
+                    balance=balance,
                     days = 0 if day_price == 0 else int(balance/day_price)
                 )
             await message.answer(text=text, reply_markup=keyboard)

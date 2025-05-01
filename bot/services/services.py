@@ -1,7 +1,11 @@
 import logging
 import re
-from typing import Optional
-from services import user_req
+import asyncio
+
+from aiogram import Bot
+from typing import Dict, Optional
+from fluentogram import TranslatorRunner, TranslatorHub
+from services import user_req, payment_req
 
 logger = logging.getLogger(__name__)
 
@@ -78,20 +82,20 @@ async def get_user_info(user_id: int) -> dict | None:
         devices_list = user['subscription']['device']['devices']
         router = str(user['subscription']['router']['duration'])
         combo_devices = user['subscription']['combo']['devices']
-
+ 
         if device_duration == 0 and router_duration == 0 and combo_duration == 0:
             day_price = 0
         else:
             if int(device_duration) != 0:
-                devices_price = devices_count * (MONTH_PRICE['device'][str(device_duration)] / int(device_duration) * MONTH_DAY)
+                devices_price = devices_count * (MONTH_PRICE['device'][str(device_duration)] / int(device_duration))
             else:
                 devices_price = 0
             if int(router_duration) != 0:
-                router_price = routers_count * (MONTH_PRICE['router'][str(router_duration)] / int(router_duration) * MONTH_DAY)
+                router_price = routers_count * (MONTH_PRICE['router'][str(router_duration)] / int(router_duration))
             else:
                 router_price = 0
             if int(combo_type) != 0 and int(combo_duration) != 0:
-                combo_price = combo_count * (MONTH_PRICE['combo'][str(combo_type)][str(combo_duration)] / int(combo_type) / int(combo_duration) * MONTH_DAY)
+                combo_price = combo_count * (MONTH_PRICE['combo'][str(combo_type)][str(combo_duration)] / int(combo_type) / int(combo_duration))
             else:
                 combo_price = 0
 
@@ -134,22 +138,26 @@ async def check_slot(user_id: int, device: str) -> str:
         return 'no_user'
 
     DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
-    
-    if (user_info['durations'][0] == user_info['durations'][1] == user_info['durations'][2] == 0) or (
-            user_info['durations'][1] == 0 and device == 'router') or (
-                    user_info['durations'][0] == 0 and user_info['durations'][2] == 0 and device in DEVICES):
+    durations = user_info.get('durations', (0, 0, 0))
+    device_dur, router_dur, combo_dur = durations
+
+    if (device_dur == router_dur == combo_dur == 0) or (
+            router_dur == combo_dur == 0 and device == 'router') or (
+                    device_dur == combo_dur == 0 and device in DEVICES):
         return 'no_subscription'
+
     elif user_info['durations'][2] != 0:
-        combo_type = user_data['subscription']['combo']['type']
-        combo_fullnes = user_data['subscription']['combo']['devices']
-        if combo_fullnes >= combo_type and device in DEVICES and user_info['durations'][0] != 0:
+        is_full = len(user_data['subscription']['combo']['devices']) >= user_data['subscription']['combo']['type']
+        if is_full and device in DEVICES and device_dur != 0:
             return 'device'
-        elif combo_fullnes >= combo_type and device == 'router' and user_info['durations'][1] != 0:
-            return 'router'    
+        elif is_full and device == 'router' and router_dur != 0:
+            return 'router'
+        elif is_full and device_dur == router_dur == 0:
+            return 'no_subscription'
         return 'combo'
-    elif user_info['durations'][0] != 0 and device in DEVICES:
+    elif device_dur != 0 and device in DEVICES:
         return 'device'
-    elif user_info['durations'][1] != 0 and device == 'router':
+    elif router_dur != 0 and device == 'router':
         return 'router'
     else:
         return 'error'
@@ -168,5 +176,66 @@ def validate_device_name(name: str) -> str:
         return 'wrong_len'
     else:
         return dash_replace
+
+# POLLING OF CRYPTOBOT PAYMENT
+active_invoices: Dict[str, dict] = {}
+
+async def poll_invoices(bot: Bot):
+    while True:
+        try:
+            invoices = await payment_req.get_active_invoices()
+            for invoice in invoices:
+                invoice_id = invoice["invoice_id"]
+                user_id = invoice["user_id"]
+                default_amount = invoice["amount"]
+                default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:balance"
+                payload = invoice.get("payload", default_payload)
+                _, amount, period, device_type, device, payment_type, method = payload.split(':')
+        
+                invoice_status = await payment_req.check_invoice_status(invoice_id)
+                if invoice_status:
+                    status = invoice_status["status"]
+                    if status == "paid":
+                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
+                        try:
+                            balance_response = await payment_req.payment_balance_process(
+                                user_id=user_id,
+                                amount=amount,
+                                period=period,
+                                device_type=device_type,
+                                device=device,
+                                payment_type=payment_type,
+                                method=method
+                            )
+                            if balance_response:
+                                await bot.send_message(user_id, text="Оплата успешна 🎉")
+                                await payment_req.update_invoice_status(invoice_id, "completed")
+                        except Exception as e:
+                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
+                    elif status in ["expired", "failed"]:
+                        logger.info(f"Invoice {invoice_id} {status}, updating status")
+                        await payment_req.update_invoice_status(invoice_id, status)
+            await asyncio.sleep(10)
+        except Exception as e:
+            logger.error(f"Polling error: {e}")
+            await asyncio.sleep(30)
+
+async def start_polling_invoice(
+    invoice_id: str, user_id: int, amount: float, period: int,
+    device_type: str, device: str, payment_type: str
+):
+    active_invoices[invoice_id] = {
+        "user_id": user_id,
+        "amount": amount,
+        "period": period,
+        "device_type": device_type,
+        "device": device,
+        "payment_type": payment_type
+    }
+
+async def on_startup(bot: Bot):
+    logger.info("Starting invoice polling")
+    asyncio.create_task(poll_invoices(bot))
+
 
 

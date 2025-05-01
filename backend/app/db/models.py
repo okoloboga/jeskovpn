@@ -25,6 +25,18 @@ class Referral(Base):
     referrer_id = Column(Integer, ForeignKey("users.user_id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class Invoice(Base):
+    __tablename__ = "invoices"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(BigInteger, index=True)
+    invoice_id = Column(String, unique=True, index=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="active")
+    payload = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class Payment(Base):
     __tablename__ = "payments"
     
@@ -35,6 +47,7 @@ class Payment(Base):
     device_type = Column(String)
     device = Column(String)
     payment_type = Column(String)
+    method = Column(String)
     status = Column(String, default="pending")
     payment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

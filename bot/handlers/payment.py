@@ -1,4 +1,3 @@
-from asyncio import current_task
 import logging
 from typing import Union
 from aiogram import Router, F, Bot
@@ -281,7 +280,7 @@ async def buy_subscription_handler(
             return
 
         _, method = callback.data.split("_")
-        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}"
+        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:{method}"
         if device_type == 'combo':
             device_type_kb = 'device'
             only = 'none'
@@ -307,6 +306,16 @@ async def buy_subscription_handler(
             if result is not None:
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
+                await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
+                await services.start_polling_invoice(
+                    invoice_id=invoice_id,
+                    user_id=user_id,
+                    amount=amount,
+                    period=period,
+                    device_type=device_type,
+                    device=device,
+                    payment_type=payment_type
+                )
                 await callback.message.edit_text(text=i18n.cryptobot.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
@@ -323,7 +332,7 @@ async def buy_subscription_handler(
                 await callback.answer()
                 return
             else:
-                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type)
+                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
                 if result is not None:
                     await state.set_state(PaymentSG.add_device)
                     await callback.message.answer(
@@ -400,6 +409,7 @@ async def add_balance_handler(
         payment_type = state_data.get("payment_type", "add_balance")
         amount = state_data.get("amount")
         device_type = state_data.get("device_type", "balance")
+        device = state_data.get("device", "balance")
         period = state_data.get("period", "0")
         
         if amount is None:
@@ -408,8 +418,7 @@ async def add_balance_handler(
             return
 
         _, method = callback.data.split("_")
-        payload = f"{user_id}:{payment_type}:{device_type}:{period}:{amount}"
-
+        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:{method}"
         # UKASSA ADD BALANCE
         if method == "ukassa":
             # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
@@ -425,14 +434,26 @@ async def add_balance_handler(
             if result is not None:
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
+                await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
+                await services.start_polling_invoice(
+                    invoice_id=invoice_id,
+                    user_id=user_id,
+                    amount=amount,
+                    period=period,
+                    device_type=device_type,
+                    device=device,
+                    payment_type=payment_type
+                )
                 await callback.message.edit_text(text=i18n.cryptobot.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
             else:
+                logger.error(f"Unexpected error for user {user_id} in buy subscription by cryptobot")
                 await callback.message.edit_text(text=i18n.error.unexpected())
                 await callback.answer()
+                return
 
-        # TELEGRAM STARS ADD BALANCE
+# TELEGRAM STARS ADD BALANCE
         elif method == "stars":
             stars_amount = int(amount * 0.02418956)
             await bot.send_invoice(
@@ -508,25 +529,42 @@ async def process_payment(
         None
     """
     user_id = message.from_user.id
+    user_data = await services.get_user_data(user_id)
+    if user_data is None:
+        await message.answer(text=i18n.error.unexpected())
+        return
+
+    balance = user_data.get('balance', 0)
     logger.info(f"Successful payment for user {user_id}")
 
     try:
         payment = message.successful_payment
-        user_id, payment_type, device_type, period, amount = payment.invoice_payload.split(':')
-        result = await payment_req.payment_balance_process(
-                user_id=user_id,
-                amount=amount,
-                period=period,
-                device_type=device_type,
-                payment_type=payment_type
-                )
+        user_id, amount, period, device_type, device, payment_type, method = payment.invoice_payload.split(':')
+        result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
         if result is not None:
+            if device_type == 'combo':
+                device_type_kb = 'device'
+                only = 'none'
+            elif device_type == 'device':
+                device_type_kb = device_type
+                only = device_type
+            else:
+                device_type_kb = device_type
+                only = 'router'
+
+            await state.set_state(PaymentSG.add_device)
             await message.answer(
-                text=i18n.stars.payment.successful(payload=payment_type, amount=amount)
-            )
+                    text=i18n.buy.subscription.success(balance=balance),
+                    reply_markup=devices_kb.devices_list_kb(
+                                i18n=i18n, 
+                                device_type=device_type_kb, 
+                                only=only)
+                            )
         else:
+            logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
             await message.answer(text=i18n.error.unexpected())
-        await state.clear()
+            return
+
     except Exception as e:
         logger.error(f"Failed to process payment for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())

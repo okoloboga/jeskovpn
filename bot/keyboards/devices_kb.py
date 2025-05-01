@@ -32,7 +32,7 @@ def my_devices_kb(
         for device in devices:
             builder.row(InlineKeyboardButton(text=device, callback_data=f"selected_device_{device}"))
         for combo_cell in combo_cells:
-            builder.row(InlineKeyboardButton(text=combo_cell, callback_data=f"selected_cell_{combo_cell}"))
+            builder.row(InlineKeyboardButton(text=combo_cell, callback_data=f"selected_device_{combo_cell}"))
         builder.row(
             InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),
             # InlineKeyboardButton(text=i18n.remove.device.button(), callback_data="remove_device")

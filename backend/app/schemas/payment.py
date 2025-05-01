@@ -9,6 +9,7 @@ class PaymentBase(BaseModel):
     device_type: str
     device: str
     payment_type: str
+    method: str
     
     @validator('amount')
     def amount_must_be_positive(cls, v):
@@ -27,3 +28,24 @@ class PaymentResponse(PaymentBase):
     
     class Config:
         orm_mode = True
+
+class InvoiceBase(BaseModel):
+    user_id: int
+    invoice_id: str
+    amount: float
+    currency: str
+    status: str
+    payload: str
+
+class InvoiceCreate(InvoiceBase):
+    pass
+
+class InvoiceResponse(InvoiceBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        orm_mode = True
+
+class InvoiceUpdate(BaseModel):
+    status: str

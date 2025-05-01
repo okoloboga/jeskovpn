@@ -4,12 +4,14 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from fluentogram import TranslatorHub
+from fluentogram import TranslatorHub, TranslatorRunner
 
 from utils import TranslatorHub, create_translator_hub
 from middlewares import TranslatorRunnerMiddleware
-from handlers import (main_router, devices_router, payment_router, admin_router, another_router, unknown_router)
+from handlers import (main_router, devices_router, payment_router, 
+                      admin_router, another_router, unknown_router)
 from config import get_config, BotConfig
+from services.services import on_startup
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,7 @@ async def main():
     # Routers, dialogs, middlewares
     dp.include_routers(main_router, devices_router, payment_router, admin_router, another_router, unknown_router)
     dp.update.middleware(TranslatorRunnerMiddleware())
+    dp.startup.register(on_startup)
  
     # Skipping old updates
     await bot.delete_webhook(drop_pending_updates=True)
