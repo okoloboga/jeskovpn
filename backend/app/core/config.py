@@ -14,7 +14,7 @@ class DatabaseConfig(BaseModel):
 
 class OutlineConfig(BaseModel):
     api_url: str
-    api_key: str
+    cert_sha256: str
 
 class ServerConfig(BaseModel):
     port: int

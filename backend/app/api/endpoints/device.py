@@ -9,6 +9,8 @@ from app.core.security import get_api_key
 from app.db.session import get_db
 from app.db.models import User, Device
 from app.schemas.device import DeviceKeyCreate, DeviceKeyGet, DeviceKeyPut, DeviceKeyDelete
+from app.services.outline import create_outline_key
+from app.core.config import get_app_config
 
 router = APIRouter()
 
@@ -60,9 +62,13 @@ async def generate_key(
             detail="No active subscription"
         )
     
-    # Generate a dummy VPN key (in a real app, this would call the Outline API)
-    vpn_key = f"{uuid.uuid4().hex}"
-    outline_key_id = str(uuid.uuid4())
+    # Get Outline API configuration
+    config = get_app_config()
+    outline_api_url = config.outline.api_url
+    outline_cert_sha256 = config.outline.cert_sha256
+
+    # Generate VPN key using Outline API
+    vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
     
     # Create device record
     db_device = Device(
