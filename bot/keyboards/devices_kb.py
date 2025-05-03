@@ -46,7 +46,7 @@ def my_devices_kb(
         logger.error(f"Unexpected error in devices_kb: {e}")
         raise
 
-def device_kb(i18n: TranslatorRunner, device: str) -> InlineKeyboardMarkup:
+def device_kb(i18n: TranslatorRunner, device_name: str, device_type: str) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard for a specific device.
 
@@ -71,12 +71,15 @@ def device_kb(i18n: TranslatorRunner, device: str) -> InlineKeyboardMarkup:
             "tv": "https://example.com/tv",
             "router": "https://example.com/router"
         }
-        url = device_url_dict.get(device, "https://example.com/default")
+        url = device_url_dict.get(device_type, "https://example.com/default")
 
         builder = InlineKeyboardBuilder()
         builder.row(
+                InlineKeyboardButton(text=i18n.rename.device.button(), callback_data=f"rename_device_{device_name}")
+                )
+        builder.row(
                 InlineKeyboardButton(text=i18n.device.instruction.button(), url=url),
-                InlineKeyboardButton(text=i18n.remove.device.button(), callback_data=f"remove_device_{device}")
+                InlineKeyboardButton(text=i18n.remove.device.button(), callback_data=f"remove_device_{device_name}")
                 )
         builder.row(InlineKeyboardButton(text=i18n.devices.button(), callback_data="devices_menu"))
         builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))

@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
-from services import services, payment_req, PaymentSG
+from services import services, payment_req, PaymentSG, MONTH_DAY
 from keyboards import devices_kb, payment_kb, main_kb
 
 payment_router = Router()
@@ -59,14 +59,14 @@ async def balance_button_handler(
             return
 
         balance = user_data.get("balance", 0)
-        day_price = user_info.get('day_price', 0)
+        month_price = user_info.get('month_price', 0)
         await state.update_data(
                 balance=balance, 
-                day_price=day_price
+                month_price=month_price
                 )
 
         inline_keyboard = payment_kb.add_balance_kb(i18n)
-        days = 0 if day_price == 0 else (int(balance/day_price))
+        days = 0 if month_price == 0 else (int(balance/month_price * MONTH_DAY))
         is_subscribed = user_info.get('is_subscribed', False)
         text_head = i18n.balance.menu(
                         balance=balance, 
@@ -131,7 +131,7 @@ async def top_up_balance_handler(
         await state.set_state(PaymentSG.add_balance)
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        day_price = state_data.get("day_price", 0)
+        month_price = state_data.get("month_price", 0)
 
         await state.update_data(
             payment_type="add_balance",
@@ -151,7 +151,7 @@ async def top_up_balance_handler(
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
             text = i18n.payment.menu(
                     balance=balance, 
-                    days = 0 if day_price == 0 else int(balance / day_price),
+                    days = 0 if month_price == 0 else int(balance / month_price),
                     amount=amount
                     )
             await callback.message.edit_text(text=text, reply_markup=keyboard)
@@ -206,8 +206,8 @@ async def custom_balance_handler(
 
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        day_price = state_data.get("day_price", 0)
-        days = 0 if day_price == 0 else int(balance/day_price)
+        month_price = state_data.get("month_price", 0)
+        days = 0 if month_price == 0 else int(balance/month_price)
 
         await state.update_data(
             amount=amount,

@@ -8,7 +8,7 @@ from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
 from app.db.models import User, Device
-from app.schemas.device import DeviceKeyCreate, DeviceKeyGet, DeviceKeyDelete
+from app.schemas.device import DeviceKeyCreate, DeviceKeyGet, DeviceKeyPut, DeviceKeyDelete
 
 router = APIRouter()
 
@@ -108,6 +108,56 @@ async def get_key(
     logger.info(f"Key retrieved successfully: user_id={device_data.user_id}, device_name={device_data.device_name}, device_type={device.device}")
     return {"key": device.vpn_key,
             "device_type": device.device}
+
+@router.put("/key", status_code=status.HTTP_200_OK)
+async def rename_device(
+        device_data: DeviceKeyPut,
+        db: Session = Depends(get_db),
+        api_key: str = Depends(get_api_key)
+) -> Any:
+    logger.info(f"Rename device: user_id={device_data.user_id}, device_old_name={device_data.device_old_name}, device_new_name={device_data.device_new_name}")
+
+    device = db.query(Device).filter(
+        Device.user_id == device_data.user_id,
+        Device.device_name == device_data.device_old_name
+    ).first()
+
+    if not device:
+        logger.error(f"Device {device_data.device_old_name} not found for user {device_data.user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found"
+        )
+    
+    existing_device = db.query(Device).filter(
+        Device.device_name == device_data.device_new_name
+    ).first()
+
+    if existing_device:
+        logger.error(f"Device name {device_data.device_new_name} already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Device name already exists"
+        )
+
+    device.device_name = device_data.device_new_name
+
+    # Update device name in user's subscription
+    user = db.query(User).filter(User.user_id == device_data.user_id).first()
+    subscription = copy.deepcopy(user.subscription)
+
+    for sub_type in ["device", "router", "combo"]:
+        if device_data.device_old_name in subscription[sub_type]["devices"]:
+            subscription[sub_type]["devices"].remove(device_data.device_old_name)
+            subscription[sub_type]["devices"].append(device_data.device_new_name)
+    
+    user.subscription = subscription
+    
+    db.commit()
+    db.refresh(device)
+
+    logger.info(f"Device renamed successfully: {device_data.device_old_name} to {device_data.device_new_name} for user {device_data.user_id}")
+    return {"status": "Device renamed"}
 
 @router.delete("/key", status_code=status.HTTP_200_OK)
 async def remove_key(

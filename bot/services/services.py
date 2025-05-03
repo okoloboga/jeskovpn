@@ -84,7 +84,7 @@ async def get_user_info(user_id: int) -> dict | None:
         combo_devices = user['subscription']['combo']['devices']
  
         if device_duration == 0 and router_duration == 0 and combo_duration == 0:
-            day_price = 0
+            month_price = 0
         else:
             if int(device_duration) != 0:
                 devices_price = devices_count * (MONTH_PRICE['device'][str(device_duration)] / int(device_duration))
@@ -99,7 +99,7 @@ async def get_user_info(user_id: int) -> dict | None:
             else:
                 combo_price = 0
 
-            day_price = devices_price + router_price + combo_price
+            month_price = devices_price + router_price + combo_price
         
         if combo_type != '0' and str(combo_duration) != '0':
             combo_count = len(user['subscription']['combo']['devices'])
@@ -117,7 +117,7 @@ async def get_user_info(user_id: int) -> dict | None:
         else:
             is_subscribed = True
 
-        result = {'day_price': day_price,
+        result = {'month_price': month_price,
                   'total_devices': total_devices,
                   'devices_list': devices_list,
                   'durations': durations,

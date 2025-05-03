@@ -8,7 +8,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
 
-from services import user_req, services
+from services import user_req, services, MONTH_DAY
 from keyboards import main_kb
 
 main_router = Router()
@@ -21,7 +21,6 @@ logging.basicConfig(
     format='%(filename)s:%(lineno)d #%(levelname)-8s '
            '[%(asctime)s] - %(name)s - %(message)s'
 )
-
 
 @main_router.message(CommandStart(deep_link_encoded=True))
 async def command_start_getter(
@@ -88,9 +87,10 @@ async def command_start_getter(
             await message.answer(text=i18n.error.user_not_found())
             return
         else:
-            day_price = user_info.get('day_price', 0)
+            month_price = user_info.get('month_price', 0)
             balance = user_data.get("balance", 0)
-            days_left = 0 if day_price == 0 else int(balance/day_price)
+            logger.info(f'month_price: {month_price}; balance: {balance}')
+            days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
             is_subscribed = user_info.get('is_subscribed', False)
         
             # Send welcome message
@@ -156,9 +156,10 @@ async def main_menu_handler(
                 await event.answer(text=text)
             return
 
-        day_price = user_info.get('day_price')
+        month_price = user_info.get('month_price')
         balance = user_data.get("balance", 0)
-        days_left = 0 if day_price == 0 else int(balance/day_price)
+        logger.info(f'day_price: {month_price}; balance: {balance}')
+        days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
         is_subscribed = user_info.get('is_subscribed', False)
 
         keyboard=main_kb.main_kb(

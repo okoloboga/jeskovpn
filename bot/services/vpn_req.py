@@ -73,6 +73,29 @@ async def get_device_key(user_id: int, device_name: str) -> Optional[Any]:
             logger.error(f"Get Device: Error - {e}")
             return None
 
+async def rename_device(user_id: int, device_old_name: str, device_new_name: str) -> Optional[Any]:
+    url = f"{BASE_URL}/devices/key"
+    request_payload = {
+        "user_id": user_id,
+        "device_old_name": device_old_name,
+        "device_new_name": device_new_name
+    }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.put(url, headers=HEADERS, json=request_payload) as response:
+                status = response.status
+                response_json = await response.json()
+                logger.info(f"Rename device {device_old_name} to {device_new_name}, user: {user_id}. Status: {status}")
+                logger.info(json.dumps(response_json))
+                if status in (200, 201):
+                    return response_json
+                else:
+                    logger.error(f"Rename Device: Failed with status {status}")
+                    return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Rename Device: Error - {e}")
+            return None
+
 async def remove_device_key(user_id: int, device_name: str) -> Optional[Any]:
     url = f"{BASE_URL}/devices/key"
     request_payload = {

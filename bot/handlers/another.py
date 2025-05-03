@@ -59,7 +59,7 @@ async def subscription_handler(
         if user_info is None:
             await message.answer(text=i18n.error.unexpected())
             return
-        day_price = user_info.get('day_price')
+        month_price = user_info.get('month_price')
         is_subscribed = user_info.get('is_subscribed')
         min_subscription_price = 100  # Minimum price for "device" for 1 month
 
@@ -67,7 +67,7 @@ async def subscription_handler(
             text = i18n.subscription.menu.active(
                     name=name, 
                     balance=balance, 
-                    days = 0 if day_price == 0 else int(balance / day_price)
+                    days = 0 if month_price == 0 else int(balance / month_price)
                     )
         elif balance >= min_subscription_price:
             text = i18n.nosubscription.have.balance(balance=balance)
@@ -144,17 +144,17 @@ async def ticket_handler(
 
     try:
         user_data = await user_req.get_user(user_id)
+        user_info = await services.get_user_info(user_id)
 
-        if user_data is None:
+        if user_data is None or user_info is None:
             logger.error(f"Unexpected user {user_id}")
             await message.answer(text=i18n.error.unexpected())
             return
 
-        user_info = await services.get_user_info(user_id)
-        day_price = user_info['day_price']
-        is_subscribed = False if day_price == 0 else True
+        month_price = user_info['month_price']
+        is_subscribed = False if month_price == 0 else True
         balance = user_data['balance']
-        days_left = 0 if day_price == 0 else int(balance / day_price)
+        days_left = 0 if month_price == 0 else int(balance / month_price)
 
         await bot.send_message(
             chat_id=admin_id,

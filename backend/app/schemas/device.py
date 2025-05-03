@@ -12,6 +12,11 @@ class DeviceKeyGet(BaseModel):
     user_id: int
     device_name: str
 
+class DeviceKeyPut(BaseModel):
+    user_id: int
+    device_old_name: str
+    device_new_name: str
+
 class DeviceKeyDelete(BaseModel):
     user_id: int
     device_name: str
