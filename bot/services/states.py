@@ -13,5 +13,6 @@ class DevicesSG(StatesGroup):
 class SupportSG(StatesGroup):
     create_ticket = State()
 
-class AdminSG(StatesGroup):
-    reply_ticket = State()
+class AdminAuthStates(StatesGroup):
+    waiting_for_new_password = State()
+    waiting_for_password = State()

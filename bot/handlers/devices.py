@@ -23,7 +23,7 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s'
 )
 
-@devices_router.message(F.text.in_(["Мои устройства 📱", "My Devices 📱"]))
+@devices_router.message(F.text.in_(["🌐 Мои устройства 📱💻", "My Devices 📱"]))
 @devices_router.callback_query(F.data == "devices_menu")
 async def devices_button_handler(
     event: Union[CallbackQuery, Message],
@@ -55,15 +55,25 @@ async def devices_button_handler(
             else:
                 await event.answer(text=text)
             return
+        
+        devices_list = user_info.get("devices_list", ([], [], []))
+        devices, routers, combo = devices_list
+        subscriptions = user_info.get("active_subscriptions", {})
+        
+        # Create list of empty buttons, if combo is active
+        if 'combo' in subscriptions:
+            combo_type, _ = subscriptions.get('combo')
+            combo_count = len(combo)
+            empty_slots = int(combo_type) - combo_count
+            combo = (empty_slots, combo)
+        else:
+            combo = (0, [])
 
-        devices = user_data["subscription"]["device"]["devices"]
-        routers = user_data["subscription"]["router"]["devices"]
         devices = devices + routers
-        combo_cells = user_data["subscription"]["combo"]["devices"]
 
         count_devices = user_info.get('total_devices', 0)
         subscription_fee = user_info.get('month_price', 0)
-        keyboard = devices_kb.my_devices_kb(i18n, devices, combo_cells)
+        keyboard = devices_kb.my_devices_kb(i18n, devices, combo)
         text = i18n.devices.menu(
                 devices=count_devices,
                 subscription_fee=subscription_fee)
@@ -143,7 +153,7 @@ async def select_devices_handler(
         await callback.answer()
 
 @devices_router.message(F.text.in_(['Подключить VPN 🚀', 'Connect VPN 🚀']))
-@devices_router.callback_query(F.data == "add_device")
+@devices_router.callback_query(F.data.startswith("add_device"))
 async def connect_vpn_handler(
     event: Union[CallbackQuery, Message],
     state: FSMContext,
@@ -174,9 +184,6 @@ async def connect_vpn_handler(
             else:
                 await event.answer(text=text)
             return
-
-        subscription_fee = user_info.get('month_price', 0)
-        devices = user_info.get('total_devices')
 
         if isinstance(event, CallbackQuery):
             await event.message.answer(text=i18n.device.type.menu(),

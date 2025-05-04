@@ -6,14 +6,15 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
 
-from services import admin_req
-from services.states import AdminSG
+from services import admin_req, AdminAuthStates
+from utils.admin_auth import is_admin
 from keyboards import admin_kb
 from config import get_config, Admin
 
 admin_router = Router()
 admin = get_config(Admin, "admin")
-admin_id = admin.id
+admin_id = admin.id 
+PER_PAGE = 20
 
 logger = logging.getLogger(__name__)
 
@@ -24,110 +25,95 @@ logging.basicConfig(
            "[%(asctime)s] - %(name)s - %(message)s"
 )
 
-@admin_router.callback_query(F.data.startswith("reply_ticket_"))
-async def reply_ticket_start(
-    callback: CallbackQuery,
-    i18n: TranslatorRunner,
-    state: FSMContext
+@admin_router.message(F.text == "/admin")
+async def admin_entry(
+        message: Message, 
+        state: FSMContext,
+        i18n: TranslatorRunner
 ) -> None:
-    """
-    Handle admin's request to reply to a support ticket.
 
-    Checks admin privileges, sets FSM state, and prompts for a reply.
-
-    Args:
-        callback (CallbackQuery): The incoming callback query with ticket data.
-        i18n (TranslatorRunner): Translator for localized responses.
-        state (FSMContext): Finite state machine context for storing user ID.
-
-    Returns:
-        None
-    """
-    user_id = callback.from_user.id
-    logger.info(f"User {user_id} attempting to reply to a ticket")
-
-    try:
-        if user_id != admin_id:
-            await callback.answer(text=i18n.error.only.admin(), show_alert=True)
-            return
-
-        ticket_user_id = int(callback.data.split("_")[2])
-        await state.update_data(user_id=ticket_user_id)
-        await state.set_state(AdminSG.reply_ticket)
-
-        await callback.message.edit_text(
-            text=i18n.reply.ticket(),
-            reply_markup=admin_kb.cancel_reply_kb(i18n)
-        )
-        await callback.answer()
-
-    except ValueError as e:
-        logger.error(f"Invalid ticket data for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.invalid_data())
-        await callback.answer()
-    except TelegramBadRequest as e:
-        logger.error(f"Telegram API error for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.telegram_failed())
-        await callback.answer()
-    except Exception as e:
-        logger.error(f"Unexpected error for user {user_id}: {e}")
-        await callback.message.edit_text(text=i18n.error.unexpected())
-        await callback.answer()
-
-@admin_router.message(AdminSG.reply_ticket)
-async def process_ticket_reply(
-    message: Message,
-    bot: Bot,
-    state: FSMContext,
-    i18n: TranslatorRunner
-) -> None:
-    """
-    Process admin's reply to a support ticket.
-
-    Sends the reply to the user, deletes the ticket, and notifies the admin.
-
-    Args:
-        message (Message): The incoming message with reply text.
-        bot (Bot): Aiogram Bot instance for sending messages.
-        state (FSMContext): Finite state machine context for retrieving user ID.
-        i18n (TranslatorRunner): Translator for localized responses.
-
-    Returns:
-        None
-    """
     user_id = message.from_user.id
-    logger.info(f"User {user_id} processing ticket reply")
+    if not is_admin(user_id, admin_id):
+        await message.answer(text=i18n.unknown.message())
+        return
 
-    try:
-        if user_id != admin_id:
-            await message.answer(text=i18n.error.only.admin())
-            return
+    if not await admin_req.has_admin_password(user_id):
+        await message.answer("Добро пожаловать! Установите новый пароль для входа в админ-панель:")
+        await state.set_state(AdminAuthStates.waiting_for_new_password)
+    else:
+        await message.answer("Введите пароль для входа в админ-панель:")
+        await state.set_state(AdminAuthStates.waiting_for_password)
 
-        reply_text = message.text
-        data = await state.get_data()
-        ticket_user_id = data.get("user_id")
+@admin_router.message(AdminAuthStates.waiting_for_new_password)
+async def admin_set_password(
+        message: Message, 
+        state: FSMContext
+) -> None:
 
-        if not ticket_user_id:
-            await message.answer(text=i18n.error.invalid_data())
-            await state.clear()
-            return
+    user_id = message.from_user.id
+    password = message.text.strip()
 
-        await bot.send_message(
-            chat_id=ticket_user_id,
-            text=i18n.ticket.answer(reply_text=reply_text)
-        )
-        await admin_req.delete_ticket(ticket_user_id)
-        await message.answer(
-            text=i18n.admin.answer(),
-            reply_markup=admin_kb.admin_menu_kb(i18n)
-        )
+    if len(password) < 6:
+        await message.answer("Пароль слишком короткий. Минимум 6 символов.")
+        return
+
+    ok = await admin_req.set_admin_password(user_id, password)
+    
+    if ok:
+        await message.answer("Пароль установлен! Вы вошли в админ-панель.")
         await state.clear()
+    
+    else:
+        await message.answer("Ошибка при установке пароля. Попробуйте ещё раз.")
 
-    except TelegramBadRequest as e:
-        logger.error(f"Telegram API error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.telegram_failed())
+@admin_router.message(AdminAuthStates.waiting_for_password)
+async def admin_check_password(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    
+    user_id = message.from_user.id
+    password = message.text.strip()
+    ok = await admin_req.check_admin_password(user_id, password)
+    
+    if ok:
+        await message.answer("Вход выполнен! Добро пожаловать в админ-панель.",
+                             reply_markup=admin_kb.admin_main_menu_kb())
         await state.clear()
-    except Exception as e:
-        logger.error(f"Unexpected error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.unexpected())
-        await state.clear()
+    else:
+        await message.answer("Неверный пароль. Попробуйте ещё раз.")
+
+@admin_router.message(F.text == "👤 Пользователи")
+async def admin_users_menu(
+        message: Message, 
+        state: FSMContext
+) -> None:
+
+    summary = await admin_req.get_users_summary()
+    if not summary:
+        return await message.answer("Ошибка получения данных.")
+    total = summary["total"]
+    active = summary["active"]
+    text = (
+        f"👥 Всего пользователей: <b>{total}</b>\n"
+        f"🟢 С активной подпиской: <b>{active}</b>"
+    )
+    users = await admin_req.get_users(skip=0, limit=PER_PAGE)
+    await message.answer(
+        text,
+        reply_markup=admin_kb.users_list_kb(users, page=0, per_page=PER_PAGE),
+        parse_mode="HTML"
+    )
+
+@admin_router.callback_query(F.data.startswith("admin_users_page_"))
+async def admin_users_pagination(
+        callback: CallbackQuery
+) -> None:
+    
+    page = int(callback.data.split("_")[-1])
+    skip = page * PER_PAGE
+    users = await admin_req.get_users(skip=skip, limit=PER_PAGE)
+    await callback.message.edit_reply_markup(
+        reply_markup=admin_kb.users_list_kb(users, page=page, per_page=PER_PAGE)
+    )
+    await callback.answer()

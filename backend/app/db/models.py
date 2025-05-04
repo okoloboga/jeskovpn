@@ -62,3 +62,12 @@ class Device(Base):
     vpn_key = Column(String)
     outline_key_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class AdminAuth(Base):
+    __tablename__ = "admin_auth"
+
+    admin_id = Column(BigInteger, primary_key=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+

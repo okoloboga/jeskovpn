@@ -149,7 +149,7 @@ async def top_up_balance_handler(
         else:
             await state.update_data(amount=int(amount))
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
-            text = i18n.payment.menu(
+            text = i18n.topup.balance.menu(
                     balance=balance, 
                     days = 0 if month_price == 0 else int(balance / month_price),
                     amount=amount
@@ -215,7 +215,7 @@ async def custom_balance_handler(
             device_type="balance"
             )
         keyboard = payment_kb.payment_select(i18n, payment_type=payment_type)
-        text = i18n.payment.menu(balance=balance, days=days, amount=amount)
+        text = i18n.topup.balance.menu(balance=balance, days=days, amount=amount)
         await message.answer(text=text, reply_markup=keyboard)
 
     except Exception as e:

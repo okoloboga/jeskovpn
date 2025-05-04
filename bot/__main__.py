@@ -1,4 +1,5 @@
 import asyncio
+from asyncio.events import BaseDefaultEventLoopPolicy
 import logging
 
 from aiogram import Bot, Dispatcher

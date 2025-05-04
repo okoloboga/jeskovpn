@@ -1,68 +1,50 @@
 import logging
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from fluentogram import TranslatorRunner
 
 logger = logging.getLogger(__name__)
 
-def cancel_reply_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
-    """
-    Create an inline keyboard for canceling ticket reply.
+def admin_main_menu_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="👤 Пользователи"),
+                KeyboardButton(text="🔑 Ключи")
+            ],
+            [
+                KeyboardButton(text="💰 Финансы"),
+                KeyboardButton(text="📢 Рассылка")
+            ],
+            [
+                KeyboardButton(text="🛡 Безопасность")
+            ]
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие"
+    )
 
-    Offers a single button to cancel the action.
-
-    Args:
-        i18n (TranslatorRunner): Translator for localized button texts.
-
-    Returns:
-        InlineKeyboardMarkup: The cancel reply keyboard.
-
-    Raises:
-        KeyError: If localization keys are missing.
-    """
-    try:
-        builder = InlineKeyboardBuilder()
-        builder.row(
-            InlineKeyboardButton(
-                text=i18n.cancel.button(),
-                callback_data="cancel_reply"
-            )
+def users_list_kb(users, page, per_page):
+    keyboard = []
+    row = []
+    for idx, user in enumerate(users):
+        btn = InlineKeyboardButton(
+            text=f"{user['user_id']}",
+            callback_data=f"admin_user_{user['user_id']}"
         )
-        return builder.as_markup()
-    except (KeyError, AttributeError) as e:
-        logger.error(f"Localization error in cancel_reply_kb: {e}")
-        return InlineKeyboardMarkup()
-    except Exception as e:
-        logger.error(f"Unexpected error in cancel_reply_kb: {e}")
-        raise
+        row.append(btn)
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
 
-def admin_menu_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
-    """
-    Create an inline keyboard for the admin menu.
+    keyboard.append([InlineKeyboardButton(text="🔍 Поиск", callback_data="admin_user_search")])
 
-    Offers navigation to the main admin functions (placeholder).
-
-    Args:
-        i18n (TranslatorRunner): Translator for localized button texts.
-
-    Returns:
-        InlineKeyboardMarkup: The admin menu keyboard.
-
-    Raises:
-        KeyError: If localization keys are missing.
-    """
-    try:
-        builder = InlineKeyboardBuilder()
-        builder.row(
-            InlineKeyboardButton(
-                text=i18n.admin.menu.button(),
-                callback_data="admin_menu"
-            )
-        )
-        return builder.as_markup()
-    except (KeyError, AttributeError) as e:
-        logger.error(f"Localization error in admin_menu_kb: {e}")
-        return InlineKeyboardMarkup()
-    except Exception as e:
-        logger.error(f"Unexpected error in admin_menu_kb: {e}")
-        raise      
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin_users_page_{page-1}"))
+    nav_row.append(InlineKeyboardButton(text=f"Стр. {page+1}", callback_data="noop"))
+    if len(users) == per_page:
+        nav_row.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"admin_users_page_{page+1}"))
+    keyboard.append(nav_row)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

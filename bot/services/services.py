@@ -4,7 +4,6 @@ import asyncio
 
 from aiogram import Bot
 from typing import Dict, Optional
-from fluentogram import TranslatorRunner, TranslatorHub
 from services import user_req, payment_req
 
 logger = logging.getLogger(__name__)
@@ -18,23 +17,23 @@ logging.basicConfig(
 
 # Subscription prices in rubles
 MONTH_PRICE = {
-    "device": {"0": 0, "1": 100, "3": 400, "6": 625, "12": 900},
-    "router": {"0": 0, "1": 350, "3": 945, "6": 1470, "12": 2100},
+    "device": {"0": 0, "1": 100, "3": 240, "6": 420, "12": 600},
+    "router": {"0": 0, "1": 250, "3": 600, "6": 1000, "12": 1500},
     "combo": {"0": {"0": 0},
-              "5": {"0": 0, "1": 750, "3": 2000, "6": 3150, "12": 4500},
-              "10": {"0": 0, "1": 1500, "3": 4000, "6": 6300, "12": 9000}
+              "5": {"0": 0, "1": 500, "3": 1200, "6": 2100, "12": 3000},
+              "10": {"0": 0, "1": 850, "3": 2000, "6": 3500, "12": 5000}
+        }
+    }
+
+STAR_PRICE = {
+    "device": {"0": 0, "1": 55, "3": 130, "6": 230, "12": 330},
+    "router": {"0": 0, "1": 250, "3": 600, "6": 1000, "12": 1500},
+    "combo": {"0": {"0": 0},
+              "5": {"0": 0, "1": 275, "3": 660, "6": 1155, "12": 1650},
+              "10": {"0": 0, "1": 465, "3": 1120, "6": 1960, "12": 2800}
         }
     }
 MONTH_DAY = 30.42
-
-DAY_PRICE =  {
-    "device": {"0": 0.0, "1": 5.0, "3": 4.4, "6": 3.45, "12": 2.46},
-    "router": {"0": 0.0, "1": 11.66, "3": 10.5, "6": 8.12, "12": 5.75},
-    "combo": {"0": {"0": 0.0},
-              "5": {"0": 0.0, "1": 5.0, "3": 22.0, "6": 17.4, "12": 12.33},
-              "10":  {"0": 0.0, "1": 10, "3": 4.4, "6": 34.8, "12": 24.66}
-        }
-    }
 
 async def get_user_data(user_id: int) -> Optional[dict]:
     """
@@ -80,9 +79,10 @@ async def get_user_info(user_id: int) -> dict | None:
         routers_count = len(user['subscription']['router']['devices'])
         combo_count = len(user['subscription']['combo']['devices'])
         devices_list = user['subscription']['device']['devices']
-        router = str(user['subscription']['router']['duration'])
-        combo_devices = user['subscription']['combo']['devices']
- 
+        routers_list = user['subscription']['router']['devices']
+        combo_list = user['subscription']['combo']['devices']
+        combo_type = user['subscription']['combo']['type']
+
         if device_duration == 0 and router_duration == 0 and combo_duration == 0:
             month_price = 0
         else:
@@ -100,28 +100,30 @@ async def get_user_info(user_id: int) -> dict | None:
                 combo_price = 0
 
             month_price = devices_price + router_price + combo_price
-        
-        if combo_type != '0' and str(combo_duration) != '0':
-            combo_count = len(user['subscription']['combo']['devices'])
-        else:
-            combo_count = 0
-        total_devices = devices_count + routers_count + combo_count
-        devices_list += combo_devices
 
-        if router != "0":
-            devices_list += ['router']
-
+        total_devices = len(devices_list) + len(routers_list) + len(combo_list)
+        devices_list = (devices_list, routers_list, combo_list)
         durations = (device_duration, router_duration, combo_duration)
+
         if int(device_duration) + int(router_duration) + int(combo_duration) == 0:
             is_subscribed = False
         else:
             is_subscribed = True
+        
+        active_subscriptions: dict = {}
+        if int(durations[0]) != 0:
+            active_subscriptions['devices'] = len(devices_list)
+        elif int(durations[1]) != 0:
+            active_subscriptions['routers'] = len(routers_list)
+        elif int(durations[2]) != 0:
+            active_subscriptions['combo'] = (combo_type, len(combo_list))
 
         result = {'month_price': month_price,
                   'total_devices': total_devices,
                   'devices_list': devices_list,
                   'durations': durations,
-                  'is_subscribed': is_subscribed}
+                  'is_subscribed': is_subscribed,
+                  'active_subscriptions': active_subscriptions}
 
         return result
  

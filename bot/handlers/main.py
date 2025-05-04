@@ -91,10 +91,23 @@ async def command_start_getter(
             balance = user_data.get("balance", 0)
             logger.info(f'month_price: {month_price}; balance: {balance}')
             days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
+            active_subscriptions = user_info.get('active_subscriptions', {})
             is_subscribed = user_info.get('is_subscribed', False)
         
             # Send welcome message
             head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head(name=name)
+            head_text = head_text + "\n"
+            if 'devices' in active_subscriptions:
+                devices_count = active_subscriptions.get('devices', 0)
+                head_text = head_text + f'\n{i18n.active.sub.device(devices_count=devices_count)}'
+            if 'routers' in active_subscriptions:
+                routers_count = active_subscriptions.get('routers', 0)
+                head_text = head_text + f'\n{i18n.active.sub.router(routers_count=routers_count)}'
+            if 'combo' in active_subscriptions:
+                combo_type, combo_count = active_subscriptions.get('combo', ())
+                head_text = head_text + f'\n{i18n.active.sub.combo(combo_type=combo_type, combo_count=combo_count)}'
+
+                
             await message.answer(
                 text=head_text,
                 reply_markup=main_kb.main_kb(
@@ -160,6 +173,7 @@ async def main_menu_handler(
         balance = user_data.get("balance", 0)
         logger.info(f'day_price: {month_price}; balance: {balance}')
         days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
+        active_subscriptions = user_info.get("active_subscriptions", {})
         is_subscribed = user_info.get('is_subscribed', False)
 
         keyboard=main_kb.main_kb(
@@ -171,26 +185,32 @@ async def main_menu_handler(
 
         keyboard_inline=main_kb.connect_vpn_inline_kb(i18n)
 
+        # Send welcome message
+        head_text = i18n.start.head(name=name)
+        head_text = head_text + "\n"
+        if 'devices' in active_subscriptions:
+            devices_count = active_subscriptions.get('devices', 0)
+            head_text = head_text + f'\n{i18n.active.sub.device(devices_count=devices_count)}'
+        if 'routers' in active_subscriptions:
+            routers_count = active_subscriptions.get('routers', 0)
+            head_text = head_text + f'\n{i18n.active.sub.router(routers_count=routers_count)}'
+        if 'combo' in active_subscriptions:
+            combo_type, combo_count = active_subscriptions.get('combo', ())
+            head_text = head_text + f'\n{i18n.active.sub.combo(combo_type=combo_type, combo_count=combo_count)}'
+
         # Handle event type
         if isinstance(event, CallbackQuery):
             await event.message.answer(
-                text=i18n.start.head(name=name),
-                reply_markup=keyboard
-                    )
+                text=head_text, reply_markup=keyboard)
             await event.message.answer(
-                text=i18n.start.body(),
-                reply_markup=keyboard_inline
-            )
+                text=i18n.start.body(), reply_markup=keyboard_inline)
             await event.answer()
         else:
             await event.answer(
-                text=i18n.start.head(name=name),
-                reply_markup=keyboard
-                    )
+                text=head_text, reply_markup=keyboard)
             await event.answer(
-                text=i18n.start.body(),
-                reply_markup=keyboard_inline
-            )
+                text=i18n.start.body(), reply_markup=keyboard_inline)
+
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
         if isinstance(event, CallbackQuery):

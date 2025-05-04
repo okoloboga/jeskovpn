@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Tuple
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from fluentogram import TranslatorRunner
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def my_devices_kb(
     i18n: TranslatorRunner,
     devices: List[str],
-    combo_cells: List[str]
+    combo_cells: Tuple[int, List[str]]
 ) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard for the devices menu.
@@ -29,14 +29,18 @@ def my_devices_kb(
     """
     try:
         builder = InlineKeyboardBuilder()
+        empty_slots, combo_devices = combo_cells
         for device in devices:
             builder.row(InlineKeyboardButton(text=device, callback_data=f"selected_device_{device}"))
-        for combo_cell in combo_cells:
-            builder.row(InlineKeyboardButton(text=combo_cell, callback_data=f"selected_device_{combo_cell}"))
-        builder.row(
-            InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),
-            # InlineKeyboardButton(text=i18n.remove.device.button(), callback_data="remove_device")
-        )
+        if empty_slots != 0:
+            for device in combo_devices:
+                builder.row(InlineKeyboardButton(text=device, callback_data=f"selected_device_{device}"))
+            for i in range(empty_slots):
+                builder.row(InlineKeyboardButton(text=i18n.add.device.button(), callback_data=f"add_device_{i}"))
+        else:
+            builder.row(
+                InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),
+            )
         builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
         return builder.as_markup()
     except (KeyError, AttributeError) as e:
