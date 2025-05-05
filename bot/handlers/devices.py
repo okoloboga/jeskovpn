@@ -179,7 +179,7 @@ async def connect_vpn_handler(
         if user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
-                await event.message.edit_text(text=text)
+                await event.message.answer(text=text)
                 await event.answer()
             else:
                 await event.answer(text=text)
@@ -188,23 +188,26 @@ async def connect_vpn_handler(
         subscriptions = user_info.get('active_subscriptions', {})
         if 'devices' in subscriptions or 'routers' in subscriptions or 'combo' in subscriptions:
             if 'devices' in subscriptions:
-                device_type = "devices"
+                device_type_kb = "device"
+                device_type = 'device'
             elif 'router' in subscriptions:
+                device_type_kb = 'router'
                 device_type = 'router'
             elif 'combo' in subscriptions:
+                device_type_kb = 'device'
                 device_type = 'combo'
             else:
                 if isinstance(event, CallbackQuery):
-                    await event.message.edit_text(text=i18n.error.unexpected())
+                    await event.message.answer(text=i18n.error.unexpected())
                     await event.answer()
                 else:
                     await event.answer(text=i18n.error.unexpected())
                 return
 
             await state.update_data(device_type=device_type)
-            keyboard = devices_kb.devices_list_kb(i18n, device_type)
+            keyboard = devices_kb.devices_list_kb(i18n, device_type_kb)
             if isinstance(event, CallbackQuery):
-                await event.message.edit_text(
+                await event.message.answer(
                             text=i18n.devices.category.menu(), 
                             reply_markup=keyboard)
                 await event.answer()
@@ -212,17 +215,17 @@ async def connect_vpn_handler(
                 await event.answer(                            
                             text=i18n.devices.category.menu(), 
                             reply_markup=keyboard)
-    
+            await state.set_state(PaymentSG.add_device)
+        
         else:
             if isinstance(event, CallbackQuery):
                 await event.message.answer(text=i18n.device.type.menu(),
                                               reply_markup=devices_kb.add_device_kb(i18n))
-                await state.set_state(PaymentSG.add_device)
                 await event.answer()
             else:
                 await event.answer(text=i18n.device.type.menu(), 
                                    reply_markup=devices_kb.add_device_kb(i18n))
-                await state.set_state(PaymentSG.add_device)
+            await state.set_state(PaymentSG.add_device)
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
@@ -310,8 +313,6 @@ async def select_device_handler(
     else:
         buy_subscription = True
 
-    logger.info(f"User {user_id} selected device: {device}; state: {current_state}; user slot: {user_slot}")
-
     if user_slot == 'no_user':
         await message.answer(text=i18n.error.user_not_found())
         return
@@ -320,7 +321,9 @@ async def select_device_handler(
         return
     elif user_slot == 'no_subscription':
         buy_subscription = True     
-    
+
+    logger.info(f"User {user_id} selected device: {device}; state: {current_state}; user slot: {user_slot}; buy_subscription: {buy_subscription}")
+
     # IF ADD DEVICE - DONT NEED TO BUY
     if not buy_subscription:
         await state.update_data(device=device)

@@ -160,37 +160,67 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         raise
 
 async def check_slot(user_id: int, device: str) -> str:
-
+    """Determine the appropriate slot (device, router, combo) for adding a device."""
+    logger.info(f"Checking slot for user_id={user_id}, device={device}")
+    
+    # Fetch user info and data
     user_info = await get_user_info(user_id)
     user_data = await get_user_data(user_id)
     
     if user_info is None or user_data is None:
+        logger.warning(f"No user data found for user_id={user_id}")
         return 'no_user'
 
+    # Define device types
     DEVICES = ['android', 'iphone/ipad', 'windows', 'macos', 'tv']
-    durations = user_info.get('durations', (0, 0, 0))
-    device_dur, router_dur, combo_dur = durations
-
-    if (device_dur == router_dur == combo_dur == 0) or (
-            router_dur == combo_dur == 0 and device == 'router') or (
-                    device_dur == combo_dur == 0 and device in DEVICES):
+    
+    # Extract durations
+    device_dur, router_dur, combo_dur = user_info.get('durations', (0, 0, 0))
+    
+    # Check for no subscriptions or incompatible device
+    if device_dur == router_dur == combo_dur == 0:
+        logger.info(f"No active subscriptions for user_id={user_id}")
         return 'no_subscription'
-
-    elif user_info['durations'][2] != 0:
-        is_full = len(user_data['subscription']['combo']['devices']) >= user_data['subscription']['combo']['type']
-        if is_full and device in DEVICES and device_dur != 0:
+    if router_dur == combo_dur == 0 and device == 'router':
+        logger.info(f"No router or combo subscription for router device, user_id={user_id}")
+        return 'no_subscription'
+    if device_dur == combo_dur == 0 and device in DEVICES:
+        logger.info(f"No device or combo subscription for device {device}, user_id={user_id}")
+        return 'no_subscription'
+    
+    # Check combo subscription
+    if combo_dur > 0:
+        combo_size = user_data['subscription']['combo']['type']
+        combo_devices = len(user_data['subscription']['combo']['devices'])
+        is_full = combo_devices >= combo_size
+        logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}")
+        
+        if not is_full:
+            logger.info(f"Adding to combo slot for user_id={user_id}")
+            return 'combo'
+        elif device in DEVICES and device_dur > 0:
+            logger.info(f"Combo full, adding to device slot for user_id={user_id}")
             return 'device'
-        elif is_full and device == 'router' and router_dur != 0:
+        elif device == 'router' and router_dur > 0:
+            logger.info(f"Combo full, adding to router slot for user_id={user_id}")
             return 'router'
-        elif is_full and device_dur == router_dur == 0:
+        else:
+            logger.info(f"Combo full and no suitable subscription for user_id={user_id}")
             return 'no_subscription'
-        return 'combo'
-    elif device_dur != 0 and device in DEVICES:
+    
+    # Check device subscription
+    if device_dur > 0 and device in DEVICES:
+        logger.info(f"Adding to device slot for user_id={user_id}")
         return 'device'
-    elif router_dur != 0 and device == 'router':
+    
+    # Check router subscription
+    if router_dur > 0 and device == 'router':
+        logger.info(f"Adding to router slot for user_id={user_id}")
         return 'router'
-    else:
-        return 'error'
+    
+    # Fallback error case
+    logger.error(f"Unable to determine slot for user_id={user_id}, device={device}")
+    return 'error'
 
 def validate_device_name(name: str) -> str:
     

@@ -20,7 +20,7 @@ MONTH_PRICE = {
     "combo": {
         "0": {"0": 0},
         "5": {"0": 0, "1": 500, "3": 1200, "6": 2100, "12": 3000},
-        "10": {"0": 0, "1": 1000, "3": 2000, "6": 3500, "12": 5000}
+        "10": {"0": 0, "1": 850, "3": 2000, "6": 3500, "12": 5000}
     }
 }
 
@@ -94,7 +94,7 @@ async def process_balance_payment(
                 Subscription.type == "combo"
             ).order_by(Subscription.end_date.desc()).first()
             combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5 if no previous subscription
-        
+            combo_size = 10 if payment.device == "10" else combo_size
         try:
             expected_price = MONTH_PRICE["combo"][str(combo_size)][str(payment.period)]
         except KeyError:
@@ -112,7 +112,7 @@ async def process_balance_payment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid device type or period"
             )
-    
+    logger.info(f'expected_price: {expected_price}')
     if payment.amount != expected_price:
         logger.error(f"Amount mismatch: provided={payment.amount}, expected={expected_price}")
         raise HTTPException(
