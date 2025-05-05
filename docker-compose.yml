@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: bot/Dockerfile
     ports:
-      - "8082:8080"  # Map host port 8081 to container port 8080
+      - "8082:8080"  # Map host port 8082 to container port 8080
     volumes:
       - .:/app
     command: ["python", "bot/__main__.py"]
@@ -13,6 +13,11 @@ services:
       - app  # Ensure bot starts after app if it makes API calls
     networks:
       - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"  # Maximum size of log file
+        max-file: "3"    # Maximum number of log files
 
   db:
     image: postgres:15
@@ -31,6 +36,11 @@ services:
       retries: 5
     networks:
       - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"  # Maximum size of log file
+        max-file: "3"    # Maximum number of log files
 
   app:
     build: 
@@ -50,6 +60,11 @@ services:
       "
     networks:
       - app-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"  # Maximum size of log file
+        max-file: "3"    # Maximum number of log files
 
 volumes:
   pgdata:

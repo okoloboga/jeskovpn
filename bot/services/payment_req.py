@@ -189,7 +189,7 @@ async def check_invoice_status(invoice_id: str) -> Optional[Dict[str, Any]]:
                 status = response.status
                 response_json = await response.json()
                 logger.info(f"Check Invoice Status: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201) and response_json.get("ok"):
                     invoices = response_json["result"]["items"]
                     if invoices:

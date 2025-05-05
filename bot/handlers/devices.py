@@ -358,8 +358,6 @@ async def select_device_handler(
             )
             keyboard = devices_kb.period_select_kb(i18n)
 
-            logger.info(f"BUY ROUTER SUB; device {device}")
-
             if device == 'router':
                 text = i18n.period.menu.router(
                     balance=balance,
