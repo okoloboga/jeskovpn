@@ -83,14 +83,17 @@ async def command_start_getter(
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
 
+        logger.info(f'user_data {user_data}')
+        logger.info(f'user_info {user_info}')
+
         if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
         else:
-            month_price = user_info.get('month_price', 0)
+            # month_price = user_info.get('month_price', 0)
             balance = user_data.get("balance", 0)
-            logger.info(f'month_price: {month_price}; balance: {balance}')
-            days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
+            days_left = user_info.get("durations", (0, 0, 0))
+            logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
             active_subscriptions = user_info.get('active_subscriptions', {})
             is_subscribed = user_info.get('is_subscribed', False)
         
@@ -114,7 +117,7 @@ async def command_start_getter(
                     i18n=i18n,
                     is_subscribed=is_subscribed,
                     balance=balance,
-                    days_left=days_left
+                    days_left=max(days_left)
                 )
             )
             keyboard_inline = main_kb.connect_vpn_inline_kb(i18n)
@@ -160,6 +163,10 @@ async def main_menu_handler(
         # Fetch user data
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
+
+        logger.info(f'user_data {user_data}')
+        logger.info(f'user_info {user_info}')
+
         if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
             if isinstance(event, CallbackQuery):
@@ -169,10 +176,10 @@ async def main_menu_handler(
                 await event.answer(text=text)
             return
 
-        month_price = user_info.get('month_price')
+        # month_price = user_info.get('month_price')
         balance = user_data.get("balance", 0)
-        logger.info(f'day_price: {month_price}; balance: {balance}')
-        days_left = 0 if month_price == 0 else int(balance/month_price * MONTH_DAY)
+        days_left = user_info.get("durations", (0, 0, 0))
+        logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
         active_subscriptions = user_info.get("active_subscriptions", {})
         is_subscribed = user_info.get('is_subscribed', False)
 
@@ -180,7 +187,7 @@ async def main_menu_handler(
             i18n=i18n,
             is_subscribed=is_subscribed,
             balance=balance,
-            days_left=days_left
+            days_left=max(days_left)
         )
 
         keyboard_inline=main_kb.connect_vpn_inline_kb(i18n)

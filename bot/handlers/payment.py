@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
-from services import services, payment_req, PaymentSG, MONTH_DAY
+from services import services, payment_req, PaymentSG, MONTH_DAY, START_PRICE, MONTH_PRICE_STARS 
 from keyboards import devices_kb, payment_kb, main_kb
 
 payment_router = Router()
@@ -66,11 +66,11 @@ async def balance_button_handler(
                 )
 
         inline_keyboard = payment_kb.add_balance_kb(i18n)
-        days = 0 if month_price == 0 else (int(balance/month_price * MONTH_DAY))
+        days_left = user_info.get('durations', (0, 0, 0))        
         is_subscribed = user_info.get('is_subscribed', False)
         text_head = i18n.balance.menu(
                         balance=balance, 
-                        days = days
+                        days=max(days_left)
                     )
         text_tail = i18n.balance.advice()
 
@@ -79,7 +79,7 @@ async def balance_button_handler(
                 i18n=i18n,
                 is_subscribed=is_subscribed,
                 balance=balance,
-                days_left=days
+                days_left=max(days_left)
                 ))
             await event.message.answer(text=text_tail, reply_markup=inline_keyboard)
         else:
@@ -87,7 +87,7 @@ async def balance_button_handler(
                 i18n=i18n,
                 is_subscribed=is_subscribed,
                 balance=balance,
-                days_left=days
+                days_left=max(days_left)
                 ))
             await event.answer(text=text_tail, reply_markup=inline_keyboard)
 
@@ -128,10 +128,17 @@ async def top_up_balance_handler(
     user_id = callback.from_user.id
 
     try:
+        user_info = await services.get_user_info(user_id)
+        if user_info is None:
+            text = i18n.error.user_not_found()
+            await callback.message.edit_text(text=text)
+            await callback.answer()
+            return
+
         await state.set_state(PaymentSG.add_balance)
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        month_price = state_data.get("month_price", 0)
+        days_left = user_info.get('durations', (0, 0, 0))
 
         await state.update_data(
             payment_type="add_balance",
@@ -151,7 +158,7 @@ async def top_up_balance_handler(
             keyboard = payment_kb.payment_select(i18n, payment_type="add_balance")
             text = i18n.topup.balance.menu(
                     balance=balance, 
-                    days = 0 if month_price == 0 else int(balance / month_price),
+                    days=max(days_left),
                     amount=amount
                     )
             await callback.message.edit_text(text=text, reply_markup=keyboard)
@@ -195,6 +202,12 @@ async def custom_balance_handler(
     logger.info(f"User {user_id} entered custom balance")
 
     try:
+        user_info = await services.get_user_info(user_id)
+        if user_info is None:
+            text = i18n.error.user_not_found()
+            await message.answer(text=text)
+            return
+
         amount = message.text.strip()
         try:
             amount = int(amount)
@@ -206,8 +219,7 @@ async def custom_balance_handler(
 
         state_data = await state.get_data()
         balance = state_data.get("balance", 0)
-        month_price = state_data.get("month_price", 0)
-        days = 0 if month_price == 0 else int(balance/month_price)
+        days_left = user_info.get('durations', (0, 0, 0))
 
         await state.update_data(
             amount=amount,
@@ -215,7 +227,7 @@ async def custom_balance_handler(
             device_type="balance"
             )
         keyboard = payment_kb.payment_select(i18n, payment_type=payment_type)
-        text = i18n.topup.balance.menu(balance=balance, days=days, amount=amount)
+        text = i18n.topup.balance.menu(balance=balance, days=max(days_left), amount=amount)
         await message.answer(text=text, reply_markup=keyboard)
 
     except Exception as e:
@@ -336,7 +348,7 @@ async def buy_subscription_handler(
                 if result is not None:
                     await state.set_state(PaymentSG.add_device)
                     await callback.message.answer(
-                            text=i18n.buy.subscription.success(balance=balance),
+                            text=i18n.buy.subscription.success(balance=balance-amount),
                             reply_markup=devices_kb.devices_list_kb(
                                 i18n=i18n, 
                                 device_type=device_type_kb, 
@@ -350,7 +362,17 @@ async def buy_subscription_handler(
 
         # TELEGRAM STARS BUY SUBSCRIPTION
         elif method == "stars":
-            stars_amount = int(amount * 0.02418956)
+            device_stars = MONTH_PRICE_STARS.get(device_type, {})
+
+            if device_type == 'combo' and device in ('5', '10'):
+                stars_amount =  device_stars[device][str(period)]
+            elif device_type in ('device', 'router'):
+                stars_amount = device_stars[str(period)]
+            else:
+                await callback.message.edit_text(text=i18n.error.unexpected())
+                await callback.answer()
+                return
+                
             await bot.send_invoice(
                 chat_id=callback.message.chat.id,
                 title=i18n.stars.subscription.title(),
@@ -453,9 +475,9 @@ async def add_balance_handler(
                 await callback.answer()
                 return
 
-# TELEGRAM STARS ADD BALANCE
+        # TELEGRAM STARS ADD BALANCE
         elif method == "stars":
-            stars_amount = int(amount * 0.02418956)
+            stars_amount = int(amount / START_PRICE)
             await bot.send_invoice(
                 chat_id=callback.message.chat.id,
                 title=i18n.stars.subscription.title(),

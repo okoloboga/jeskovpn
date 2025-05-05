@@ -29,6 +29,12 @@ class PaymentResponse(PaymentBase):
     class Config:
         orm_mode = True
 
+class SubscriptionResponse(BaseModel):
+    type: str
+    combo_size: int
+    remaining_days: int
+    monthly_price: float
+
 class InvoiceBase(BaseModel):
     user_id: int
     invoice_id: str

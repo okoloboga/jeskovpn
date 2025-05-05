@@ -25,14 +25,16 @@ MONTH_PRICE = {
         }
     }
 
-STAR_PRICE = {
+MONTH_PRICE_STARS = {
     "device": {"0": 0, "1": 55, "3": 130, "6": 230, "12": 330},
-    "router": {"0": 0, "1": 250, "3": 600, "6": 1000, "12": 1500},
+    "router": {"0": 0, "1": 140, "3": 335, "6": 590, "12": 840},
     "combo": {"0": {"0": 0},
               "5": {"0": 0, "1": 275, "3": 660, "6": 1155, "12": 1650},
               "10": {"0": 0, "1": 465, "3": 1120, "6": 1960, "12": 2800}
         }
     }
+
+START_PRICE = 1.79
 MONTH_DAY = 30.42
 
 async def get_user_data(user_id: int) -> Optional[dict]:
@@ -49,22 +51,65 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         Exception: If backend request fails.
     """
     try:
+        # Get user balance
         user = await user_req.get_user(user_id)
         if user is None:
             logger.warning(f"User {user_id} not found in backend")
             return None
+        
+        # Get subscriptions
+        subscriptions = await payment_req.get_subscriptions(user_id) or []
+        
+        # Get devices
+        devices = await user_req.get_user_devices(user_id) or {
+            "device": [], "router": [], "combo": []
+        }
+        
+        # Form subscription in old format
+        subscription = {
+            "device": {"devices": [], "duration": 0},
+            "router": {"devices": [], "duration": 0},
+            "combo": {"devices": [], "duration": 0, "type": 0}
+        }
+        
+        # Populate devices
+        subscription["device"]["devices"] = [d["device_name"] for d in devices["device"]]
+        subscription["router"]["devices"] = [d["device_name"] for d in devices["router"]]
+        subscription["combo"]["devices"] = [d["device_name"] for d in devices["combo"]]
+        
+        logger.info(f'GET subscriptions: {subscriptions}')
+        logger.info(f'GET devices: {devices}')
+
+        # Populate durations and combo type
+        for sub in subscriptions:
+            if sub["type"] == "device":
+                subscription["device"]["duration"] = sub["remaining_days"]
+            elif sub["type"] == "router":
+                subscription["router"]["duration"] = sub["remaining_days"]
+            elif sub["type"] == "combo":
+                subscription["combo"]["duration"] = sub["remaining_days"]
+                subscription["combo"]["type"] = sub["combo_size"]
+        
         return {
-            "balance": user['balance'],
-            "subscription": user['subscription']
+            "balance": user["balance"],
+            "subscription": subscription
         }
     except Exception as e:
         logger.error(f"Failed to fetch user {user_id}: {e}")
         raise
 
-async def get_user_info(user_id: int) -> dict | None:
+async def get_user_info(user_id: int) -> Optional[Dict]:
+    """
+    Process user data to get subscription and device information.
 
+    Args:
+        user_id (int): Telegram user ID.
+
+    Returns:
+        Optional[Dict]: Processed user info or None if user not found.
+    """
     user = await get_user_data(user_id)
-
+    
     logger.info(f'USER: {user}')
     
     if user is None:
@@ -75,60 +120,43 @@ async def get_user_info(user_id: int) -> dict | None:
         router_duration = user['subscription']['router']['duration']
         combo_duration = user['subscription']['combo']['duration']
         combo_type = user['subscription']['combo']['type']
-        devices_count = len(user['subscription']['device']['devices'])
-        routers_count = len(user['subscription']['router']['devices'])
-        combo_count = len(user['subscription']['combo']['devices'])
         devices_list = user['subscription']['device']['devices']
         routers_list = user['subscription']['router']['devices']
         combo_list = user['subscription']['combo']['devices']
-        combo_type = user['subscription']['combo']['type']
-
-        if device_duration == 0 and router_duration == 0 and combo_duration == 0:
-            month_price = 0
-        else:
-            if int(device_duration) != 0:
-                devices_price = devices_count * (MONTH_PRICE['device'][str(device_duration)] / int(device_duration))
-            else:
-                devices_price = 0
-            if int(router_duration) != 0:
-                router_price = routers_count * (MONTH_PRICE['router'][str(router_duration)] / int(router_duration))
-            else:
-                router_price = 0
-            if int(combo_type) != 0 and int(combo_duration) != 0:
-                combo_price = combo_count * (MONTH_PRICE['combo'][str(combo_type)][str(combo_duration)] / int(combo_type) / int(combo_duration))
-            else:
-                combo_price = 0
-
-            month_price = devices_price + router_price + combo_price
-
-        total_devices = len(devices_list) + len(routers_list) + len(combo_list)
-        devices_list = (devices_list, routers_list, combo_list)
-        durations = (device_duration, router_duration, combo_duration)
-
-        if int(device_duration) + int(router_duration) + int(combo_duration) == 0:
-            is_subscribed = False
-        else:
-            is_subscribed = True
         
-        active_subscriptions: dict = {}
-        if int(durations[0]) != 0:
+        # Get monthly price from subscriptions
+        subscriptions = await payment_req.get_subscriptions(user_id) or []
+        month_price = 0.0
+        for sub in subscriptions:
+            month_price += float(sub["monthly_price"])
+        
+        total_devices = len(devices_list) + len(routers_list) + len(combo_list)
+        all_list = (devices_list, routers_list, combo_list)
+        durations = (device_duration, router_duration, combo_duration)
+        
+        is_subscribed = device_duration + router_duration + combo_duration > 0
+        
+        active_subscriptions: Dict = {}
+        if device_duration > 0:
             active_subscriptions['devices'] = len(devices_list)
-        elif int(durations[1]) != 0:
+        if router_duration > 0:
             active_subscriptions['routers'] = len(routers_list)
-        elif int(durations[2]) != 0:
+        if combo_duration > 0:
             active_subscriptions['combo'] = (combo_type, len(combo_list))
-
-        result = {'month_price': month_price,
-                  'total_devices': total_devices,
-                  'devices_list': devices_list,
-                  'durations': durations,
-                  'is_subscribed': is_subscribed,
-                  'active_subscriptions': active_subscriptions}
-
+        
+        result = {
+            'month_price': month_price,
+            'total_devices': total_devices,
+            'devices_list': all_list,
+            'durations': durations,
+            'is_subscribed': is_subscribed,
+            'active_subscriptions': active_subscriptions
+        }
+        
         return result
- 
+    
     except Exception as e:
-        logger.error(f"Failed to count total_day_price {user_id}: {e}")
+        logger.error(f"Failed to process user info for {user_id}: {e}")
         raise
 
 async def check_slot(user_id: int, device: str) -> str:

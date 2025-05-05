@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class DeviceKeyCreate(BaseModel):
     user_id: int
@@ -20,6 +20,16 @@ class DeviceKeyPut(BaseModel):
 class DeviceKeyDelete(BaseModel):
     user_id: int
     device_name: str
+
+class DeviceUsersResponse(BaseModel):
+    device: str
+    device_name: str
+    device_type: str
+
+class UserDevicesResponse(BaseModel):
+    device: List[DeviceUsersResponse]
+    router: List[DeviceUsersResponse]
+    combo: List[DeviceUsersResponse]
 
 class DeviceResponse(BaseModel):
     id: int

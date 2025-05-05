@@ -33,7 +33,8 @@ async def admin_entry(
 ) -> None:
 
     user_id = message.from_user.id
-    if not is_admin(user_id, admin_id):
+    if not is_admin(str(user_id), admin_id):
+        logger.info(f'not admin. user_id: {user_id}, admin_id: {admin_id}')
         await message.answer(text=i18n.unknown.message())
         return
 
@@ -60,7 +61,8 @@ async def admin_set_password(
     ok = await admin_req.set_admin_password(user_id, password)
     
     if ok:
-        await message.answer("Пароль установлен! Вы вошли в админ-панель.")
+        await message.answer("Пароль установлен! Вы вошли в админ-панель.",
+                             reply_markup=admin_kb.admin_main_menu_kb())
         await state.clear()
     
     else:

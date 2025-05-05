@@ -10,7 +10,7 @@ class BotConfig(BaseModel):
     token: SecretStr    
 
 class Admin(BaseModel):
-    id: str
+    id: list
 
 class Backend(BaseModel):
     url: str

@@ -59,15 +59,18 @@ async def subscription_handler(
         if user_info is None:
             await message.answer(text=i18n.error.unexpected())
             return
-        month_price = user_info.get('month_price')
-        is_subscribed = user_info.get('is_subscribed')
-        min_subscription_price = 100  # Minimum price for "device" for 1 month
+
+        days_left = user_info.get('durations', (0, 0, 0))
+        is_subscribed = user_info.get('is_subscribed', False)
+        devices = user_info.get('total_devices', 0)
+        min_subscription_price = 100
 
         if is_subscribed:
             text = i18n.subscription.menu.active(
                     name=name, 
                     balance=balance, 
-                    days = 0 if month_price == 0 else int(balance / month_price)
+                    days=max(days_left),
+                    devices=devices
                     )
         elif balance >= min_subscription_price:
             text = i18n.nosubscription.have.balance(balance=balance)
@@ -104,77 +107,9 @@ async def support_handler(
     logger.info(f"User {user_id} accessing на русском языке: Показ меню поддержки для пользователя {user_id}")
 
     try:
-        # ticket_data = await user_req.get_ticket_by_id(user_id)
-        # ticket_content = ticket_data.get("content") if ticket_data else None
-        # ticket_text = i18n.noticket() if ticket_content is None else str(ticket_content)
-
-        await state.set_state(SupportSG.create_ticket)
         keyboard = main_kb.back_inline_kb(i18n)
         await message.answer(text=i18n.ticket.menu(), reply_markup=keyboard)
 
-    except Exception as e:
-        logger.error(f"Unexpected error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.unexpected())
-
-@another_router.message(SupportSG.create_ticket)
-async def ticket_handler(
-    message: Message,
-    bot: Bot,
-    state: FSMContext,
-    i18n: TranslatorRunner
-) -> None:
-    """
-    Handle support ticket creation.
-
-    Sends the ticket to the admin and notifies the user.
-
-    Args:
-        message (Message): The incoming message with ticket content.
-        bot (Bot): Aiogram Bot instance for sending messages.
-        state (FSMContext): Finite state machine context for clearing state.
-        i18n (TranslatorRunner): Translator for localized responses.
-
-    Returns:
-        None
-    """
-    user_id = message.from_user.id
-    username = message.from_user.username or "Unknown"
-    content = message.text
-    logger.info(f"User {user_id} creating support ticket")
-
-    try:
-        user_data = await user_req.get_user(user_id)
-        user_info = await services.get_user_info(user_id)
-
-        if user_data is None or user_info is None:
-            logger.error(f"Unexpected user {user_id}")
-            await message.answer(text=i18n.error.unexpected())
-            return
-
-        month_price = user_info['month_price']
-        is_subscribed = False if month_price == 0 else True
-        balance = user_data['balance']
-        days_left = 0 if month_price == 0 else int(balance / month_price)
-
-        await bot.send_message(
-            chat_id=admin_id,
-            text=f"#{user_id}\n@{username}:\n\n{content}",
-            reply_markup=another_kb.reply_keyboard(i18n, user_id)
-        )
-        await message.answer(
-            text=i18n.ticket.sended(),
-            reply_markup=main_kb.main_kb(
-                i18n=i18n,
-                is_subscribed=is_subscribed,
-                balance=balance,
-                days_left=days_left
-            )
-        )
-        await state.clear()
-
-    except TelegramBadRequest as e:
-        logger.error(f"Telegram API error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.telegram_failed())
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())

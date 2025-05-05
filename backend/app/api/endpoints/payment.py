@@ -4,14 +4,25 @@ from sys import builtin_module_names
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
+from datetime import datetime, timedelta, timezone
 
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import User, Payment, Invoice
-from app.schemas.payment import BalancePaymentCreate, InvoiceResponse, InvoiceCreate, InvoiceUpdate
+from app.db.models import User, Payment, Invoice, Subscription, Device
+from app.schemas.payment import BalancePaymentCreate, InvoiceResponse, InvoiceCreate, InvoiceUpdate, SubscriptionResponse
 
 router = APIRouter()
+
+MONTH_PRICE = {
+    "device": {"0": 0, "1": 100, "3": 240, "6": 420, "12": 600},
+    "router": {"0": 0, "1": 250, "3": 600, "6": 1000, "12": 1500},
+    "combo": {
+        "0": {"0": 0},
+        "5": {"0": 0, "1": 500, "3": 1200, "6": 2100, "12": 3000},
+        "10": {"0": 0, "1": 1000, "3": 2000, "6": 3500, "12": 5000}
+    }
+}
 
 @router.post("/balance", status_code=status.HTTP_200_OK)
 async def process_balance_payment(
@@ -19,8 +30,8 @@ async def process_balance_payment(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type},\
-                device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
+    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, "
+                f"device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == payment.user_id).first()
@@ -31,49 +42,212 @@ async def process_balance_payment(
             detail="User not found"
         )
     
-    # Check if user has sufficient balance
-    if user.balance < payment.amount:
-        logger.error(f"Insufficient balance for user {payment.user_id}: {user.balance} < {payment.amount}")
+    # Handle add_balance case
+    if payment.payment_type == "add_balance":
+        if payment.amount <= 0:
+            logger.error(f"Invalid amount for add_balance: {payment.amount}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Amount must be positive for add_balance"
+            )
+        
+        # Add to balance
+        user.balance = (user.balance or 0) + payment.amount
+        
+        # Create payment record
+        db_payment = Payment(
+            user_id=payment.user_id,
+            amount=payment.amount,
+            period=payment.period,
+            device_type=payment.device_type,
+            device=payment.device,
+            payment_type=payment.payment_type,
+            method=payment.method,
+            status="succeeded"
+        )
+        db.add(db_payment)
+        db.commit()
+        
+        logger.info(f"Balance added successfully: user_id={payment.user_id}, amount={payment.amount}")
+        return {"status": "Payment successful"}
+    
+    # Validate price for subscription
+    expected_price = 0
+    combo_size = 0
+    current_time = datetime.now(timezone.utc)
+
+    if payment.device_type == "combo":
+        # Find active combo subscription
+        subscription = db.query(Subscription).filter(
+            Subscription.user_id == payment.user_id,
+            Subscription.type == "combo",
+            Subscription.end_date > current_time,
+            Subscription.is_active == True
+        ).first()
+        
+        if subscription:
+            combo_size = subscription.combo_size
+        else:
+            # Find last non-active subscription
+            last_subscription = db.query(Subscription).filter(
+                Subscription.user_id == payment.user_id,
+                Subscription.type == "combo"
+            ).order_by(Subscription.end_date.desc()).first()
+            combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5 if no previous subscription
+        
+        try:
+            expected_price = MONTH_PRICE["combo"][str(combo_size)][str(payment.period)]
+        except KeyError:
+            logger.error(f"Invalid combo size or period: combo_size={combo_size}, period={payment.period}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid combo size or period"
+            )
+    else:
+        try:
+            expected_price = MONTH_PRICE[payment.device_type][str(payment.period)]
+        except KeyError:
+            logger.error(f"Invalid device type or period: {payment.device_type}, {payment.period}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid device type or period"
+            )
+    
+    if payment.amount != expected_price:
+        logger.error(f"Amount mismatch: provided={payment.amount}, expected={expected_price}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Insufficient balance"
+            detail="Amount does not match expected price"
         )
-      
+    
+    # Check balance for balance payment
+    if payment.method == "balance":
+        if user.balance < payment.amount:
+            logger.error(f"Insufficient balance for user {payment.user_id}: {user.balance} < {payment.amount}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Insufficient balance"
+            )
+        user.balance -= payment.amount
+    
+    # For non-balance methods, add to balance
+    elif payment.method in ["yukassa", "crypto", "stars"]:
+        user.balance = (user.balance or 0) + payment.amount
+    
+    else:
+        logger.error(f"Invalid payment method: {payment.method}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payment method"
+        )
+    
     # Create payment record
     db_payment = Payment(
         user_id=payment.user_id,
         amount=payment.amount,
         period=payment.period,
         device_type=payment.device_type,
+        device=payment.device,
         payment_type=payment.payment_type,
         method=payment.method,
         status="succeeded"
     )
-    
     db.add(db_payment)
     
-    if payment.method != 'balance':
-        user.balance = (user.balance or 0) + payment.amount
+    # Update or create subscription
+    current_time = datetime.now(timezone.utc)
+    duration_days = payment.period * 30
     
-    # Update user's subscription
-    subscription = copy.deepcopy(user.subscription)
+    subscription = db.query(Subscription).filter(
+        Subscription.user_id == payment.user_id,
+        Subscription.type == payment.device_type,
+        Subscription.combo_size == combo_size,
+        Subscription.end_date > current_time
+    ).first()
     
-    if payment.device_type == "device":
-        subscription["device"]["duration"] = payment.period
-    elif payment.device_type == "router":
-        subscription["router"]["duration"] = payment.period
-    elif payment.device_type == "combo":
-        subscription["combo"]["duration"] = payment.period
-        subscription["combo"]["type"] = payment.device
+    if subscription:
+        # Extend existing subscription
+        subscription.end_date += timedelta(days=duration_days)
+        subscription.is_active = True
+    else:
+        # Find the last subscription to continue from its end_date
+        last_subscription = db.query(Subscription).filter(
+            Subscription.user_id == payment.user_id,
+            Subscription.type == payment.device_type,
+            Subscription.combo_size == combo_size
+        ).order_by(Subscription.end_date.desc()).first()
+        
+        start_date = current_time
+        if last_subscription and last_subscription.end_date > current_time:
+            start_date = last_subscription.end_date
+        
+        subscription = Subscription(
+            user_id=payment.user_id,
+            type=payment.device_type,
+            combo_size=combo_size,
+            start_date=start_date,
+            end_date=start_date + timedelta(days=duration_days),
+            is_active=True
+        )
+        db.add(subscription)
     
-    user.subscription = subscription
-
-    logger.info(f'User subscription: {user.subscription}')
-
+    # Sync devices
+    devices = db.query(Device).filter(
+        Device.user_id == payment.user_id,
+        Device.device == payment.device_type
+    ).all()
+    
+    for device in devices:
+        device.end_date = subscription.end_date
+        device.start_date = subscription.start_date
+    
     db.commit()
     
     logger.info(f"Balance payment processed successfully: user_id={payment.user_id}, amount={payment.amount}")
     return {"status": "Payment successful"}
+
+@router.get("/subscriptions/{user_id}", response_model=List[SubscriptionResponse])
+async def get_subscriptions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Fetching subscriptions for user_id={user_id}")
+    
+    current_time = datetime.now(timezone.utc)
+    subscriptions = db.query(Subscription).filter(
+        Subscription.user_id == user_id,
+        Subscription.end_date > current_time,
+        Subscription.is_active == True
+    ).all()
+    
+    result = []
+    for sub in subscriptions:
+        # Calculate remaining days
+        remaining_days = (sub.end_date - current_time).days
+        
+        # Calculate monthly price from Payment history
+        payments = db.query(Payment).filter(
+            Payment.user_id == user_id,
+            Payment.device_type == sub.type,
+            Payment.device == str(sub.combo_size),
+            Payment.status == "succeeded"
+        ).all()
+        
+        monthly_price = 0.0
+        for payment in payments:
+            if payment.period > 0:
+                monthly_price += payment.amount / payment.period
+        
+        result.append({
+            "type": sub.type,
+            "combo_size": sub.combo_size,
+            "remaining_days": remaining_days,
+            "monthly_price": round(monthly_price, 2)
+        })
+    
+    logger.info(f"Returning {len(result)} active subscriptions for user_id={user_id}")
+    return result
 
 @router.post("/invoices/", response_model=InvoiceResponse)
 async def create_invoice(

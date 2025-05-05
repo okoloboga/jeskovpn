@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.endpoints import user, referral, payment, device
+from app.api.endpoints import admin, user, referral, payment, device
 from app.core.security import get_api_key
 from app.core.config import get_app_config
 from app.db.base import Base
@@ -29,6 +29,7 @@ app.include_router(user.router, prefix="/users", tags=["users"], dependencies=[D
 app.include_router(referral.router, prefix="/referrals", tags=["referrals"], dependencies=[Depends(get_api_key)])
 app.include_router(payment.router, prefix="/payments", tags=["payments"], dependencies=[Depends(get_api_key)])
 app.include_router(device.router, prefix="/devices", tags=["devices"], dependencies=[Depends(get_api_key)])
+app.include_router(admin.router, prefix="/admin", tags=["admin"], dependencies=[Depends(get_api_key)])
 
 @app.get("/")
 async def root():

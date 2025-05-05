@@ -53,11 +53,6 @@ async def create_user(
         last_name=user.last_name,
         username=user.username,
         balance=1000.0,
-        subscription={
-            "device": {"devices": [], "duration": 0},
-            "router": {"devices": [], "duration": 0},
-            "combo": {"devices": [], "duration": 0, "type": 0}
-        }
     )
     
     db.add(db_user)

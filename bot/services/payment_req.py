@@ -31,6 +31,26 @@ CRYPTOBOT_HEADERS = {
         "Crypto-Pay-API-Token": cryptobot_api,
         "Content-Type": "application/json"
     }
+async def get_subscriptions(user_id: int) -> Optional[Dict[str, Any]]:
+    """GET /payments/subscriptions/{user_id}"""
+    url = f"{BASE_URL}/payments/subscriptions/{user_id}"
+    
+    logger.info(f"Sending request to backend: GET {url}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=HEADERS) as response:
+                status = response.status
+                response_json = await response.json()
+                logger.info(f"Get Subscriptions: Status {status}")
+                logger.info(json.dumps(response_json, indent=2))
+                if status in (200, 201):
+                    return response_json
+                else:
+                    logger.error(f"Get Subscriptions: Failed with status {status}")
+                    return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Get Subscriptions: Error - {e}")
+            return None
 
 async def payment_balance_process(
         user_id: int, amount: float, period: int, device_type: str, 

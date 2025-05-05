@@ -16,11 +16,6 @@ class ComboSubscription(BaseModel):
     duration: int = 0
     type: int = 0
 
-class SubscriptionCollection(BaseModel):
-    device: DeviceSubscription = DeviceSubscription()
-    router: RouterSubscription = RouterSubscription()
-    combo: ComboSubscription = ComboSubscription()
-
 # User schemas
 class UserBase(BaseModel):
     user_id: int
@@ -34,7 +29,6 @@ class UserCreate(UserBase):
 class UserResponse(BaseModel):
     user_id: int
     balance: float
-    subscription: SubscriptionCollection
     
     class Config:
         orm_mode = True
@@ -42,7 +36,6 @@ class UserResponse(BaseModel):
 class UserInDB(UserBase):
     balance: float = 0.0
     created_at: datetime
-    subscription: SubscriptionCollection = SubscriptionCollection()
     
     class Config:
         orm_mode = True
