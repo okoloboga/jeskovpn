@@ -242,8 +242,8 @@ async def get_active_invoices() -> List[Dict[str, Any]]:
             async with session.get(url, headers=HEADERS) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get Active Invoices: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Get Active Invoices: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:

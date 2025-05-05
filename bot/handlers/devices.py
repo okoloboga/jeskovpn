@@ -464,7 +464,7 @@ async def select_period_handler(
         balance = state_data.get('balance')
         device = state_data.get('device')
 
-        if device in ['android', 'iphone', 'macos', 'windows', 'tv']:
+        if device in ['android', 'iphone/ipad', 'macos', 'windows', 'tv']:
             device = 'device'
         elif device == 'router':
             device = 'router'
