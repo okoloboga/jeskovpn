@@ -220,25 +220,31 @@ async def get_subscriptions(
         Subscription.end_date > current_time,
         Subscription.is_active == True
     ).all()
-    
+
     result = []
     for sub in subscriptions:
+
         # Calculate remaining days
-        remaining_days = (sub.end_date - current_time).days
-        
+        remaining_days_raw = sub.end_date - current_time
+        remaining_days = int(remaining_days_raw.days)
+
         # Calculate monthly price from Payment history
-        payments = db.query(Payment).filter(
+        payment_filter = [
             Payment.user_id == user_id,
             Payment.device_type == sub.type,
-            Payment.device == str(sub.combo_size),
             Payment.status == "succeeded"
-        ).all()
+        ]
+        if sub.type == "combo":
+            payment_filter.append(Payment.device == str(sub.combo_size))
         
+        payments = db.query(Payment).filter(*payment_filter).all()
+
         monthly_price = 0.0
         for payment in payments:
             if payment.period > 0:
+                logger.info(f"Payment period={payment.period}, amount={payment.amount} for subscription type={sub.type}")
                 monthly_price += payment.amount / payment.period
-        
+
         result.append({
             "type": sub.type,
             "combo_size": sub.combo_size,

@@ -6,7 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
-from services import services, payment_req, PaymentSG, MONTH_DAY, START_PRICE, MONTH_PRICE_STARS 
+from services import services, payment_req, PaymentSG, DevicesSG, \
+                     MONTH_DAY, START_PRICE, MONTH_PRICE_STARS 
 from keyboards import devices_kb, payment_kb, main_kb
 
 payment_router = Router()
@@ -319,15 +320,6 @@ async def buy_subscription_handler(
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
                 await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
-                await services.start_polling_invoice(
-                    invoice_id=invoice_id,
-                    user_id=user_id,
-                    amount=amount,
-                    period=period,
-                    device_type=device_type,
-                    device=device,
-                    payment_type=payment_type
-                )
                 await callback.message.edit_text(text=i18n.cryptobot.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
@@ -346,14 +338,15 @@ async def buy_subscription_handler(
             else:
                 result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
                 if result is not None:
-                    await state.set_state(PaymentSG.add_device)
-                    await callback.message.answer(
-                            text=i18n.buy.subscription.success(balance=balance-amount),
-                            reply_markup=devices_kb.devices_list_kb(
-                                i18n=i18n, 
-                                device_type=device_type_kb, 
-                                only=only)
-                            )
+                    if device not in ('5', '10'):
+                        await state.set_state(DevicesSG.device_name)
+                        await callback.message.answer(
+                                text=i18n.buy.subscription.success(balance=(balance-amount)))
+                    else:
+                        await state.clear()
+                        await callback.message.answer(
+                                text=i18n.buy.subscription.success.combo()
+                                )
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
                     await callback.message.edit_text(text=i18n.error.unexpected())
@@ -457,15 +450,6 @@ async def add_balance_handler(
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
                 await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
-                await services.start_polling_invoice(
-                    invoice_id=invoice_id,
-                    user_id=user_id,
-                    amount=amount,
-                    period=period,
-                    device_type=device_type,
-                    device=device,
-                    payment_type=payment_type
-                )
                 await callback.message.edit_text(text=i18n.cryptobot.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
@@ -564,24 +548,15 @@ async def process_payment(
         user_id, amount, period, device_type, device, payment_type, method = payment.invoice_payload.split(':')
         result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
         if result is not None:
-            if device_type == 'combo':
-                device_type_kb = 'device'
-                only = 'none'
-            elif device_type == 'device':
-                device_type_kb = device_type
-                only = device_type
+            if device not in ('5', '10'):
+                await state.set_state(DevicesSG.device_name)
+                await message.answer(
+                        text=i18n.buy.subscription.success(balance=(balance-amount)))
             else:
-                device_type_kb = device_type
-                only = 'router'
-
-            await state.set_state(PaymentSG.add_device)
-            await message.answer(
-                    text=i18n.buy.subscription.success(balance=balance),
-                    reply_markup=devices_kb.devices_list_kb(
-                                i18n=i18n, 
-                                device_type=device_type_kb, 
-                                only=only)
-                            )
+                await state.clear()
+                await message.answer(
+                        text=i18n.buy.subscription.success.combo()
+                        )
         else:
             logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
             await message.answer(text=i18n.error.unexpected())

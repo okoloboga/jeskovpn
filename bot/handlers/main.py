@@ -98,7 +98,7 @@ async def command_start_getter(
             is_subscribed = user_info.get('is_subscribed', False)
         
             # Send welcome message
-            head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head(name=name)
+            head_text = i18n.start.invited.head(name=name, inviter=inviter_id) if is_invited else i18n.start.head.starter(name=name)
             head_text = head_text + "\n"
             if 'devices' in active_subscriptions:
                 devices_count = active_subscriptions.get('devices', 0)

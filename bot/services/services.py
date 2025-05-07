@@ -126,6 +126,9 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         
         # Get monthly price from subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
+
+        logger.info(f'subscriptions: {subscriptions}')
+
         month_price = 0.0
         for sub in subscriptions:
             month_price += float(sub["monthly_price"])
@@ -166,7 +169,7 @@ async def check_slot(user_id: int, device: str) -> str:
     # Fetch user info and data
     user_info = await get_user_info(user_id)
     user_data = await get_user_data(user_id)
-    
+
     if user_info is None or user_data is None:
         logger.warning(f"No user data found for user_id={user_id}")
         return 'no_user'
@@ -187,6 +190,8 @@ async def check_slot(user_id: int, device: str) -> str:
     if device_dur == combo_dur == 0 and device in DEVICES:
         logger.info(f"No device or combo subscription for device {device}, user_id={user_id}")
         return 'no_subscription'
+
+    logger.info('AFTER NO SUBSCRIPTION')
     
     # Check combo subscription
     if combo_dur > 0:
@@ -280,22 +285,7 @@ async def poll_invoices(bot: Bot):
             logger.error(f"Polling error: {e}")
             await asyncio.sleep(30)
 
-async def start_polling_invoice(
-    invoice_id: str, user_id: int, amount: float, period: int,
-    device_type: str, device: str, payment_type: str
-):
-    active_invoices[invoice_id] = {
-        "user_id": user_id,
-        "amount": amount,
-        "period": period,
-        "device_type": device_type,
-        "device": device,
-        "payment_type": payment_type
-    }
-
 async def on_startup(bot: Bot):
     logger.info("Starting invoice polling")
     asyncio.create_task(poll_invoices(bot))
-
-
 

@@ -42,7 +42,7 @@ async def get_subscriptions(user_id: int) -> Optional[Dict[str, Any]]:
                 status = response.status
                 response_json = await response.json()
                 logger.info(f"Get Subscriptions: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:

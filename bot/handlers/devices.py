@@ -1,5 +1,4 @@
 import logging
-import asyncio
 
 from typing import Union
 from aiogram import Router, F
@@ -204,28 +203,19 @@ async def connect_vpn_handler(
                     await event.answer(text=i18n.error.unexpected())
                 return
 
-            await state.update_data(device_type=device_type)
-            keyboard = devices_kb.devices_list_kb(i18n, device_type_kb)
-            if isinstance(event, CallbackQuery):
-                await event.message.answer(
-                            text=i18n.devices.category.menu(), 
-                            reply_markup=keyboard)
-                await event.answer()
-            else:
-                await event.answer(                            
-                            text=i18n.devices.category.menu(), 
-                            reply_markup=keyboard)
-            await state.set_state(PaymentSG.add_device)
-        
+            await state.update_data(
+                    device_type=device_type,
+                    device_type_kb=device_type_kb
+                    )
+
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(text=i18n.device.type.menu(),
+                                          reply_markup=devices_kb.add_device_kb(i18n))
+            await event.answer()
         else:
-            if isinstance(event, CallbackQuery):
-                await event.message.answer(text=i18n.device.type.menu(),
-                                              reply_markup=devices_kb.add_device_kb(i18n))
-                await event.answer()
-            else:
-                await event.answer(text=i18n.device.type.menu(), 
-                                   reply_markup=devices_kb.add_device_kb(i18n))
-            await state.set_state(PaymentSG.add_device)
+            await event.answer(text=i18n.device.type.menu(), 
+                               reply_markup=devices_kb.add_device_kb(i18n))
+        await state.set_state(PaymentSG.add_device)
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
@@ -263,13 +253,15 @@ async def select_device_type(
     """
     user_id = message.from_user.id
     device_type = message.text.lower()
+    device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
+    await state.update_data(device_type=device_type)
     logger.info(f"User {user_id} selected device type: {device_type}")
 
     try:
-        device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
-        await state.update_data(device_type=device_type)
         keyboard = devices_kb.devices_list_kb(i18n, device_type)
-        await message.answer(text=i18n.devices.category.menu(), reply_markup=keyboard)
+        await message.answer(
+                text=i18n.devices.category.menu(), 
+                reply_markup=keyboard)
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
@@ -403,7 +395,6 @@ async def select_combo_handler(
         if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
             return
-        month_price = user_info.get('month_price', 0)
         days_left = user_info.get('durations', (0, 0, 0))
         balance = user_data.get('balance', 0)
         is_subscribed = user_info.get('is_subscribed', False)
@@ -463,13 +454,16 @@ async def select_period_handler(
         state_data = await state.get_data()
         balance = state_data.get('balance')
         device = state_data.get('device')
+        device_type = state_data.get('device_type')
+
+        logger.info(f'device: {device}; device_type: {device_type}')
 
         if device in ['android', 'iphone/ipad', 'macos', 'windows', 'tv']:
-            device = 'device'
+            device_type = 'device'
         elif device == 'router':
-            device = 'router'
+            device_type = 'router'
         else:
-            device = device
+            device_type = 'combo'
 
         _, period = callback.data.split("_")
         payment_type = "buy_subscription"
@@ -479,9 +473,9 @@ async def select_period_handler(
             combo_type = device
             amount = services.MONTH_PRICE[combo][combo_type][period]
         else:
-            amount = services.MONTH_PRICE[device][period]
+            amount = services.MONTH_PRICE[device_type][period]
 
-        logger.info(f'device: {device}; amount: {amount}')
+        logger.info(f'device_type: {device_type}; device: {device}; amount: {amount}')
 
         days_left = user_info.get('durations', (0, 0, 0))
         keyboard = payment_kb.payment_select(i18n, payment_type)
@@ -495,7 +489,8 @@ async def select_period_handler(
                 amount=amount,
                 period=period, 
                 payment_type=payment_type,
-                device=device)
+                device=device,
+                device_type=device_type)
         await callback.message.edit_text(text=text, reply_markup=keyboard)
         await callback.answer()
 
@@ -525,11 +520,15 @@ async def fill_device_name(
     validation = services.validate_device_name(device_name)
     state_data = await state.get_data()
     device = state_data.get('device')
-    logger.info(f'User {user_id} fill device name {device_name} for device {device}; validation: {validation}')
+    device_type = state_data.get('device_type', 'device')
+    logger.info(f'User {user_id} fill device name {device_name}-{device_type} for device {device}; validation: {validation}')
 
     try:
         user_slot = await services.check_slot(user_id, device)
-        
+
+        if user_slot == 'error':
+            await message.answer(text=i18n.error.slot())
+            return
         if validation == 'wrong_pattern':
             await message.answer(text=i18n.error.device.name.pattern())
             return
