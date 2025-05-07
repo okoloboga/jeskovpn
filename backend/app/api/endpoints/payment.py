@@ -130,10 +130,6 @@ async def process_balance_payment(
             )
         user.balance -= payment.amount
     
-    # For non-balance methods, add to balance
-    elif payment.method in ["yukassa", "crypto", "stars"]:
-        user.balance = (user.balance or 0) + payment.amount
-    
     else:
         logger.error(f"Invalid payment method: {payment.method}")
         raise HTTPException(
@@ -158,23 +154,46 @@ async def process_balance_payment(
     current_time = datetime.now(timezone.utc)
     duration_days = payment.period * 30
     
-    subscription = db.query(Subscription).filter(
-        Subscription.user_id == payment.user_id,
-        Subscription.type == payment.device_type,
-        Subscription.combo_size == combo_size,
-        Subscription.end_date > current_time
-    ).first()
-    
-    if subscription:
-        # Extend existing subscription
-        subscription.end_date += timedelta(days=duration_days)
-        subscription.is_active = True
+    if payment.device_type == "combo":
+        # For combo, extend existing subscription if it exists
+        subscription = db.query(Subscription).filter(
+            Subscription.user_id == payment.user_id,
+            Subscription.type == "combo",
+            Subscription.combo_size == combo_size,
+            Subscription.end_date > current_time,
+            Subscription.is_active == True
+        ).first()
+        
+        if subscription:
+            # Extend existing combo subscription
+            subscription.end_date += timedelta(days=duration_days)
+            subscription.is_active = True
+        else:
+            # Create new combo subscription
+            last_subscription = db.query(Subscription).filter(
+                Subscription.user_id == payment.user_id,
+                Subscription.type == "combo",
+                Subscription.combo_size == combo_size
+            ).order_by(Subscription.end_date.desc()).first()
+            
+            start_date = current_time
+            if last_subscription and last_subscription.end_date > current_time:
+                start_date = last_subscription.end_date
+            
+            subscription = Subscription(
+                user_id=payment.user_id,
+                type=payment.device_type,
+                combo_size=combo_size,
+                start_date=start_date,
+                end_date=start_date + timedelta(days=duration_days),
+                is_active=True
+            )
+            db.add(subscription)
     else:
-        # Find the last subscription to continue from its end_date
+        # For device or router, always create a new subscription
         last_subscription = db.query(Subscription).filter(
             Subscription.user_id == payment.user_id,
-            Subscription.type == payment.device_type,
-            Subscription.combo_size == combo_size
+            Subscription.type == payment.device_type
         ).order_by(Subscription.end_date.desc()).first()
         
         start_date = current_time
@@ -184,23 +203,15 @@ async def process_balance_payment(
         subscription = Subscription(
             user_id=payment.user_id,
             type=payment.device_type,
-            combo_size=combo_size,
+            combo_size=0,
             start_date=start_date,
             end_date=start_date + timedelta(days=duration_days),
             is_active=True
         )
         db.add(subscription)
     
-    # Sync devices
-    devices = db.query(Device).filter(
-        Device.user_id == payment.user_id,
-        Device.device == payment.device_type
-    ).all()
-    
-    for device in devices:
-        device.end_date = subscription.end_date
-        device.start_date = subscription.start_date
-    
+    # Skip device synchronization until device is created
+    # Devices will be synced when added via POST /devices/key
     db.commit()
     
     logger.info(f"Balance payment processed successfully: user_id={payment.user_id}, amount={payment.amount}")

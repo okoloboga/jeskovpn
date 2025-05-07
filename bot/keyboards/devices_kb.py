@@ -67,22 +67,12 @@ def device_kb(i18n: TranslatorRunner, device_name: str, device_type: str) -> Inl
         KeyError: If localization keys are missing.
     """
     try:
-        device_url_dict = {
-            "android": "https://example.com/android",
-            "iphone": "https://example.com/iphone",
-            "windows": "https://example.com/windows",
-            "macos": "https://example.com/macos",
-            "tv": "https://example.com/tv",
-            "router": "https://example.com/router"
-        }
-        url = device_url_dict.get(device_type, "https://example.com/default")
-
         builder = InlineKeyboardBuilder()
         builder.row(
                 InlineKeyboardButton(text=i18n.rename.device.button(), callback_data=f"rename_device_{device_name}")
                 )
         builder.row(
-                InlineKeyboardButton(text=i18n.device.instruction.button(), url=url),
+                InlineKeyboardButton(text=i18n.device.instruction.button(), callback_data="instruction"),
                 InlineKeyboardButton(text=i18n.remove.device.button(), callback_data=f"remove_device_{device_name}")
                 )
         builder.row(InlineKeyboardButton(text=i18n.devices.button(), callback_data="devices_menu"))

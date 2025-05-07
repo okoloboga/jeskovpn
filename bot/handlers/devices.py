@@ -152,9 +152,8 @@ async def select_devices_handler(
         await callback.answer()
 
 @devices_router.message(F.text.in_(['Подключить VPN 🚀', 'Connect VPN 🚀']))
-@devices_router.callback_query(F.data.startswith("add_device"))
 async def connect_vpn_handler(
-    event: Union[CallbackQuery, Message],
+    message: Message, 
     state: FSMContext,
     i18n: TranslatorRunner
 ) -> None:
@@ -170,18 +169,11 @@ async def connect_vpn_handler(
     Returns:
         None
     """
-    user_id = event.from_user.id
-    logger.info(f"User {user_id} wants to add a device")
-
+    user_id = message.from_user.id
     try:
         user_info = await services.get_user_info(user_id)
         if user_info is None:
-            text = i18n.error.user_not_found()
-            if isinstance(event, CallbackQuery):
-                await event.message.answer(text=text)
-                await event.answer()
-            else:
-                await event.answer(text=text)
+            await message.answer(text=i18n.error.user_not_found())
             return
             
         subscriptions = user_info.get('active_subscriptions', {})
@@ -195,46 +187,29 @@ async def connect_vpn_handler(
             elif 'combo' in subscriptions:
                 device_type_kb = 'device'
                 device_type = 'combo'
-            else:
-                if isinstance(event, CallbackQuery):
-                    await event.message.answer(text=i18n.error.unexpected())
-                    await event.answer()
-                else:
-                    await event.answer(text=i18n.error.unexpected())
+            else:                 
+                await message.answer(text=i18n.error.unexpected())
                 return
 
             await state.update_data(
                     device_type=device_type,
                     device_type_kb=device_type_kb
                     )
-
-        if isinstance(event, CallbackQuery):
-            await event.message.answer(text=i18n.device.type.menu(),
-                                          reply_markup=devices_kb.add_device_kb(i18n))
-            await event.answer()
-        else:
-            await event.answer(text=i18n.device.type.menu(), 
-                               reply_markup=devices_kb.add_device_kb(i18n))
+        await message.answer(text=i18n.device.type.menu(), 
+                           reply_markup=devices_kb.add_device_kb(i18n))
         await state.set_state(PaymentSG.add_device)
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")
-        if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=i18n.error.telegram_failed())
-            await event.answer()
-        else:
-            await event.answer(text=i18n.error.telegram_failed())
+        await message.answer(text=i18n.error.telegram_failed())
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
-        if isinstance(event, CallbackQuery):
-            await event.message.edit_text(text=i18n.error.unexpected())
-            await event.answer()
-        else:
-            await event.answer(text=i18n.error.unexpected())
+        await message.answer(text=i18n.error.unexpected())
 
 @devices_router.message(F.text.in_(["Устройство", "Device", "Комбо набор", "Combo Package"]))
+@devices_router.callback_query(F.data.startswith("add_device"))
 async def select_device_type(
-    message: Message,
+    event: Union[CallbackQuery, Message],
     state: FSMContext,
     i18n: TranslatorRunner
 ) -> None:
@@ -251,22 +226,41 @@ async def select_device_type(
     Returns:
         None
     """
-    user_id = message.from_user.id
-    device_type = message.text.lower()
-    device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
-    await state.update_data(device_type=device_type)
-    logger.info(f"User {user_id} selected device type: {device_type}")
+    user_id = event.from_user.id
+    if isinstance(event, Message):
+        device_type = event.text.lower()
+        device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
+    else:
+        try:
+            _, _, i = event.message.text.split('_')
+            if i is not None:
+                device_type = 'combo'
+            else:
+                device_type = 'device'
+        except:
+            device_type = 'device'
 
+    await state.update_data(device_type=device_type)
     try:
         keyboard = devices_kb.devices_list_kb(i18n, device_type)
-        await message.answer(
-                text=i18n.devices.category.menu(), 
-                reply_markup=keyboard)
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(
+                    text=i18n.devices.category.menu(), 
+                    reply_markup=keyboard)
+            await event.answer()
+        else:
+            await event.answer(                   
+                    text=i18n.devices.category.menu(), 
+                    reply_markup=keyboard)
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
-        await message.answer(text=i18n.error.unexpected())
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(text=i18n.error.unexpected())
+            await event.answer()
+        else:
+            await event.answer(text=i18n.error.unexpected())
 
-@devices_router.message(F.text.in_(["Android 🤖", "iPhone/iPad 📱", "Windows 💻", "MacOS 🍎", "TV 📺", "Роутер 🌐", "Router 🌐"]))
+@devices_router.message(F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "TV 📺", "Роутер 🌐", "Router 🌐"]))
 async def select_device_handler(
     message: Message,
     state: FSMContext,
@@ -312,7 +306,9 @@ async def select_device_handler(
         await message.answer(text=i18n.error.unexpected())
         return
     elif user_slot == 'no_subscription':
-        buy_subscription = True     
+        buy_subscription = True
+    else:
+        buy_subscription = False
 
     logger.info(f"User {user_id} selected device: {device}; state: {current_state}; user slot: {user_slot}; buy_subscription: {buy_subscription}")
 
@@ -479,7 +475,7 @@ async def select_period_handler(
 
         days_left = user_info.get('durations', (0, 0, 0))
         keyboard = payment_kb.payment_select(i18n, payment_type)
-        text = i18n.payment.menu(
+        text = i18n.buy.subscription.menu(
             balance=balance,
             days=max(days_left),
             amount=amount
@@ -664,4 +660,10 @@ async def remove_device_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await callback.answer(text=i18n.error.unexpected())
 
+@devices_router.callback_query(F.data == 'instruction')
+async def instruction_handler(
+        callback: CallbackQuery,
+        i18n: TranslatorRunner
+) -> None:
 
+    await callback.message.answer(text=i18n.instruction.android())

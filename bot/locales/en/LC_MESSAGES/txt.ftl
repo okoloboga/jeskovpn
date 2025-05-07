@@ -1,33 +1,35 @@
-active-sub-button = Until subscription end: { $days } days 🕒
+active-sub-button = Subscription expires in: { $days } days 🕒
+active-sub-withoutdays-button = Subscription is active, no devices 🕒
 inactive-sub-button = No active subscription 😔
 balance-button = Balance: { $balance } 💰
 connect-vpn-button = Connect VPN 🚀
-devices-button = My Devices 📱
-invite-button = Invite a Friend 👥
-support-button = Tech Support 🛠️
+devices-button = 🌐 My devices 📱💻
+invite-button = Invite a friend 👥
+support-button = Tech. Support 🛠️
 vpn-devices-button = Device
-change-language-button = Change Language { $language } 🌐
-device-android-button = Android 🤖
+change-language-button = Change language { $language } 🌐
+device-android-button = Android 📱
 device-iphone-button = iPhone/iPad 📱
 device-windows-button = Windows 💻
-device-macos-button = MacOS 🍎
+device-macos-button = MacOS 💻
 device-tv-button = TV 📺
 device-router-button = Router 🌐
-vpn-combo-button = Combo Package
+vpn-combo-button = Combo set
 device-instruction-button = Instruction 📖
-add-device-button = Add Device ➕
-remove-device-button = Remove Device ❌
-payment-ukassa-button = YUKASSA 💳
+add-device-button = Add device ➕
+rename-device-button = Change name ⬅️
+remove-device-button = Remove device ❌
+payment-ukassa-button = SBP 💳
 payment-crypto-button = CRYPTO 🪙
 payment-stars-button = TG STARS ⭐
 payment-balance-button = BALANCE 💸
-one-month-button = 1 Month 📅
-three-month-button = 3 Months 🗓️
-six-month-button = Six Months 🕰️
-twelve-month-button = Year 🎉
+one-month-button = 1 month 📅
+three-month-button = 3 months 🗓️
+six-month-button = 6 months 🕰️
+twelve-month-button = 12 months 🎉
 back-devices-button = Back ⬅️
-combo-five-button = 5 Devices + Router 📱🌐
-combo-ten-button = 10 Devices + Router 📱🌐
+combo-five-button = 5 devices + router 📱🌐
+combo-ten-button = 10 devices + router 📱🌐
 add-balance50-button = 50₽ 💵
 add-balance100-button = 100₽ 💵
 add-balance200-button = 200₽ 💵
@@ -38,85 +40,121 @@ add-balance650-button = 650₽ 💵
 add-balance750-button = 750₽ 💵
 add-balance900-button = 900₽ 💵
 add-balance1000-button = 1000₽ 💵
-add-balance2000-button = 2000₽ 💵
+add-balance2000-button= 2000₽ 💵
 add-balance3000-button = 3000₽ 💵
-payment-custom-button = Custom Amount ✏️
+payment-custom-button = Custom amount ✏️
 decline-payment-button = Cancel 🚫
-increase-balance-button = Top Up Balance 💰
-main-menu-button = To Main Menu 🏠
-ticket-reply-button = Reply to User { $user_id } 💬
+increase-balance-button = Top up balance 💰
+main-menu-button = Go to main menu 🏠
+ticket-reply-button = Reply to user { $user_id } 💬
+
+active-sub-head = Active subscriptions
+
+active-sub-device = 📱💻 Devices: { $devices_count } connected
+active-sub-router = 🌐 Router: { $routers_count } connected
+active-sub-combo = 🌐 Combo { $combo_type }: { $combo_count } connected
 
 start-invited-head = Hello, { $name }! 👋
 
-                     You were invited by { $inviter }, so you can connect to VPN for free and get 100₽ on your balance! 🎁
+                     You were invited here by { $inviter }, so you can connect VPN for free and get 100₽ on your balance! 🎁
+
+start-head-starter = Hello, { $name }! 👋
+
+                     Connect VPN for free! We give you 100₽ on your balance! 🎁
 
 start-head = Hello, { $name }! 👋
 
-             Connect to VPN for free! We’re giving you 100₽ on your balance! 🎁
+start-body = 💰 One of the lowest prices on the market!
+             🚀 High speed
+             💃 Access to all sites
+             💳 Payment SBP, Crypto, Telegram Stars
 
+             Cost 100₽/month for 1 device.
 
-start-body =    💰 One of the lowest prices on the market!
-                🚀 High speed
-                💃 Access to all websites
-                💳 Payment via SBP, Crypto, Telegram Stars
-                    
-                Price: 100₽/month for 1 device.
+             👥 Invite your friends to our service and get 50₽ on your balance for each friend. Your friends will get 100₽ on their balance!
 
-                👥 Invite friends to our service and get 50₽ on your balance for each friend. Your friends will receive 100₽ on their balance!
+             ⬇️ Click the button! ⬇️
 
-                ⬇️ Press the button! ⬇️
+devices-menu = You have { $devices } active devices. Your subscription fee is { $subscription_fee }₽ per month. 📱
 
-devices-menu = You have { $devices } active device(s). Your subscription fee is { $subscription_fee }₽ per month. 📱
+               ❌ Remove devices you don't use from the bot to avoid paying a subscription fee for them!
 
-               ❌ Remove devices you’re not using from the bot to avoid paying subscription fees for them!
-
-               🗝️ Click on the device identifier in the list to get a link for setting up the VPN app.
+               🗝️ Click on the device ID in the list to get a link to set up the VPN app.
 
                List of your devices:
 
-device-menu = This is the key for setting up the VPN app for the device { $device }. 🗝️
+device-type-menu = Select the subscription type:
+                   Device or Combo set (several devices + router)
 
-              For more information, click the "Instruction for (device type)" button. 📖
+fill-device-name = Enter the name of the new device.
+                   The name can contain English and Cyrillic letters, as well as numbers.
 
-              ⚠️ Warning! Account bans for torrent downloading!
+new-device-name = Enter a new device name.
+                  The name can contain English and Cyrillic letters, as well as numbers.
+
+device-name-already-exists = A device with this name already exists!
+
+device-menu = This is the key for setting up the VPN application, device { $name } - { $device }. 🗝️
+
+              For more information, click on the "Instructions for (device type)" button. 📖
+
+              ⚠️ Warning! For downloading torrents - account ban!
 
               ⬇️ Your key ⬇️
-              { $device_key }
 
-device-removed = Device { $device } has been removed! ✅
+              <code>{ $device_key }</code>
 
-period-menu = Your balance is { $balance }₽ ({ $days } days) 💰
+device-removed = Device { $device } removed! ✅
 
-              1 Month - 100₽ 📅
-              3 Months - 400₽ (10% discount) 🗓️
-              Six Months - 625₽ (30% discount) 🕰️
-              Year - 900₽ (50% discount) 🎉
+period-menu = Your balance { $balance }₽ ({ $days } days) 💰
 
-period-menu-router = Your balance is { $balance }₽ ({ $days } days) 💰
+              1 month — 100₽ 📅
+              3 months — 240₽ (20% discount) 🗓️
+              6 months — 420₽ (30% discount) 🕰️
+              12 months — 600₽ (50% discount) 🎉
 
-                     1 Month - 350₽ 📅
-                     3 Months - 945₽ (10% discount) 🗓️
-                     Six Months - 1470₽ (30% discount) 🕰️
-                     Year - 2100₽ (50% discount) 🎉
+period-menu-router = Your balance { $balance }₽ ({ $days } days) 💰
 
-period-menu-combo5 = Your balance is { $balance }₽ ({ $days } days) 💰
+                     1 month — 250₽ 📅
+                     3 months — 600₽ (20% discount) 🗓️
+                     6 months — 1,000₽ (30% discount) 🕰️
+                     12 months — 1,500₽ (50% discount) 🎉
 
-                     1 Month - 750₽ 📅
-                     3 Months - 2000₽ (10% discount) 🗓️
-                     Six Months - 3150₽ (30% discount) 🕰️
-                     Year - 4500₽ (50% discount) 🎉
+period-menu-combo5 = Your balance { $balance }₽ ({ $days } days) 💰
 
-period-menu-combo10 = Your balance is { $balance }₽ ({ $days } days) 💰
+                     1 month — 500₽ 📅
+                     3 months — 1,200₽ (20% discount) 🗓️
+                     6 months — 2,100₽ (30% discount) 🕰️
+                     12 months — 3,000₽ (50% discount) 🎉
 
-                      1 Month - 1500₽ 📅
-                      3 Months - 4000₽ (10% discount) 🗓️
-                      Six Months - 6300₽ (30% discount) 🕰️
-                      Year - 9000₽ (50% discount) 🎉
+period-menu-combo10 = Your balance { $balance }₽ ({ $days } days) 💰
 
-payment-menu = Your balance is { $balance }₽ ({ $days } days) 💰
-               You are topping up your account with { $amount }₽ 💸
+                      1 month — 850₽ 📅
+                      3 months — 2,000₽ (20% discount) 🗓️
+                      6 months — 3,500₽ (30% discount) 🕰️
+                      12 months — 5,000₽ (50% discount) 🎉
+    
+instruction-android = Instruction
 
-               Choose a payment method 💳
+instruction-iphone = Instruction
+
+instruction-windows = Instruction
+
+instruction-macos = Instruction
+
+instruction-tv = Instruction
+
+instruction-router = Instruction
+
+topup-balance-menu = Your balance { $balance }₽ ({ $days } days) 💰
+                     You top up your account with { $amount }₽ 💸
+
+                     Select payment method 💳
+
+buy-subscription-menu = Your balance { $balance }₽ ({ $days } days) 💰
+                        You pay for a subscription for the amount of { $amount }₽ 💸
+
+                        Select a payment method 💳
 
 payment-indevelopment = In development!
 
@@ -125,76 +163,77 @@ cryptobot-invoice = Your payment link:
 
                     Order #{ $invoice_id }
 
-devices-category-menu = Choose type 📱
+devices-category-menu = Select type 📱
 
 stars-subscription-title = JeskoVPN 🌟
-stars-subscription-description = Payment for JeskoVPN 🌟 service
-                                 Amount { $amount }
+stars-subscription-description = Payment for JeskoVPN service 🌟
+                                 Amount: { $amount }
 payment-label = JeskoVPN 💳
-payment-pending = Payment in progress ⏳
+payment-pending = Payment process ⏳
 payment-success = Payment successful 🎉
 stars-payment-successful = Successful payment { $payload } 🎉
-notenough-balance = Not enough balance!
+notenough-balance = Not enough funds!
 balance-menu = Your balance is: { $balance }₽ ({ $days } days). 💰
 
 balance-advice = Want to top up? ➕
 
 fill-custom-balance = Enter the amount ✏️
-subscription-menu-active = Glad to see you, { $name }! 👋
+subscription-menu-active = We are glad to see you, { $name }! 👋
 
                            Your balance is { $balance }₽ ({ $days } days), account is active ✅
-                           Plan: 100₽/month for 1 device, { $devices } devices active.
+                           Tariff 100₽/month for 1 device, { $devices } devices are active.
 
-                           If you lost your settings, you can download them again by clicking the "My Devices" button. 📱
+                           If you have lost your settings, you can download them again by clicking on the "My devices" button. 📱
 
-                           👥 Invite friends to our service and get 75₽ on your balance for each friend. Your friends will receive 100₽ on their balance!
+                           👥 Invite friends to our service and get 50₽ on your balance for each friend. Your friends will get 100₽ on their balance!
 
-nosubscription-have-balance = Unfortunately, you don’t have an active subscription, but you can get one in a couple of clicks. 😔
+nosubscription-have-balance = Unfortunately, you do not have an active subscription, but you can get one in a couple of clicks. 😔
 
-                              To use the service, top up your balance by clicking the "Top Up Balance" button. ➕
+                              To use the service, top up your balance by clicking the "Top up balance" button. ➕
 
-                              Reminder: our plan is 100₽/month for 1 device.
+                              We remind you that our tariff is 100₽/month for 1 device.
 
-                              👥 Invite friends to our service and get 75₽ on your balance for each friend. Your friends will receive 100₽ on their balance!
+                              👥 Invite friends to our service and get 50₽ on the balance for each friend. Your friends will get 100₽ on the balance!
 
-nosubscription-nobalance = Unfortunately, your balance ({ $balance }₽) is not enough to purchase a subscription 😔
+nosubscription-nobalance = Unfortunately, your balance ({ $balance }₽) is not enough to buy a subscription 😔
 
-                           To use the service, top up your balance by clicking the "Top Up Balance" button ➕
+                           To use the service, top up your balance by clicking the "Top up balance" button ➕
 
+nosubscription-selected-device = Unfortunately, you do not have an active subscription for the selected device!
 
-nosubscription-selected-device = К сожалению, у вас нет активной подписки на выбранное устройство!
-                                 
-                                 Офомирте подписку в пару кликов или выберите другое устройство
+                                 Subscribe in a couple of clicks or select another device
 
-
-referral-link = Send this link to a friend: 👥
+referral-link = Send a link to a friend: 👥
 
                 { $link }
 
-                When your friend joins our bot via this link and buys a subscription, you’ll get 50₽ on your balance! 💰
+                When your friend goes to our bot using this link and buys a subscription, you will get 50₽ on the balance! 💰
+    
+buy-subscription-success = 🎉 Congratulations, you have activated your JeskoVPN account, { $balance }₽ on your balance!
 
-buy-subscription-success = 🎉 Поздравляем, вы активировали аккаунт JeskoVPN, { $balance }₽ у вас на балансе!
+                           Now let's set up your VPN!
 
-                           Теперь давайте настроим ваш VPN!
+                           Enter the device name:
 
-                           Пожалуйста, выберите тип устройства, для которого вы хотите использовать эти настройки:
+buy-subscription-success-combo = 🎉 Congratulations, you have activated your JeskoVPN account with Combo pack!
 
 ticket-menu = Tech support: 💬
               @Jesko_support
-noticket = Write your first message to tech support. 💬
-ticket-sended = Message sent ✅
-reply-ticket = Reply to the message 💬
-ticket-answer = Response to your tech support message: 🛠️
+noticket = Write your first request to tech support. 💬
+ticket-sended = Request sent ✅
+reply-ticket = Reply to request 💬
 
-                { $reply_text }
-admin-answer = 
-unknown-message = Unrecognized message ❓
+unknown-message = Unclear message ❓
 
-error-only-admin = 🚫 Admin access only
+error-only-admin = 🚫 Access only for admins
 error-user_not_found = 🚫 User not found
 error-telegram_failed = 🚫 Telegram error
 error-unexpected = 🚫 Unknown error
 error-device_not_found = 🚫 Device not found
-error-invalid_amount = 🚫 Invalid amount
+error-invalid_amount = 🚫 Invalid amount - minimum top-up amount is 50₽
 error-invalid_payment_data = 🚫 Invalid payment data
 error-invalid_payment_method = 🚫 Invalid payment method
+error-device-name-pattern = 🚫 Incorrect device name!
+error-device-name-len = 🚫 Device name is too long!
+error-device-rename = 🚫 A device with this name already exists!
+error-slot = 🚫 No space for devices!

@@ -155,6 +155,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
             'is_subscribed': is_subscribed,
             'active_subscriptions': active_subscriptions
         }
+        logger.info(f'ACTIVE SUBSCRIPTION: {active_subscriptions}')
         
         return result
     
@@ -169,7 +170,7 @@ async def check_slot(user_id: int, device: str) -> str:
     # Fetch user info and data
     user_info = await get_user_info(user_id)
     user_data = await get_user_data(user_id)
-
+    
     if user_info is None or user_data is None:
         logger.warning(f"No user data found for user_id={user_id}")
         return 'no_user'
@@ -190,8 +191,6 @@ async def check_slot(user_id: int, device: str) -> str:
     if device_dur == combo_dur == 0 and device in DEVICES:
         logger.info(f"No device or combo subscription for device {device}, user_id={user_id}")
         return 'no_subscription'
-
-    logger.info('AFTER NO SUBSCRIPTION')
     
     # Check combo subscription
     if combo_dur > 0:
@@ -203,25 +202,39 @@ async def check_slot(user_id: int, device: str) -> str:
         if not is_full:
             logger.info(f"Adding to combo slot for user_id={user_id}")
             return 'combo'
-        elif device in DEVICES and device_dur > 0:
-            logger.info(f"Combo full, adding to device slot for user_id={user_id}")
-            return 'device'
-        elif device == 'router' and router_dur > 0:
-            logger.info(f"Combo full, adding to router slot for user_id={user_id}")
-            return 'router'
-        else:
-            logger.info(f"Combo full and no suitable subscription for user_id={user_id}")
-            return 'no_subscription'
     
+    # Fetch subscriptions to check for free slots
+    subscriptions = await payment_req.get_subscriptions(user_id) or []
+    device_subscriptions = sum(1 for sub in subscriptions if sub['type'] == 'device' and sub['remaining_days'] > 0)
+    router_subscriptions = sum(1 for sub in subscriptions if sub['type'] == 'router' and sub['remaining_days'] > 0)
+    
+    # Get number of devices
+    device_count = len(user_data['subscription']['device']['devices'])
+    router_count = len(user_data['subscription']['router']['devices'])
+    
+    logger.info(f"Device subscriptions: {device_subscriptions}, devices: {device_count}")
+    logger.info(f"Router subscriptions: {router_subscriptions}, routers: {router_count}")
+
     # Check device subscription
-    if device_dur > 0 and device in DEVICES:
-        logger.info(f"Adding to device slot for user_id={user_id}")
-        return 'device'
+    if device in DEVICES:
+        if device_subscriptions > device_count:
+            logger.info(f"Free device subscription available, adding to device slot for user_id={user_id}")
+            return 'device'
+        logger.info(f"No free device subscription for user_id={user_id}")
+        return 'no_subscription'
     
     # Check router subscription
-    if router_dur > 0 and device == 'router':
-        logger.info(f"Adding to router slot for user_id={user_id}")
-        return 'router'
+    if device == 'router':
+        if router_subscriptions > router_count:
+            logger.info(f"Free router subscription available, adding to router slot for user_id={user_id}")
+            return 'router'
+        logger.info(f"No free router subscription for user_id={user_id}")
+        return 'no_subscription'    
+
+    # If combo is full and no free subscriptions
+    if combo_dur > 0 and is_full:
+        logger.info(f"Combo full and no free subscriptions for user_id={user_id}")
+        return 'no_subscription'
     
     # Fallback error case
     logger.error(f"Unable to determine slot for user_id={user_id}, device={device}")
@@ -263,6 +276,7 @@ async def poll_invoices(bot: Bot):
                     if status == "paid":
                         logger.info(f"Invoice {invoice_id} paid for user {user_id}")
                         try:
+                            logger.info(f'period: {period}; device_type: {device_type}; device: {device}; payment_type: {payment_type}; method: {method}')
                             balance_response = await payment_req.payment_balance_process(
                                 user_id=user_id,
                                 amount=amount,
