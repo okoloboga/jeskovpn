@@ -67,7 +67,8 @@ class Device(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.user_id"))
-    device = Column(String)
+    device = Column(String)  # SLOT: Device / Router / Combo
+    device_type = Column(String)  # Device / Router
     device_name = Column(String)
     vpn_key = Column(String)
     outline_key_id = Column(String, nullable=True)

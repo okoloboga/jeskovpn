@@ -17,6 +17,7 @@ device-router-button = Router 🌐
 vpn-combo-button = Combo set
 device-instruction-button = Instruction 📖
 add-device-button = Add device ➕
+add-router-button = Add router ➕
 rename-device-button = Change name ⬅️
 remove-device-button = Remove device ❌
 payment-ukassa-button = SBP 💳
@@ -101,8 +102,6 @@ device-menu = This is the key for setting up the VPN application, device { $name
               ⚠️ Warning! For downloading torrents - account ban!
 
               ⬇️ Your key ⬇️
-
-              <code>{ $device_key }</code>
 
 device-removed = Device { $device } removed! ✅
 

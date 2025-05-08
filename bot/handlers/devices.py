@@ -1,7 +1,9 @@
 import logging
+import unicodedata
 
 from typing import Union
 from aiogram import Router, F
+from aiogram.utils.markdown import code
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -58,6 +60,8 @@ async def devices_button_handler(
         devices_list = user_info.get("devices_list", ([], [], []))
         devices, routers, combo = devices_list
         subscriptions = user_info.get("active_subscriptions", {})
+        combo_routers = user_data.get("subscription", {}).get("combo", {}).get("routers", [])
+        is_combo_router = True if len(combo_routers) > 0 else False
         
         # Create list of empty buttons, if combo is active
         if 'combo' in subscriptions:
@@ -67,12 +71,11 @@ async def devices_button_handler(
             combo = (empty_slots, combo)
         else:
             combo = (0, [])
-
         devices = devices + routers
-
+        logger.info(f'devices: {devices}; combo: {combo}; is_combo_router: {is_combo_router}')
         count_devices = user_info.get('total_devices', 0)
         subscription_fee = user_info.get('month_price', 0)
-        keyboard = devices_kb.my_devices_kb(i18n, devices, combo)
+        keyboard = devices_kb.my_devices_kb(i18n, devices, combo, is_combo_router)
         text = i18n.devices.menu(
                 devices=count_devices,
                 subscription_fee=subscription_fee)
@@ -127,7 +130,14 @@ async def select_devices_handler(
             await callback.message.edit_text(text=i18n.error.device_key_not_found())
             await callback.answer()
             return
-        device_key = device_data.get("key")
+        vpn_key = device_data.get("key")
+        cleaned_key = "".join(c for c in vpn_key if unicodedata.category(c)[0] != "C")
+        escaped_key = services.escape_markdown_v2(cleaned_key)
+        if not cleaned_key.startswith("ss://"):
+            logger.error(f"Invalid VPN key format: {cleaned_key}")
+            await callback.answer("Error: Invalid VPN key format")
+            return
+
         device_type = device_data.get("device_type")
         keyboard = devices_kb.device_kb(
                 i18n=i18n, 
@@ -136,10 +146,13 @@ async def select_devices_handler(
             )
         text = i18n.device.menu(
                 name=device, 
-                device=device_type, 
-                device_key=device_key
+                device=device_type
             )
-        await callback.message.edit_text(text=text, reply_markup=keyboard)
+        await callback.message.edit_text(text=text)
+        await callback.message.answer(
+                text=escaped_key, 
+                reply_markup=keyboard, 
+                parse_mode="MarkdownV2")
         await callback.answer()
 
     except TelegramBadRequest as e:
@@ -230,19 +243,21 @@ async def select_device_type(
     if isinstance(event, Message):
         device_type = event.text.lower()
         device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
+        only = 'none'
     else:
-        try:
-            _, _, i = event.message.text.split('_')
-            if i is not None:
-                device_type = 'combo'
-            else:
-                device_type = 'device'
-        except:
+        logger.info(f'event message data {event.data}')
+        if event.data in ('add_device_device', 'add_device_router'):
+            _, _, kb_data = event.data.split('_')
+            device_type = kb_data
+            only = kb_data
+        else:
             device_type = 'device'
+            only = 'none'
 
     await state.update_data(device_type=device_type)
+    logger.info(f'DEVICE_TYPE: {device_type}; ONLY: {only}')
     try:
-        keyboard = devices_kb.devices_list_kb(i18n, device_type)
+        keyboard = devices_kb.devices_list_kb(i18n, device_type, only)
         if isinstance(event, CallbackQuery):
             await event.message.answer(
                     text=i18n.devices.category.menu(), 
@@ -540,16 +555,25 @@ async def fill_device_name(
                         )
         if result is not None and 'key' in result:
             vpn_key = result.get('key')
+            cleaned_key = "".join(c for c in vpn_key if unicodedata.category(c)[0] != "C")
+            escaped_key = services.escape_markdown_v2(cleaned_key)
+            if not cleaned_key.startswith("ss://"):
+                logger.error(f"Invalid VPN key format: {cleaned_key}")
+                await message.answer("Error: Invalid VPN key format")
+                return
+
             await message.answer(
                 text=i18n.device.menu(
                     name=device_name, 
-                    device=device, 
-                    device_key=vpn_key),
-                reply_markup=devices_kb.device_kb(
-                    i18n=i18n, 
-                    device_name=device_name, 
-                    device_type=device)
-                )
+                    device=device))
+
+            await message.answer(
+                    text=escaped_key,                 
+                    reply_markup=devices_kb.device_kb(
+                        i18n=i18n, 
+                        device_name=device_name, 
+                        device_type=device),
+                    parse_mode="MarkdownV2")
         elif result == 'already_exists':
             await message.answer(text=i18n.device.name.already.exists())
         else:
@@ -587,15 +611,29 @@ async def new_name_handler(
         if device_data is None:
             await message.answer(text=i18n.error.device_key_not_found())
             return
-        device_key = device_data.get("key")
+        vpn_key = device_data.get("key")
+        
+        cleaned_key = "".join(c for c in vpn_key if unicodedata.category(c)[0] != "C")
+        escaped_key = services.escape_markdown_v2(cleaned_key)
+        if not cleaned_key.startswith("ss://"):
+            logger.error(f"Invalid VPN key format: {cleaned_key}")
+            await message.answer("Error: Invalid VPN key format")
+            return
+
         device_type = device_data.get("device_type")
         keyboard = devices_kb.device_kb(
                 i18n=i18n, 
                 device_name=device_new_name,
                 device_type=device_type
             )
-        text = i18n.device.menu(name=device_new_name, device=device_type, device_key=device_key)
-        await message.answer(text=text, reply_markup=keyboard)
+        text = i18n.device.menu(
+                name=device_new_name, 
+                device=device_type)
+        await message.answer(text=text)
+        await message.answer(
+                text=escaped_key, 
+                reply_markup=keyboard, 
+                parse_mode="MarkdownV2")
  
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")

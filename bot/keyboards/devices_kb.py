@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from fluentogram import TranslatorRunner
@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 def my_devices_kb(
     i18n: TranslatorRunner,
     devices: List[str],
-    combo_cells: Tuple[int, List[str]]
+    combo_cells: Tuple[int, List[str]],
+    is_combo_router: Optional[bool] = False
 ) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard for the devices menu.
@@ -35,8 +36,10 @@ def my_devices_kb(
         if empty_slots != 0:
             for device in combo_devices:
                 builder.row(InlineKeyboardButton(text=device, callback_data=f"selected_device_{device}"))
-            for i in range(empty_slots):
-                builder.row(InlineKeyboardButton(text=i18n.add.device.button(), callback_data=f"add_device_{i}"))
+            for _ in range(empty_slots):
+                builder.row(InlineKeyboardButton(text=i18n.add.device.button(), callback_data=f"add_device_device"))
+            if not is_combo_router:
+                builder.row(InlineKeyboardButton(text=i18n.add.router.button(), callback_data=f"add_device_router"))
         else:
             builder.row(
                 InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),

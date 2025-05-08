@@ -8,7 +8,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import CallbackQuery, Message
 from fluentogram import TranslatorRunner
 
-from services import user_req, services, MONTH_DAY
+from services import user_req, services
 from keyboards import main_kb
 
 main_router = Router()
@@ -93,7 +93,6 @@ async def command_start_getter(
             # month_price = user_info.get('month_price', 0)
             balance = user_data.get("balance", 0)
             days_left = user_info.get("durations", (0, 0, 0))
-            logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
             active_subscriptions = user_info.get('active_subscriptions', {})
             is_subscribed = user_info.get('is_subscribed', False)
         
@@ -182,7 +181,6 @@ async def main_menu_handler(
         logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
         active_subscriptions = user_info.get("active_subscriptions", {})
         is_subscribed = user_info.get('is_subscribed', False)
-
         keyboard=main_kb.main_kb(
             i18n=i18n,
             is_subscribed=is_subscribed,

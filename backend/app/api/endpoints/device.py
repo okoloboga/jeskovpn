@@ -1,3 +1,4 @@
+from sys import builtin_module_names
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any
@@ -91,12 +92,14 @@ async def generate_key(
 
     # Generate VPN key using Outline API
     vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
+    logger.info(f'access key: {vpn_key}; key_id: {outline_key_id}')
     # vpn_key, outline_key_id = 'vpn_key', 'outline_key_id'
 
     # Create device record
     db_device = Device(
         user_id=device_data.user_id,
         device=device_data.slot,  # Use slot as device type
+        device_type=device_data.device,
         device_name=device_data.device_name,
         vpn_key=vpn_key,
         outline_key_id=outline_key_id,
@@ -131,7 +134,7 @@ async def get_user_devices(
         device_response = DeviceUsersResponse(
             device=device.device,
             device_name=device.device_name,
-            device_type=device.device
+            device_type=device.device_type
         )
         if device.device == "device":
             response["device"].append(device_response)

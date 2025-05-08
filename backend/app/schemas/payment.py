@@ -1,6 +1,6 @@
 from pydantic import BaseModel, validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class PaymentBase(BaseModel):
     user_id: int
@@ -34,6 +34,7 @@ class SubscriptionResponse(BaseModel):
     combo_size: int
     remaining_days: int
     monthly_price: float
+    device_type: List[str]
 
 class InvoiceBase(BaseModel):
     user_id: int

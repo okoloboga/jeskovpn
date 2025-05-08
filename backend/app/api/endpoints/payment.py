@@ -256,11 +256,23 @@ async def get_subscriptions(
                 logger.info(f"Payment period={payment.period}, amount={payment.amount} for subscription type={sub.type}")
                 monthly_price += payment.amount / payment.period
 
+        # Fetch associated devices
+        devices = db.query(Device).filter(
+            Device.user_id == user_id,
+            Device.device == sub.type,
+            Device.start_date == sub.start_date,
+            Device.end_date == sub.end_date
+        ).all()
+        
+        # Extract unique device types
+        device_types = list({device.device_type for device in devices if device.device_type})
+
         result.append({
             "type": sub.type,
             "combo_size": sub.combo_size,
             "remaining_days": remaining_days,
-            "monthly_price": round(monthly_price, 2)
+            "monthly_price": round(monthly_price, 2),
+            "device_type": device_types
         })
     
     logger.info(f"Returning {len(result)} active subscriptions for user_id={user_id}")

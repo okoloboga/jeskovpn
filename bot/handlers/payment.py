@@ -332,12 +332,13 @@ async def buy_subscription_handler(
                     if device not in ('5', '10'):
                         await state.set_state(DevicesSG.device_name)
                         await callback.message.answer(
-                                text=i18n.buy.subscription.success(balance=(balance-amount)))
+                                text=i18n.buy.subscription.success(balance=(balance-amount)),
+                                reply_markup=main_kb.back_inline_kb(i18n))
                     else:
                         await state.clear()
                         await callback.message.answer(
-                                text=i18n.buy.subscription.success.combo()
-                                )
+                                text=i18n.buy.subscription.success.combo(),
+                                reply_markup=main_kb.back_inline_kb(i18n))
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
                     await callback.message.edit_text(text=i18n.error.unexpected())
@@ -543,11 +544,13 @@ async def process_payment(
             if device not in ('5', '10'):
                 await state.set_state(DevicesSG.device_name)
                 await message.answer(
-                        text=i18n.buy.subscription.success(balance=(int(balance))))
+                        text=i18n.buy.subscription.success(balance=(int(balance))),
+                        reply_markup=main_kb.back_inline_kb(i18n))
             else:
                 await state.clear()
                 await message.answer(
-                        text=i18n.buy.subscription.success.combo()
+                        text=i18n.buy.subscription.success.combo(),
+                        reply_markup=main_kb.back_inline_kb(i18n)
                         )
         else:
             logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")

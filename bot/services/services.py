@@ -59,23 +59,33 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         
         # Get subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
-        
         # Get devices
         devices = await user_req.get_user_devices(user_id) or {
             "device": [], "router": [], "combo": []
         }
         
-        # Form subscription in old format
+        # Form subscription in updated format
         subscription = {
             "device": {"devices": [], "duration": 0},
             "router": {"devices": [], "duration": 0},
-            "combo": {"devices": [], "duration": 0, "type": 0}
+            "combo": {"devices": [], "routers": [], "duration": 0, "type": 0}
         }
         
         # Populate devices
         subscription["device"]["devices"] = [d["device_name"] for d in devices["device"]]
         subscription["router"]["devices"] = [d["device_name"] for d in devices["router"]]
-        subscription["combo"]["devices"] = [d["device_name"] for d in devices["combo"]]
+        
+        # Populate combo devices and routers based on device_type
+        combo_sub = next((sub for sub in subscriptions if sub["type"] == "combo"), None)
+        if combo_sub and "device_type" in combo_sub:
+            for device in devices["combo"]:
+                if device["device_type"] == "router":
+                    subscription["combo"]["routers"].append(device["device_name"])
+                else:
+                    subscription["combo"]["devices"].append(device["device_name"])
+        else:
+            # Fallback: treat all combo devices as non-routers
+            subscription["combo"]["devices"] = [d["device_name"] for d in devices["combo"]]
         
         logger.info(f'GET subscriptions: {subscriptions}')
         logger.info(f'GET devices: {devices}')
@@ -122,7 +132,9 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         combo_type = user['subscription']['combo']['type']
         devices_list = user['subscription']['device']['devices']
         routers_list = user['subscription']['router']['devices']
-        combo_list = user['subscription']['combo']['devices']
+        combo_devices = user['subscription']['combo']['devices']
+        combo_routers = user['subscription']['combo']['routers']
+        combo_list = combo_devices + combo_routers
         
         # Get monthly price from subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
@@ -154,8 +166,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
             'durations': durations,
             'is_subscribed': is_subscribed,
             'active_subscriptions': active_subscriptions
-        }
-        logger.info(f'ACTIVE SUBSCRIPTION: {active_subscriptions}')
+            }
         
         return result
     
@@ -195,11 +206,14 @@ async def check_slot(user_id: int, device: str) -> str:
     # Check combo subscription
     if combo_dur > 0:
         combo_size = user_data['subscription']['combo']['type']
-        combo_devices = len(user_data['subscription']['combo']['devices'])
+        combo_devices = len(user_data['subscription']['combo']['devices']) + len(user_data['subscription']['combo']['routers'])
         is_full = combo_devices >= combo_size
-        logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}")
+        has_router = len(user_data['subscription']['combo']['routers']) > 0
         
-        if not is_full:
+        logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}, has_router={has_router}")
+        
+        # Skip combo if adding a router and a router already exists
+        if not (device == 'router' and has_router) and not is_full:
             logger.info(f"Adding to combo slot for user_id={user_id}")
             return 'combo'
     
@@ -303,3 +317,15 @@ async def on_startup(bot: Bot):
     logger.info("Starting invoice polling")
     asyncio.create_task(poll_invoices(bot))
 
+def escape_markdown_v2(text: str) -> str:
+    """
+    Escape reserved characters for Telegram MarkdownV2.
+    
+    Args:
+        text: Input text to escape
+    
+    Returns:
+        Escaped text
+    """
+    reserved_chars = r'([_\*\[\]\(\)~`>\#\+\-=\|\{\}\.!\\])'
+    return re.sub(reserved_chars, r'\\\1', text)
