@@ -336,9 +336,10 @@ async def buy_subscription_handler(
                                 reply_markup=main_kb.back_inline_kb(i18n))
                     else:
                         await state.clear()
+                        await state.set_state(PaymentSG.add_device)
                         await callback.message.answer(
                                 text=i18n.buy.subscription.success.combo(),
-                                reply_markup=main_kb.back_inline_kb(i18n))
+                                reply_markup=devices_kb.devices_list_kb(i18n, 'device'))
                 else:
                     logger.error(f"Unexpected error for user {user_id} in buy subscription by balance")
                     await callback.message.edit_text(text=i18n.error.unexpected())

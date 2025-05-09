@@ -61,21 +61,22 @@ async def devices_button_handler(
         devices, routers, combo = devices_list
         subscriptions = user_info.get("active_subscriptions", {})
         combo_routers = user_data.get("subscription", {}).get("combo", {}).get("routers", [])
-        is_combo_router = True if len(combo_routers) > 0 else False
         
         # Create list of empty buttons, if combo is active
         if 'combo' in subscriptions:
+            no_combo_router = False if len(combo_routers) > 0 else True
             combo_type, _ = subscriptions.get('combo')
             combo_count = len(combo)
             empty_slots = int(combo_type) - combo_count
             combo = (empty_slots, combo)
         else:
+            no_combo_router = False
             combo = (0, [])
         devices = devices + routers
-        logger.info(f'devices: {devices}; combo: {combo}; is_combo_router: {is_combo_router}')
+        logger.info(f'devices: {devices}; combo: {combo}; no_combo_router: {no_combo_router}')
         count_devices = user_info.get('total_devices', 0)
         subscription_fee = user_info.get('month_price', 0)
-        keyboard = devices_kb.my_devices_kb(i18n, devices, combo, is_combo_router)
+        keyboard = devices_kb.my_devices_kb(i18n, devices, combo, no_combo_router)
         text = i18n.devices.menu(
                 devices=count_devices,
                 subscription_fee=subscription_fee)

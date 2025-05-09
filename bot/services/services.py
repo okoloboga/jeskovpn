@@ -207,7 +207,7 @@ async def check_slot(user_id: int, device: str) -> str:
     if combo_dur > 0:
         combo_size = user_data['subscription']['combo']['type']
         combo_devices = len(user_data['subscription']['combo']['devices']) + len(user_data['subscription']['combo']['routers'])
-        is_full = combo_devices >= combo_size
+        is_full = combo_devices >= (combo_size + 1)
         has_router = len(user_data['subscription']['combo']['routers']) > 0
         
         logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}, has_router={has_router}")

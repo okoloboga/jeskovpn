@@ -91,9 +91,9 @@ async def generate_key(
     outline_cert_sha256 = config.outline.cert_sha256
 
     # Generate VPN key using Outline API
-    vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
+    # vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
+    vpn_key, outline_key_id = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpGT3Y4dlV6NWFVZUNyUk1uN0hBeEtZ@31.128.48.13:26247/?outline=1', '1'
     logger.info(f'access key: {vpn_key}; key_id: {outline_key_id}')
-    # vpn_key, outline_key_id = 'vpn_key', 'outline_key_id'
 
     # Create device record
     db_device = Device(

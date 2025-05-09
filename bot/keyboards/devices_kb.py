@@ -10,7 +10,7 @@ def my_devices_kb(
     i18n: TranslatorRunner,
     devices: List[str],
     combo_cells: Tuple[int, List[str]],
-    is_combo_router: Optional[bool] = False
+    no_combo_router: Optional[bool] = False
 ) -> InlineKeyboardMarkup:
     """
     Create an inline keyboard for the devices menu.
@@ -38,12 +38,12 @@ def my_devices_kb(
                 builder.row(InlineKeyboardButton(text=device, callback_data=f"selected_device_{device}"))
             for _ in range(empty_slots):
                 builder.row(InlineKeyboardButton(text=i18n.add.device.button(), callback_data=f"add_device_device"))
-            if not is_combo_router:
-                builder.row(InlineKeyboardButton(text=i18n.add.router.button(), callback_data=f"add_device_router"))
         else:
             builder.row(
                 InlineKeyboardButton(text=i18n.add.device.button(), callback_data="add_device"),
             )
+        if no_combo_router:
+            builder.row(InlineKeyboardButton(text=i18n.add.router.button(), callback_data=f"add_device_router"))            
         builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
         return builder.as_markup()
     except (KeyError, AttributeError) as e:
