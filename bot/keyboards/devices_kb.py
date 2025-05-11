@@ -44,7 +44,10 @@ def my_devices_kb(
             )
         if no_combo_router:
             builder.row(InlineKeyboardButton(text=i18n.add.router.button(), callback_data=f"add_device_router"))            
-        builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
+        builder.row(
+            InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"),
+            InlineKeyboardButton(text=i18n.device.instruction.button(), callback_data="select_instruction")
+            )
         return builder.as_markup()
     except (KeyError, AttributeError) as e:
         logger.error(f"Localization error in devices_kb: {e}")
@@ -150,6 +153,7 @@ def devices_list_kb(i18n: TranslatorRunner, device_type: str, only: str = 'none'
                 )
                 builder.row(
                     KeyboardButton(text=i18n.device.tv.button()),
+
                     KeyboardButton(text=i18n.device.router.button())
                 )
             elif only == "device":

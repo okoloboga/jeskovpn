@@ -102,6 +102,22 @@ async def devices_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
+@devices_router.callback_query(F.data.startswith("select_instruction"))
+async def select_instructions_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+
+    await state.set_state(DevicesSG.select_instruction)
+    await callback.message.answer(
+            text=i18n.devices.category.menu(),
+            reply_markup=devices_kb.devices_list_kb(
+                i18n=i18n,
+                device_type='device'
+                ))
+    await callback.answer()
+
 @devices_router.callback_query(F.data.startswith("selected_device_"))
 async def select_devices_handler(
     callback: CallbackQuery,
@@ -138,8 +154,9 @@ async def select_devices_handler(
             logger.error(f"Invalid VPN key format: {cleaned_key}")
             await callback.answer("Error: Invalid VPN key format")
             return
-
         device_type = device_data.get("device_type")
+        logger.info(f'DEVICE_TYPE: {device_data}')
+        link = services.INSTUCTIONS[device_type]
         keyboard = devices_kb.device_kb(
                 i18n=i18n, 
                 device_name=device,
@@ -147,7 +164,8 @@ async def select_devices_handler(
             )
         text = i18n.device.menu(
                 name=device, 
-                device=device_type
+                device=device_type,
+                link=link
             )
         await callback.message.edit_text(text=text)
         await callback.message.answer(
@@ -275,6 +293,21 @@ async def select_device_type(
             await event.answer()
         else:
             await event.answer(text=i18n.error.unexpected())
+
+@devices_router.message(
+        StateFilter(DevicesSG.select_instruction),
+        F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "TV 📺", "Роутер 🌐", "Router 🌐"]))
+async def select_instruction_handler(
+    message: Message,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+    
+    device, _ = message.text.lower().split(' ')
+    device = 'router' if device == 'роутер' else device
+    link = services.INSTUCTIONS[device]
+    await message.answer(text=link, reply_markup=main_kb.back_to_devices_inline_kb(i18n))
+    await state.clear()
 
 @devices_router.message(F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "TV 📺", "Роутер 🌐", "Router 🌐"]))
 async def select_device_handler(
@@ -532,6 +565,7 @@ async def fill_device_name(
     validation = services.validate_device_name(device_name)
     state_data = await state.get_data()
     device = state_data.get('device')
+    link = services.INSTUCTIONS[device]
     device_type = state_data.get('device_type', 'device')
     logger.info(f'User {user_id} fill device name {device_name}-{device_type} for device {device}; validation: {validation}')
 
@@ -566,7 +600,8 @@ async def fill_device_name(
             await message.answer(
                 text=i18n.device.menu(
                     name=device_name, 
-                    device=device))
+                    device=device,
+                    link=link))
 
             await message.answer(
                     text=escaped_key,                 
@@ -622,6 +657,7 @@ async def new_name_handler(
             return
 
         device_type = device_data.get("device_type")
+        link = services.INSTUCTIONS[device_type]
         keyboard = devices_kb.device_kb(
                 i18n=i18n, 
                 device_name=device_new_name,
@@ -629,7 +665,8 @@ async def new_name_handler(
             )
         text = i18n.device.menu(
                 name=device_new_name, 
-                device=device_type)
+                device=device_type,
+                link=link)
         await message.answer(text=text)
         await message.answer(
                 text=escaped_key, 

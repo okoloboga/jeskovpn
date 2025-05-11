@@ -9,6 +9,7 @@ class PaymentSG(StatesGroup):
 class DevicesSG(StatesGroup):
     device_name = State()
     rename_device = State()
+    select_instruction = State()
 
 class SupportSG(StatesGroup):
     create_ticket = State()

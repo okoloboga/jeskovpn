@@ -36,6 +36,22 @@ MONTH_PRICE_STARS = {
 
 START_PRICE = 1.79
 MONTH_DAY = 30.42
+INSTUCTIONS_TEMP = {
+               'android': "https://play.google.com/store/apps/details?id=org.outline.android.client&hl=en",
+               'tv': "https://play.google.com/store/apps/details?id=org.outline.android.client&hl=en",
+               'iphone/ipad': "https://apps.apple.com/us/app/outline-app/id1356177741",
+               'windows': "https://getoutline.org/get-started/#step-3",
+               'macos': "https://getoutline.org/get-started/#step-3",
+               'router': "В разработке"
+               }
+INSTUCTIONS = {
+        'android': 'В разработке',
+        'tv': 'В разработке',
+        'iphone/ipad': 'В разработке',
+        'windows': 'В разработке',
+        'macos': 'В разработке',
+        'router': 'В разработке',
+        }
 
 async def get_user_data(user_id: int) -> Optional[dict]:
     """
