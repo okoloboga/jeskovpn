@@ -57,8 +57,10 @@ async def devices_button_handler(
                 await event.answer(text=text)
             return
         
-        devices_list = user_info.get("devices_list", ([], [], []))
-        devices, routers, combo = devices_list
+        devices_list = user_info.get("devices_list", {"devices": {}, "routers": {}, "combo": {}})
+        devices = devices_list.get("devices", {})
+        routers = devices_list.get("routers", {})
+        combo = devices_list.get("combo", {})
         subscriptions = user_info.get("active_subscriptions", {})
         combo_routers = user_data.get("subscription", {}).get("combo", {}).get("routers", [])
         
@@ -72,7 +74,7 @@ async def devices_button_handler(
         else:
             no_combo_router = False
             combo = (0, [])
-        devices = devices + routers
+        devices.update(routers)
         logger.info(f'devices: {devices}; combo: {combo}; no_combo_router: {no_combo_router}')
         count_devices = user_info.get('total_devices', 0)
         subscription_fee = user_info.get('month_price', 0)
@@ -143,10 +145,13 @@ async def select_devices_handler(
 
     try:
         device_data = await vpn_req.get_device_key(user_id, device)
-        if device_data is None:
+        user_data = await services.get_user_data(user_id)
+        if device_data is None or user_data is None:
             await callback.message.edit_text(text=i18n.error.device_key_not_found())
             await callback.answer()
             return
+        subscription = user_data.get("subscription", {})
+        logger.info(subscription)
         vpn_key = device_data.get("key")
         cleaned_key = "".join(c for c in vpn_key if unicodedata.category(c)[0] != "C")
         escaped_key = services.escape_markdown_v2(cleaned_key)
@@ -154,8 +159,8 @@ async def select_devices_handler(
             logger.error(f"Invalid VPN key format: {cleaned_key}")
             await callback.answer("Error: Invalid VPN key format")
             return
+        logger.info(f'device_type: {device_data}')
         device_type = device_data.get("device_type")
-        logger.info(f'DEVICE_TYPE: {device_data}')
         link = services.INSTUCTIONS[device_type]
         keyboard = devices_kb.device_kb(
                 i18n=i18n, 
@@ -736,10 +741,12 @@ async def remove_device_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await callback.answer(text=i18n.error.unexpected())
 
-@devices_router.callback_query(F.data == 'instruction')
+@devices_router.callback_query(F.data.startswith('instruction_'))
 async def instruction_handler(
-        callback: CallbackQuery,
-        i18n: TranslatorRunner
+        callback: CallbackQuery
 ) -> None:
-
-    await callback.message.answer(text=i18n.instruction.android())
+    
+    _, device_type = callback.data.split('_')
+    instruction = services.INSTUCTIONS[device_type]
+    await callback.message.answer(text=instruction)
+    await callback.answer()

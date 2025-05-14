@@ -5,6 +5,7 @@ class PaymentSG(StatesGroup):
     add_balance = State()
     buy_subscription = State()
     add_device = State()
+    add_email = State()
 
 class DevicesSG(StatesGroup):
     device_name = State()

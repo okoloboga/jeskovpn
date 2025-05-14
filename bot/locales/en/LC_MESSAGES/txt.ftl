@@ -47,7 +47,9 @@ payment-custom-button = Custom amount ✏️
 decline-payment-button = Cancel 🚫
 increase-balance-button = Top up balance 💰
 main-menu-button = Go to main menu 🏠
-ticket-reply-button = Reply to user { $user_id } 💬
+email-button = E-Mail @
+phone-button = Phone Number 📱
+pay-button = Pay 💵
 
 active-sub-head = Active subscriptions
 
@@ -157,10 +159,41 @@ buy-subscription-menu = Your balance { $balance }₽ ({ $days } days) 💰
 
 payment-indevelopment = In development!
 
-cryptobot-invoice = Your payment link:
-                    { $invoice_url }
+invoice = Your payment link:
+          { $invoice_url }
 
-                    Order #{ $invoice_id }
+          Order #{ $invoice_id }
+
+ukassa-subscription-description = Subscription payment for the amount of { $amount }rubles.
+
+ukassa-receipt.add_balance = Balance replenishment for { $amount } rubles
+ukassa-receipt.subscription = Subscription for { $device_type }, { $ period } months.
+ukassa-device_type-device = Device
+ukassa-device_type-router = Router
+ukassa-device_type-combo = Combo ({ $device } devices)
+
+select-contact = Select where, send a receipt for the purchase
+                 this is necessary in accordance with the requirements of 54-FZ
+
+                 Current contacts:
+
+                 E-mail: { $email }
+                 Phone number: { $phone }
+
+no-contact = Not added!
+fill-email = Enter your email address
+fill-phone = To calculate the phone number
+
+             ⬇️ Click the button ⬇️
+
+email-saved = Email saved!
+
+              Payment link:
+              { $link}
+phone-saved = Phone number saved!
+
+              Payment link:
+              { $link }
 
 devices-category-menu = Select type 📱
 
@@ -236,3 +269,7 @@ error-device-name-pattern = 🚫 Incorrect device name!
 error-device-name-len = 🚫 Device name is too long!
 error-device-rename = 🚫 A device with this name already exists!
 error-slot = 🚫 No space for devices!
+error-wrong-email = 🚫 Wrong E-Mail!
+error-no-number =  🚫 Phone number not provided!
+error-no-contact =  🚫 Phone number or E-Mail not provided!
+error-payment_failed = 🚫 Create payment invoice error!

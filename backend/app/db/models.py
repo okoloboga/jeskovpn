@@ -10,6 +10,8 @@ class User(Base):
     last_name = Column(String)
     username = Column(String)
     balance = Column(Float, default=0.0)
+    email_address = Column(String)
+    phone_number = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Referral(Base):

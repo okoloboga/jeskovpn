@@ -3,7 +3,10 @@ import re
 import asyncio
 
 from aiogram import Bot
-from typing import Dict, Optional
+from aiogram.exceptions import TelegramAPIError
+from typing import Dict, Optional, List, Any
+from datetime import datetime, timedelta, timezone
+from dateutil.parser import isoparse
 from services import user_req, payment_req
 
 logger = logging.getLogger(__name__)
@@ -82,27 +85,30 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         
         # Form subscription in updated format
         subscription = {
-            "device": {"devices": [], "duration": 0},
-            "router": {"devices": [], "duration": 0},
-            "combo": {"devices": [], "routers": [], "duration": 0, "type": 0}
+            "device": {"devices": {}, "duration": 0},
+            "router": {"devices": {}, "duration": 0},
+            "combo": {"devices": {}, "routers": {}, "duration": 0, "type": 0}
         }
         
         # Populate devices
-        subscription["device"]["devices"] = [d["device_name"] for d in devices["device"]]
-        subscription["router"]["devices"] = [d["device_name"] for d in devices["router"]]
-        
+        for device in devices["device"]:
+            subscription["device"]["devices"][device["device_name"]] = device["device_type"]
+        for router in devices["router"]:
+            subscription["device"]["devices"][router["device_name"]] = router["device_type"]
+       
         # Populate combo devices and routers based on device_type
         combo_sub = next((sub for sub in subscriptions if sub["type"] == "combo"), None)
         if combo_sub and "device_type" in combo_sub:
             for device in devices["combo"]:
                 if device["device_type"] == "router":
-                    subscription["combo"]["routers"].append(device["device_name"])
+                    subscription["combo"]["routers"][device["device_name"]] = device["device_type"]
                 else:
-                    subscription["combo"]["devices"].append(device["device_name"])
+                    subscription["combo"]["devices"][device["device_name"]] = device["device_type"]
         else:
+            pass
             # Fallback: treat all combo devices as non-routers
-            subscription["combo"]["devices"] = [d["device_name"] for d in devices["combo"]]
-        
+            # subscription["combo"]["devices"][device["device_name"]] = device["device_type"]
+
         logger.info(f'GET subscriptions: {subscriptions}')
         logger.info(f'GET devices: {devices}')
 
@@ -146,35 +152,39 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         router_duration = user['subscription']['router']['duration']
         combo_duration = user['subscription']['combo']['duration']
         combo_type = user['subscription']['combo']['type']
-        devices_list = user['subscription']['device']['devices']
+        devices_list = user['subscription']['device']['devices'] 
         routers_list = user['subscription']['router']['devices']
-        combo_devices = user['subscription']['combo']['devices']
+        combo_list = user['subscription']['combo']['devices']
         combo_routers = user['subscription']['combo']['routers']
-        combo_list = combo_devices + combo_routers
-        
+        combo_list.update(combo_routers)
+
         # Get monthly price from subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
 
-        logger.info(f'subscriptions: {subscriptions}')
+        logger.info(f'combo_routers: {combo_routers}; combo_list: {combo_list}')
 
         month_price = 0.0
         for sub in subscriptions:
             month_price += float(sub["monthly_price"])
         
-        total_devices = len(devices_list) + len(routers_list) + len(combo_list)
-        all_list = (devices_list, routers_list, combo_list)
+        devices_len = len(devices_list) if devices_list is not None else 0
+        routers_len = len(routers_list) if routers_list is not None else 0
+        combo_len = len(combo_list) if combo_list is not None else 0
+        total_devices = devices_len + routers_len + combo_len
         durations = (device_duration, router_duration, combo_duration)
+        all_list = {"devices": {**devices_list}, "routers": {**routers_list}, "combo": {**combo_list}}
+        logger.info(all_list)
         
         is_subscribed = device_duration + router_duration + combo_duration > 0
         
         active_subscriptions: Dict = {}
         if device_duration > 0:
-            active_subscriptions['devices'] = len(devices_list)
+            active_subscriptions['devices'] = devices_len
         if router_duration > 0:
-            active_subscriptions['routers'] = len(routers_list)
+            active_subscriptions['routers'] = routers_len
         if combo_duration > 0:
-            active_subscriptions['combo'] = (combo_type, len(combo_list))
-        
+            active_subscriptions['combo'] = (combo_type, combo_len)
+
         result = {
             'month_price': month_price,
             'total_devices': total_devices,
@@ -288,51 +298,6 @@ def validate_device_name(name: str) -> str:
 # POLLING OF CRYPTOBOT PAYMENT
 active_invoices: Dict[str, dict] = {}
 
-async def poll_invoices(bot: Bot):
-    while True:
-        try:
-            invoices = await payment_req.get_active_invoices()
-            for invoice in invoices:
-                invoice_id = invoice["invoice_id"]
-                user_id = invoice["user_id"]
-                default_amount = invoice["amount"]
-                default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:balance"
-                payload = invoice.get("payload", default_payload)
-                _, amount, period, device_type, device, payment_type, method = payload.split(':')
-        
-                invoice_status = await payment_req.check_invoice_status(invoice_id)
-                if invoice_status:
-                    status = invoice_status["status"]
-                    if status == "paid":
-                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
-                        try:
-                            logger.info(f'period: {period}; device_type: {device_type}; device: {device}; payment_type: {payment_type}; method: {method}')
-                            balance_response = await payment_req.payment_balance_process(
-                                user_id=user_id,
-                                amount=amount,
-                                period=period,
-                                device_type=device_type,
-                                device=device,
-                                payment_type=payment_type,
-                                method=method
-                            )
-                            if balance_response:
-                                await bot.send_message(user_id, text="Оплата успешна 🎉")
-                                await payment_req.update_invoice_status(invoice_id, "completed")
-                        except Exception as e:
-                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
-                    elif status in ["expired", "failed"]:
-                        logger.info(f"Invoice {invoice_id} {status}, updating status")
-                        await payment_req.update_invoice_status(invoice_id, status)
-            await asyncio.sleep(10)
-        except Exception as e:
-            logger.error(f"Polling error: {e}")
-            await asyncio.sleep(30)
-
-async def on_startup(bot: Bot):
-    logger.info("Starting invoice polling")
-    asyncio.create_task(poll_invoices(bot))
-
 def escape_markdown_v2(text: str) -> str:
     """
     Escape reserved characters for Telegram MarkdownV2.
@@ -345,3 +310,159 @@ def escape_markdown_v2(text: str) -> str:
     """
     reserved_chars = r'([_\*\[\]\(\)~`>\#\+\-=\|\{\}\.!\\])'
     return re.sub(reserved_chars, r'\\\1', text)
+
+async def poll_invoices(bot: Bot):
+    """Poll active crypto invoices every 10 seconds, expire after 15 minutes."""
+    INVOICE_TIMEOUT = timedelta(minutes=15)  # 15 минут
+
+    while True:
+        try:
+            active_invoices: List[Dict[str, Any]] = await payment_req.get_active_invoices()
+            for invoice in active_invoices:
+                invoice_id = invoice["invoice_id"]
+                user_id = invoice["user_id"]
+                default_amount = invoice["amount"]
+                default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:balance"
+                payload = invoice.get("payload", default_payload)
+                try:
+                    _, amount, period, device_type, device, payment_type, method = payload.split(':')
+                except ValueError:
+                    logger.error(f"Invalid payload format for invoice {invoice_id}: {payload}")
+                    continue
+
+                # Проверка времени истечения
+                created_at = invoice.get("created_at")
+                if not created_at:
+                    logger.error(f"No created_at for invoice {invoice_id}, skipping timeout check")
+                    continue
+                
+                try:
+                    created_at = isoparse(created_at) if isinstance(created_at, str) else created_at
+                    # Убедимся, что created_at имеет часовой пояс
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    # Сравниваем с текущим временем в UTC
+                    if datetime.now(timezone.utc) - created_at > INVOICE_TIMEOUT:
+                        logger.info(f"Invoice {invoice_id} expired after 15 minutes")
+                        await payment_req.update_invoice_status(invoice_id, "expired")
+                        try:
+                            await bot.send_message(user_id, text="Ваш инвойс истек. Пожалуйста, создайте новый.")
+                            logger.info(f"Notified user {user_id} about expired invoice {invoice_id}")
+                        except TelegramAPIError as e:
+                            logger.error(f"Failed to notify user {user_id} for expired invoice {invoice_id}: {e}")
+                        continue
+                except Exception as e:
+                    logger.error(f"Error parsing created_at for invoice {invoice_id}: {e}")
+                    continue
+
+                invoice_status = await payment_req.check_invoice_status(invoice_id)
+                if invoice_status:
+                    status = invoice_status["status"]
+                    if status == "paid":
+                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
+                        try:
+                            logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
+                                       f"payment_type: {payment_type}; method: {method}")
+                            balance_response = await payment_req.payment_balance_process(
+                                user_id=user_id, amount=amount, period=period, device_type=device_type,
+                                device=device, payment_type=payment_type, method=method
+                            )
+                            if balance_response:
+                                try:
+                                    await bot.send_message(user_id, text="Оплата успешна 🎉")
+                                    await payment_req.update_invoice_status(invoice_id, "completed")
+                                    logger.info(f"Invoice {invoice_id} completed, notified user {user_id}")
+                                except TelegramAPIError as e:
+                                    logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
+                        except Exception as e:
+                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
+                    elif status in ["expired", "failed"]:
+                        logger.info(f"Invoice {invoice_id} {status}, updating status")
+                        await payment_req.update_invoice_status(invoice_id, status)
+            await asyncio.sleep(10)
+        except Exception as e:
+            logger.error(f"Polling error: {e}")
+            await asyncio.sleep(30)
+
+async def poll_ukassa_invoices(bot: Bot):
+    """Poll active ЮKassa invoices every 10 seconds, expire after 15 minutes."""
+    INVOICE_TIMEOUT = timedelta(minutes=15)  # 15 минут
+
+    while True:
+        try:
+            active_invoices: List[Dict[str, Any]] = await payment_req.get_active_invoices()
+            for invoice in active_invoices:
+                if invoice["currency"] != "RUB":
+                    continue
+                
+                invoice_id = invoice["invoice_id"]
+                user_id = invoice["user_id"]
+                default_amount = invoice["amount"]
+                default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:ukassa"
+                payload = invoice.get("payload", default_payload)
+                
+                try:
+                    _, amount, period, device_type, device, payment_type, method = payload.split(':')
+                except ValueError:
+                    logger.error(f"Invalid payload format for invoice {invoice_id}: {payload}")
+                    continue
+
+                # Проверка времени истечения
+                created_at = invoice.get("created_at")
+                if not created_at:
+                    logger.error(f"No created_at for invoice {invoice_id}, skipping timeout check")
+                    continue
+                try:
+                    created_at = isoparse(created_at) if isinstance(created_at, str) else created_at
+                    # Убедимся, что created_at имеет часовой пояс
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    # Сравниваем с текущим временем в UTC
+                    if datetime.now(timezone.utc) - created_at > INVOICE_TIMEOUT:
+                        logger.info(f"Invoice {invoice_id} expired after 15 minutes")
+                        await payment_req.update_invoice_status(invoice_id, "expired")
+                        try:
+                            await bot.send_message(user_id, text="Ваш инвойс истек. Пожалуйста, создайте новый.")
+                            logger.info(f"Notified user {user_id} about expired invoice {invoice_id}")
+                        except TelegramAPIError as e:
+                            logger.error(f"Failed to notify user {user_id} for expired invoice {invoice_id}: {e}")
+                        continue
+                except Exception as e:
+                    logger.error(f"Error parsing created_at for invoice {invoice_id}: {e}")
+                    continue
+
+                status_data = await payment_req.check_ukassa_invoice_status(invoice_id)
+                if status_data:
+                    status = status_data["status"]
+                    if status == "succeeded" and status_data["paid"]:
+                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
+                        try:
+                            logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
+                                       f"payment_type: {payment_type}; method: {method}")
+                            balance_response = await payment_req.payment_balance_process(
+                                user_id=user_id, amount=amount, period=period, device_type=device_type,
+                                device=device, payment_type=payment_type, method=method
+                            )
+                            if balance_response:
+                                try:
+                                    await bot.send_message(user_id, text="Оплата успешна 🎉")
+                                    await payment_req.update_invoice_status(invoice_id, "completed")
+                                    logger.info(f"Invoice {invoice_id} completed, notified user {user_id}")
+                                except TelegramAPIError as e:
+                                    logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
+                        except Exception as e:
+                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
+                    elif status in ["canceled", "expired", "failed"]:
+                        logger.info(f"Invoice {invoice_id} {status}, updating status")
+                        await payment_req.update_invoice_status(invoice_id, status)
+        except Exception as e:
+            logger.error(f"Polling error: {e}")
+            await asyncio.sleep(30)
+        else:
+            await asyncio.sleep(10)
+
+async def on_startup(bot: Bot):
+    logger.info("Starting invoice polling")
+    asyncio.create_task(poll_invoices(bot), name="poll_invoices")
+    asyncio.create_task(poll_ukassa_invoices(bot), name="poll_ukassa_invoices")
+    logger.info("Both polling tasks started")

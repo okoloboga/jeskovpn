@@ -9,6 +9,10 @@ ConfigType = TypeVar("ConfigType", bound=BaseModel)
 class BotConfig(BaseModel):
     token: SecretStr    
 
+class Yookassa(BaseModel):
+    id: str
+    key: str
+
 class Admin(BaseModel):
     id: list
 

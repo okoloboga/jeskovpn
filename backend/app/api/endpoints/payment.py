@@ -15,12 +15,12 @@ from app.schemas.payment import BalancePaymentCreate, InvoiceResponse, InvoiceCr
 router = APIRouter()
 
 MONTH_PRICE = {
-    "device": {"0": 0, "1": 100, "3": 240, "6": 420, "12": 600},
-    "router": {"0": 0, "1": 250, "3": 600, "6": 1000, "12": 1500},
+    "device": {"0": 0.0, "1": 100.0, "3": 240.0, "6": 420.0, "12": 600.0},
+    "router": {"0": 0.0, "1": 250.0, "3": 600.0, "6": 1000.0, "12": 1500.0},
     "combo": {
-        "0": {"0": 0},
-        "5": {"0": 0, "1": 500, "3": 1200, "6": 2100, "12": 3000},
-        "10": {"0": 0, "1": 850, "3": 2000, "6": 3500, "12": 5000}
+        "0": {"0": 0.0},
+        "5": {"0": 0.0, "1": 500.0, "3": 1200.0, "6": 2100.0, "12": 3000.0},
+        "10": {"0": 0.0, "1": 850.0, "3": 2000.0, "6": 3500.0, "12": 5000.0}
     }
 }
 
@@ -129,13 +129,6 @@ async def process_balance_payment(
                 detail="Insufficient balance"
             )
         user.balance -= payment.amount
-    
-    else:
-        logger.error(f"Invalid payment method: {payment.method}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid payment method"
-        )
     
     # Create payment record
     db_payment = Payment(

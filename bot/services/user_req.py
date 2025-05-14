@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import re
 import json
 import logging
 from typing import Dict, Optional, Any
@@ -120,3 +121,78 @@ async def get_user_devices(user_id: int) -> Optional[Dict[str, Any]]:
             logger.error(f"Get User Devices: Error - {e}")
             return None
 
+async def get_user_contact(user_id: int) -> Optional[Dict[str, Any]]:
+    """
+    GET /users/contact?user_id=...
+    """
+    params = {"user_id": user_id}
+    url = f"{BASE_URL}/users/contact"
+
+    logger.info(f"Sending GET request to {url} with params: {params}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=HEADERS, params=params) as response:
+                status = response.status
+                response_json = await response.json()
+                logger.info(f"Get User Contact: Status {status}")
+                logger.info(json.dumps(response_json, indent=2))
+                if status == 200 and isinstance(response_json, dict):
+                    return response_json
+                else:
+                    logger.error(f"Get User Contact: Failed with status {status}, response: {response_json}")
+                    return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Get User Contact: Error - {e}")
+            return None
+
+async def update_user_contact(
+        user_id: int, contact_type: str, contact: str
+) -> Optional[Dict[str, Any]]:
+    """
+    POST /users/contact
+    {
+        "user_id": ...,
+        "contact_type": "email" or "phone",
+        "contact": "..."
+    }
+    """
+    normalized_contact = contact
+    if contact_type.lower() == "phone":
+        # Нормализация: удаляем пробелы, тире, скобки, знак "+"
+        normalized_contact = re.sub(r'[\s\-\(\)+]', '', contact)
+        # Базовая проверка перед отправкой
+        if not (normalized_contact.isdigit() and len(normalized_contact) in [10, 11]):
+            logger.error(f"Invalid phone number format before sending: {contact}")
+            return None
+        # Если номер начинается с "+7" или "8", заменяем на "7"
+        if normalized_contact.startswith('8'):
+            normalized_contact = '7' + normalized_contact[1:]
+        elif normalized_contact.startswith('7') and len(normalized_contact) == 11:
+            pass  # Уже в нужном формате
+        else:
+            logger.error(f"Phone number must start with 7 or 8: {normalized_contact}")
+            return None
+
+    payload = {
+        "user_id": user_id,
+        "contact_type": contact_type,
+        "contact": normalized_contact
+    }
+
+    url = f"{BASE_URL}/users/contact"
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=payload) as response:
+                status = response.status
+                response_json = await response.json()
+                logger.info(f"Update User Contact: Status {status}")
+                logger.info(json.dumps(response_json, indent=2))
+                if status == 200:
+                    return response_json
+                else:
+                    logger.error(f"Update User Contact: Failed with status {status}")
+                    return None
+        except aiohttp.ClientError as e:
+            logger.error(f"Update User Contact: Error - {e}")
+            return None

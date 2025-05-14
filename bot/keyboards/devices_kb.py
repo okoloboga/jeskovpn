@@ -78,7 +78,7 @@ def device_kb(i18n: TranslatorRunner, device_name: str, device_type: str) -> Inl
                 InlineKeyboardButton(text=i18n.rename.device.button(), callback_data=f"rename_device_{device_name}")
                 )
         builder.row(
-                InlineKeyboardButton(text=i18n.device.instruction.button(), callback_data="instruction"),
+                InlineKeyboardButton(text=i18n.device.instruction.button(), callback_data=f"instruction_{device_type}"),
                 InlineKeyboardButton(text=i18n.remove.device.button(), callback_data=f"remove_device_{device_name}")
                 )
         builder.row(InlineKeyboardButton(text=i18n.devices.button(), callback_data="devices_menu"))

@@ -23,12 +23,26 @@ class UserBase(BaseModel):
     last_name: str
     username: str
 
+class UserContact(BaseModel):
+    user_id: int
+    contact_type: str = "any"
+
+    class Config:
+        from_attributes = True
+
+class UserContactUpdate(BaseModel):
+    user_id: int
+    contact_type: str
+    contact: str
+
 class UserCreate(UserBase):
     pass
 
 class UserResponse(BaseModel):
     user_id: int
     balance: float
+    email_address: str | None
+    phone_number: str | None
     
     class Config:
         orm_mode = True

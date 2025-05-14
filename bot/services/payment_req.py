@@ -1,12 +1,22 @@
 import aiohttp
 import asyncio
 import json
+import uuid
 import logging
+
+from yookassa import Configuration, Payment
+from yookassa.domain.response import PaymentResponse
+from fluentogram import TranslatorRunner
 from typing import Dict, Optional, Any, List, Tuple
-from config import get_config, Backend, CryptoBot
+from config import get_config, Backend, CryptoBot, Yookassa
 
 backend = get_config(Backend, "backend")
 cryptobot = get_config(CryptoBot, "cryptobot")
+yookassa = get_config(Yookassa, "yookassa")
+if not yookassa.id or not yookassa.key:
+    raise ValueError("ЮKassa configuration is missing shop_id or secret_key")
+Configuration.account_id = yookassa.id 
+Configuration.secret_key = yookassa.key 
 api_key = backend.key
 url = backend.url
 cryptobot_api = cryptobot.key
@@ -84,47 +94,111 @@ async def payment_balance_process(
             logger.error(f"Process Balance Payment: Error - {e}")
             return None
 
-async def payment_ukassa_process(
-    event: str, payment_id: str, status: str, amount_value: str, currency: str,
-    user_id: str, period: str, device_type: str, payment_type: str,
-    payload: Optional[Dict] = None
-) -> Optional[Dict[str, Any]]:
-    """POST /api/payments/ukassa"""
-    url = f"{BASE_URL}/api/payments/ukassa"
-    default_payload = {
-        "event": event,
-        "object": {
-            "id": payment_id,
-            "status": status,
-            "amount": {
-                "value": amount_value,
-                "currency": currency
-            },
-            "metadata": {
-                "user_id": user_id,
-                "period": period,
-                "device_type": device_type,
-                "payment_type": payment_type
-            }
+def generate_receipt_description(
+        payload: str, amount: float, i18n: TranslatorRunner
+        ) -> str:
+    parts = payload.split(":")
+    if len(parts) != 7:
+        return f"Оплата на сумму {amount:.2f} рублей"
+    
+    _, _, period, device_type, device, payment_type, _ = parts
+
+    if payment_type == "add_balance":
+        return i18n.ukassa.receipt.add_balance(amount=amount)
+    
+    period = period if period != "0" else "1"
+    
+    if device_type == "combo": 
+        device_type_str = i18n.ukassa.device_type.combo(device=device) 
+    elif device_type == "device":
+        device_type_str = i18n.ukassa.device_type.device
+    else:
+        device_type_str = i18n.ukassa.device_type.router
+
+    return i18n.ukassa.receipt.subscription(device_type=device_type_str, period=period)
+
+async def create_ukassa_invoice(
+    amount: float,
+    currency: str,
+    payload: str,
+    i18n: TranslatorRunner,
+    customer: Dict[str, str],
+    description: Optional[str] = None
+) -> Optional[Tuple[str, str]]:
+    """Create a payment invoice via ЮKassa API."""
+    if currency != "RUB":
+        logger.error(f"Invalid currency: {currency}. Only RUB is supported.")
+        return None
+
+    if not customer.get("email") and not customer.get("phone"):
+        logger.error(f"Invalid customer data: {customer}")
+        return None
+
+    idempotence_key = str(uuid.uuid4())
+    receipt_description = str(generate_receipt_description(payload, amount, i18n))
+    
+    payment_data = {
+        "amount": {
+            "value": f"{amount:.2f}",
+            "currency": "RUB"
+        },
+        "confirmation": {
+            "type": "redirect",
+            "return_url": "https://t.me/lovelyNochka_bot"  # Реальный username бота
+        },
+        "capture": True,
+        "description": description or "Subscription payment",
+        "metadata": {"payload": payload},
+        "receipt": {
+            "customer": customer,
+            "items": [
+                {
+                    "description": receipt_description[:128],
+                    "quantity": "1",
+                    "amount": {
+                        "value": f"{amount:.2f}",
+                        "currency": "RUB"
+                    },
+                    "vat_code": 1
+                }
+            ]
         }
     }
-    request_payload = payload if payload is not None else default_payload
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(url, headers=HEADERS, json=request_payload) as response:
-                status = response.status
-                response_json = await response.json()
-                logger.info(f"Ukassa Webhook: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
-                if status in (200, 201):
-                    return response_json
-                else:
-                    logger.error(f"Ukassa Webhook: Failed with status {status}")
-                    return None
-        except aiohttp.ClientError as e:
-            logger.error(f"Ukassa Webhook: Error - {e}")
+    logger.info(f"Sending request to ЮKassa: {json.dumps(payment_data, ensure_ascii=False)}")
+    try:
+        payment: PaymentResponse = Payment.create(payment_data, idempotence_key)
+        if payment.status == "pending" and payment.confirmation:
+            invoice_url = payment.confirmation.confirmation_url
+            invoice_id = payment.id
+            logger.info(f"ЮKassa Invoice created: ID={invoice_id}, URL={invoice_url}")
+            return invoice_url, invoice_id
+        else:
+            logger.error(f"ЮKassa Invoice creation failed: Status={payment.status}")
             return None
+    except Exception as e:
+        logger.error(f"ЮKassa Invoice creation error: {e}, payment_data={json.dumps(payment_data, ensure_ascii=False)}")
+        return None
+
+
+async def check_ukassa_invoice_status(invoice_id: str) -> Optional[Dict[str, Any]]:
+    """Check the status of a ЮKassa payment."""
+    logger.info(f"Checking ЮKassa invoice status: ID={invoice_id}")
+    try:
+        payment: PaymentResponse = Payment.find_one(invoice_id)
+        result = {
+            "invoice_id": payment.id,
+            "status": payment.status,
+            "amount": float(payment.amount.value),
+            "currency": payment.amount.currency,
+            "payload": payment.metadata.get("payload", ""),
+            "paid": payment.paid
+        }
+        logger.info(f"ЮKassa Invoice status: {json.dumps(result, ensure_ascii=False)}")
+        return result
+    except Exception as e:
+        logger.error(f"ЮKassa Invoice status check error: {e}")
+        return None
 
 async def exchange_rate(currency: str) -> Optional[float]:
     url = f"{cryptobot_url}/getExchangeRates"

@@ -1,12 +1,17 @@
 import logging
+import re
+
 from typing import Union
+from pydantic import EmailStr
 from aiogram import Router, F, Bot
+from aiogram.filters import StateFilter
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
+from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery, \
+                        ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from fluentogram import TranslatorRunner
 
-from services import services, payment_req, PaymentSG, DevicesSG, \
+from services import services, user_req, payment_req, PaymentSG, DevicesSG, \
                      MONTH_DAY, START_PRICE, MONTH_PRICE_STARS 
 from keyboards import devices_kb, payment_kb, main_kb
 
@@ -20,7 +25,6 @@ logging.basicConfig(
     format='%(filename)s:%(lineno)d #%(levelname)-8s '
            '[%(asctime)s] - %(name)s - %(message)s'
 )
-
 
 @payment_router.message(F.text.startswith("Баланс") | F.text.startswith("Balance") | 
                         F.text.in_(['Пополнить баланс 💰', 'Top Up Balance 💰']))
@@ -297,9 +301,23 @@ async def buy_subscription_handler(
 
         # UKASSA BUY SUBSCRIPTION
         if method == "ukassa":
-            # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
-            await callback.message.edit_text(text=i18n.payment.indevelopment())
-            # await callback.message.edit_text(text=i18n.payment.pending())
+            contact = await user_req.get_user(user_id)
+            if contact is None:
+                await callback.message.answer(text=i18n.error.user_not_found())
+                await callback.answer()
+                return
+            logger.info(contact)
+            email = contact.get('email_address', None)
+            phone = contact.get('phone_number', None)
+            await state.update_data(amount=amount, payload=payload, payment_type=payment_type)
+            keyboard = payment_kb.contact_select_kb(i18n=i18n, email=email, phone=phone)
+
+            email = email if email is not None else i18n.no.contact()
+            phone = phone if phone is not None else i18n.no.contact()
+
+            text = i18n.select.contact(email=email, phone=phone)
+            await callback.message.answer(text=text, reply_markup=keyboard)
+            await callback.answer()
 
         # CRYPTOBOT BUY SUBSCRIPTION
         elif method == "crypto":
@@ -311,7 +329,7 @@ async def buy_subscription_handler(
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
                 await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
-                await callback.message.edit_text(text=i18n.cryptobot.invoice(
+                await callback.message.edit_text(text=i18n.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
             else:
@@ -327,7 +345,8 @@ async def buy_subscription_handler(
                 await callback.answer()
                 return
             else:
-                result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
+                result = await payment_req.payment_balance_process(
+                        user_id, amount, period, device_type, device, payment_type, method)
                 if result is not None:
                     if device not in ('5', '10'):
                         await state.set_state(DevicesSG.device_name)
@@ -366,7 +385,7 @@ async def buy_subscription_handler(
                 payload=payload,
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice(label=i18n.payment.label(), amount=stars_amount)],
+                prices=[LabeledPrice(label=i18n.payment.label(), amount=1)],
                 start_parameter=payment_type
             )
         else:
@@ -388,7 +407,9 @@ async def buy_subscription_handler(
         await callback.message.edit_text(text=i18n.error.unexpected())
         await callback.answer()
 
-@payment_router.callback_query(PaymentSG.add_balance, F.data.startswith("payment_"))
+@payment_router.callback_query(
+        StateFilter(PaymentSG.add_balance), 
+        F.data.startswith("payment_"))
 async def add_balance_handler(
     callback: CallbackQuery,
     state: FSMContext,
@@ -427,11 +448,26 @@ async def add_balance_handler(
 
         _, method = callback.data.split("_")
         payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:{method}"
+        
         # UKASSA ADD BALANCE
         if method == "ukassa":
-            # await payment_req.payment_ukassa_process(user_id, amount, period, device_type, payment_type)
-            await callback.message.edit_text(text=i18n.payment.indevelopment())
-            # await callback.message.edit_text(text=i18n.payment.pending())
+            contact = await user_req.get_user(user_id)
+            if contact is None:
+                await callback.message.answer(text=i18n.error.user_not_found())
+                await callback.answer()
+                return
+            logger.info(contact)
+            email = contact.get('email_address', None)
+            phone = contact.get('phone_number', None)
+            await state.update_data(amount=amount, payload=payload, payment_type=payment_type)
+            keyboard = payment_kb.contact_select_kb(i18n=i18n, email=email, phone=phone)
+
+            email = email if email is not None else i18n.no.contact()
+            phone = phone if phone is not None else i18n.no.contact()
+
+            text = i18n.select.contact(email=email, phone=phone)
+            await callback.message.answer(text=text, reply_markup=keyboard)
+            await callback.answer()
 
         # CRYPTOBOT ADD BALANCE
         elif method == "crypto":
@@ -443,7 +479,7 @@ async def add_balance_handler(
                 invoice_url, invoice_id = result
                 await state.update_data(invoice_id=invoice_id)
                 await payment_req.save_invoice(user_id, invoice_id, rated_amount, asset, payload)
-                await callback.message.edit_text(text=i18n.cryptobot.invoice(
+                await callback.message.edit_text(text=i18n.invoice(
                         invoice_url=invoice_url, 
                         invoice_id=invoice_id))
             else:
@@ -472,9 +508,220 @@ async def add_balance_handler(
 
         # Clear state only after successful initiation
         if method != "stars":  # Stars payment requires state until completion
-            await state.clear()
+            await state.set_state(None)
 
         await callback.answer()
+
+    except TelegramBadRequest as e:
+        logger.error(f"Telegram API error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.telegram_failed())
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.unexpected())
+        await callback.answer()
+
+@payment_router.callback_query(F.data.startswith('add_contact_'))
+async def add_contact_type_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+    user_id = callback.from_user.id
+    contact_type = callback.data.split('_')[-1]  # 'email' или 'phone'
+    
+    logger.info(f"User {user_id} started adding contact: {contact_type}")
+    
+    try:
+        if contact_type == 'email':
+            await state.set_state(PaymentSG.add_email)
+            await callback.message.edit_text(text=i18n.fill.email())
+            await callback.answer()
+        elif contact_type == 'phone':
+
+            await callback.message.answer(
+                text=i18n.fill.phone(),
+                reply_markup=payment_kb.get_phone_kb(i18n)
+            )
+            await callback.answer()
+        else:
+            logger.error(f"Invalid contact_type: {contact_type}")
+            await callback.message.edit_text(text=i18n.error.unexpected())
+            await callback.answer()
+    
+    except TelegramBadRequest as e:
+        logger.error(f"Telegram API error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.telegram_failed())
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await callback.message.edit_text(text=i18n.error.unexpected())
+        await callback.answer()
+
+@payment_router.message(StateFilter(PaymentSG.add_email))
+async def email_handler(
+    message: Message,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+    user_id = message.from_user.id
+    email = message.text.strip()
+
+    EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    if not re.match(EMAIL_REGEX, email):
+        logger.info(f"Invalid email format for user {user_id}: {email}")
+        await message.answer(text=i18n.error.wrong.email())
+        return
+    try:
+        result = await user_req.update_user_contact(
+            user_id=user_id, contact_type='email', contact=email)
+        user = await user_req.get_user(user_id)
+        logger.info(user)
+        
+        if not isinstance(result, dict) or user is None:
+            logger.error(f"Invalid response from update_user_contact for user {user_id}")
+            await message.answer(text=i18n.error.unexpected())
+            return
+       
+        logger.info(f"User {user_id} saved email: {email}")
+        email = user.get('email_address', None)
+        phone = user.get('phone_number', None)
+        
+        await state.set_state(None)  # Сбрасываем состояние, сохраняя state_data
+        
+        keyboard = payment_kb.contact_select_kb(i18n=i18n, email=email, phone=phone)
+
+        email = email if email is not None else i18n.no.contact()
+        phone = phone if phone is not None else i18n.no.contact()
+
+        text = i18n.select.contact(email=email, phone=phone)
+        await message.delete()  # Удаляем сообщение с email
+        await message.answer(text=text, reply_markup=keyboard)
+    
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await message.answer(text=i18n.error.unexpected())
+
+@payment_router.message(F.content_type == 'contact')
+async def phone_handler(
+    message: Message,
+    i18n: TranslatorRunner
+) -> None:
+    user_id = message.from_user.id
+    contact = message.contact
+    
+    if contact is None:
+        await message.answer(text=i18n.error.no.number())
+        return
+    
+    phone = contact.phone_number
+    try:
+        result = await user_req.update_user_contact(
+            user_id=user_id, contact_type='phone', contact=phone)
+        
+        user = await user_req.get_user(user_id)
+        logger.info(user)
+        
+        if not isinstance(result, dict) or user is None:
+            logger.error(f"Invalid response from update_user_contact for user {user_id}")
+            await message.answer(text=i18n.error.unexpected())
+            return
+       
+        email = user.get('email_address', None)
+        phone = user.get('phone_number', None)
+        
+        logger.info(f"User {user_id} saved phone: {result.get('phone_number')}")
+        keyboard = payment_kb.contact_select_kb(i18n=i18n, email=email, phone=phone)
+
+        email = email if email is not None else i18n.no.contact()
+        phone = phone if phone is not None else i18n.no.contact()
+
+        text = i18n.select.contact(email=email, phone=phone)
+        await message.answer(text=text, reply_markup=keyboard)
+    
+    except Exception as e:
+        logger.error(f"Unexpected error for user {user_id}: {e}")
+        await message.answer(text=i18n.error.unexpected())
+
+@payment_router.callback_query(F.data.startswith('contact_'))
+async def process_ukassa_handler(
+    callback: CallbackQuery,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+    user_id = callback.from_user.id
+    contact_type = callback.data.split('_')[-1]  # 'email' или 'phone'
+    first_name = callback.from_user.first_name
+    last_name = callback.from_user.last_name or ''
+    username = callback.from_user.username or "User"
+    customer = first_name if first_name else username
+    customer = f"{customer} {last_name}".strip()
+
+    try:
+        state_data = await state.get_data()
+        payment_type = state_data.get("payment_type")
+        amount = state_data.get("amount")
+        balance = state_data.get("balance")
+        device_type = state_data.get("device_type")
+        period = state_data.get("period")
+        device = state_data.get("device")
+        logger.info(f'\nUPDATE STATE\nAMOUNT {amount}\nPAYMENT_TYPE {payment_type}')       
+        if not amount or not payment_type:
+            await callback.message.answer(text=i18n.error.invalid_payment_data())
+            await callback.answer()
+            return
+
+        contact = await user_req.get_user(user_id)
+        logger.info(f'USER: {contact}')
+        if contact is None:
+            await callback.message.answer(text=i18n.error.no.contact())
+            await callback.answer()
+            return
+
+        customer_data = {"full_name": customer}
+        if contact_type == "email" and contact.get("email_address"):
+            customer_data["email"] = contact["email_address"]
+        elif contact_type == "phone" and contact.get("phone_number"):
+            customer_data["phone"] = contact["phone_number"]
+        else:
+            await callback.message.edit_text(text=i18n.error.no.contact())
+            await callback.answer()
+            return
+
+        logger.info(f"Payment type: {payment_type}; device: {device}; amount: {amount}; "
+                   f"balance: {balance}; device_type: {device_type}; period: {period}; "
+                   f"customer: {customer}; contact: {customer_data}")
+        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:ukassa"
+
+        result = await payment_req.create_ukassa_invoice(
+            amount=10,
+            currency="RUB",
+            payload=payload,
+            i18n=i18n,
+            customer=customer_data,
+            description=i18n.ukassa.subscription.description(amount=amount)
+        )
+        if result:
+            invoice_url, invoice_id = result
+            await state.update_data(invoice_id=invoice_id)
+            await payment_req.save_invoice(
+                user_id=user_id,
+                invoice_id=invoice_id,
+                amount=amount,
+                currency="RUB",
+                payload=payload
+            )
+            logger.info(f"Invoice created for user {user_id}: ID={invoice_id}, URL={invoice_url}")
+            await callback.message.answer(
+                text=i18n.invoice(invoice_url=invoice_url, invoice_id=invoice_id),
+                reply_markup=payment_kb.pay_inline(i18n, invoice_url)
+            )
+            await state.set_state(None)  # Сбрасываем состояние
+            await callback.answer()
+        else:
+            logger.error(f"Failed to create invoice for user {user_id}. result: {result}")
+            await callback.message.answer(text=i18n.error.payment_failed())
+            await callback.answer()
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")

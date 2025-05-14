@@ -117,3 +117,59 @@ def payment_select(i18n: TranslatorRunner, payment_type: str) -> InlineKeyboardM
     except Exception as e:
         logger.error(f"Unexpected error in payment_select: {e}")
         raise
+
+def contact_select_kb(
+        i18n: TranslatorRunner, email: str | None, phone: str | None
+) -> InlineKeyboardMarkup:
+    
+    try:
+        builder = InlineKeyboardBuilder()
+        callback_email = "add_contact_email" if email is None else "contact_email"
+        callback_phone = "add_contact_phone" if phone is None else "contact_phone"
+        builder.row(
+            InlineKeyboardButton(text=i18n.email.button(), callback_data=callback_email),
+            InlineKeyboardButton(text=i18n.phone.button(), callback_data=callback_phone)
+        )
+        builder.row(
+            InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu")
+        )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in payment_select: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in payment_select: {e}")
+        raise
+
+def get_phone_kb(i18n: TranslatorRunner) -> ReplyKeyboardMarkup:
+
+    try:
+        builder = ReplyKeyboardBuilder()
+        builder.row(
+            KeyboardButton(text=i18n.phone.button(), request_contact=True),
+            KeyboardButton(text=i18n.main.menu.button())
+            )
+        return builder.as_markup(resize_keyboard=True)
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in payment_select: {e}")
+        return ReplyKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in payment_select: {e}")
+        raise
+
+def pay_inline(i18n: TranslatorRunner, invoice_url: str) -> InlineKeyboardMarkup:
+
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text=i18n.pay.button(), url=invoice_url),
+            InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu")
+            )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in payment_select: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in payment_select: {e}")
+        raise
+       
