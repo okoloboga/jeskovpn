@@ -31,7 +31,7 @@ async def process_balance_payment(
     api_key: str = Depends(get_api_key)
 ) -> Any:
     # logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, "
-                f"device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
+    #            f"device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == payment.user_id).first()
