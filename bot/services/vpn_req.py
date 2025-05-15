@@ -38,8 +38,8 @@ async def generate_device_key(user_id: int, device: str, device_name: str, slot:
             async with session.post(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Add device {device}, user: {user_id}. Status: {status}")
-                logger.info(json.dumps(response_json))
+                # logger.info(f"Add device {device}, user: {user_id}. Status: {status}")
+                # logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
                 elif status == 409:
@@ -62,8 +62,8 @@ async def get_device_key(user_id: int, device_name: str) -> Optional[Any]:
             async with session.get(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get device {device_name}, user: {user_id}. Status: {status}")
-                logger.info(json.dumps(response_json))
+                # logger.info(f"Get device {device_name}, user: {user_id}. Status: {status}")
+                # logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
                 else:
@@ -85,8 +85,8 @@ async def rename_device(user_id: int, device_old_name: str, device_new_name: str
             async with session.put(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Rename device {device_old_name} to {device_new_name}, user: {user_id}. Status: {status}")
-                logger.info(json.dumps(response_json))
+                # logger.info(f"Rename device {device_old_name} to {device_new_name}, user: {user_id}. Status: {status}")
+                # logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
                 else:
@@ -107,8 +107,8 @@ async def remove_device_key(user_id: int, device_name: str) -> Optional[Any]:
             async with session.delete(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Remove device {device_name}, user: {user_id}. Status: {status}")
-                logger.info(json.dumps(response_json))
+                # logger.info(f"Remove device {device_name}, user: {user_id}. Status: {status}")
+                # logger.info(json.dumps(response_json))
                 if status in (200, 201):
                     return response_json
                 else:

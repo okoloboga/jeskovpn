@@ -75,7 +75,7 @@ async def devices_button_handler(
             no_combo_router = False
             combo = (0, [])
         devices.update(routers)
-        logger.info(f'devices: {devices}; combo: {combo}; no_combo_router: {no_combo_router}')
+        # logger.info(f'devices: {devices}; combo: {combo}; no_combo_router: {no_combo_router}')
         count_devices = user_info.get('total_devices', 0)
         subscription_fee = user_info.get('month_price', 0)
         keyboard = devices_kb.my_devices_kb(i18n, devices, combo, no_combo_router)
@@ -151,7 +151,7 @@ async def select_devices_handler(
             await callback.answer()
             return
         subscription = user_data.get("subscription", {})
-        logger.info(subscription)
+        # logger.info(subscription)
         vpn_key = device_data.get("key")
         cleaned_key = "".join(c for c in vpn_key if unicodedata.category(c)[0] != "C")
         escaped_key = services.escape_markdown_v2(cleaned_key)
@@ -269,7 +269,7 @@ async def select_device_type(
         device_type = "device" if ("device" == device_type or "устройство" == device_type) else "combo"
         only = 'none'
     else:
-        logger.info(f'event message data {event.data}')
+        # logger.info(f'event message data {event.data}')
         if event.data in ('add_device_device', 'add_device_router'):
             _, _, kb_data = event.data.split('_')
             device_type = kb_data
@@ -279,7 +279,7 @@ async def select_device_type(
             only = 'none'
 
     await state.update_data(device_type=device_type)
-    logger.info(f'DEVICE_TYPE: {device_type}; ONLY: {only}')
+
     try:
         keyboard = devices_kb.devices_list_kb(i18n, device_type, only)
         if isinstance(event, CallbackQuery):
@@ -364,13 +364,10 @@ async def select_device_handler(
     else:
         buy_subscription = False
 
-    logger.info(f"User {user_id} selected device: {device}; state: {current_state}; user slot: {user_slot}; buy_subscription: {buy_subscription}")
-
     # IF ADD DEVICE - DONT NEED TO BUY
     if not buy_subscription:
         await state.update_data(device=device)
-        logger.info(f"User {user_id} add device: {device} to slot {user_slot}")
-    
+   
         try:
             await message.answer(text=i18n.fill.device.name())
             await state.set_state(DevicesSG.device_name)
@@ -506,7 +503,7 @@ async def select_period_handler(
         device = state_data.get('device')
         device_type = state_data.get('device_type')
 
-        logger.info(f'device: {device}; device_type: {device_type}')
+        # logger.info(f'device: {device}; device_type: {device_type}')
 
         if device in ['android', 'iphone/ipad', 'macos', 'windows', 'tv']:
             device_type = 'device'
@@ -525,7 +522,7 @@ async def select_period_handler(
         else:
             amount = services.MONTH_PRICE[device_type][period]
 
-        logger.info(f'device_type: {device_type}; device: {device}; amount: {amount}')
+        # logger.info(f'device_type: {device_type}; device: {device}; amount: {amount}')
 
         days_left = user_info.get('durations', (0, 0, 0))
         keyboard = payment_kb.payment_select(i18n, payment_type)
@@ -543,11 +540,6 @@ async def select_period_handler(
                 device_type=device_type)
         await callback.message.edit_text(text=text, reply_markup=keyboard)
         await callback.answer()
-
-        current_state = await state.get_data()
-        current_amount = current_state.get('amount')
-        current_device = current_state.get('device')
-        logger.info(f"CURRENT AMOUNT {current_amount} CURRENT DEVICE {current_device}")
 
     except TelegramBadRequest as e:
         logger.error(f"Telegram API error for user {user_id}: {e}")

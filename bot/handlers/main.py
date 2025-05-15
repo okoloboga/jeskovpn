@@ -62,7 +62,7 @@ async def command_start_getter(
 
     # Check if user exists
     try:
-        logger.info(f"Creating new user {user_id}")
+        # logger.info(f"Creating new user {user_id}")
         result = await user_req.create_user(
             user_id=user_id,
             first_name=first_name if first_name is not None else 'no_first_name',
@@ -83,8 +83,8 @@ async def command_start_getter(
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
 
-        logger.info(f'user_data {user_data}')
-        logger.info(f'user_info {user_info}')
+        # logger.info(f'user_data {user_data}')
+        # logger.info(f'user_info {user_info}')
 
         if user_data is None or user_info is None:
             await message.answer(text=i18n.error.user_not_found())
@@ -163,8 +163,8 @@ async def main_menu_handler(
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
 
-        logger.info(f'user_data {user_data}')
-        logger.info(f'user_info {user_info}')
+        # logger.info(f'user_data {user_data}')
+        # logger.info(f'user_info {user_info}')
 
         if user_data is None or user_info is None:
             text = i18n.error.user_not_found()
@@ -178,7 +178,7 @@ async def main_menu_handler(
         # month_price = user_info.get('month_price')
         balance = user_data.get("balance", 0)
         days_left = user_info.get("durations", (0, 0, 0))
-        logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
+        # logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
         active_subscriptions = user_info.get("active_subscriptions", {})
         is_subscribed = user_info.get('is_subscribed', False)
         keyboard=main_kb.main_kb(

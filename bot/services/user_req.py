@@ -33,7 +33,7 @@ async def get_user(user_id: int) -> Optional[Dict[str, Any]]:
             async with session.get(url, headers=HEADERS) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get User: Status {status}")
+                # logger.info(f"Get User: Status {status}")
                 # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
@@ -62,8 +62,8 @@ async def create_user(
             async with session.post(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Create User: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Create User: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201, 409):
                     return response_json
                 else:
@@ -89,8 +89,8 @@ async def add_referral(
             async with session.post(url, headers=HEADERS, json=request_payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Add Referral: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Add Referral: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:
@@ -110,7 +110,7 @@ async def get_user_devices(user_id: int) -> Optional[Dict[str, Any]]:
             async with session.get(url, headers=HEADERS) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get User Devices: Status {status}")
+                # logger.info(f"Get User Devices: Status {status}")
                 # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
@@ -134,8 +134,8 @@ async def get_user_contact(user_id: int) -> Optional[Dict[str, Any]]:
             async with session.get(url, headers=HEADERS, params=params) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get User Contact: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Get User Contact: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status == 200 and isinstance(response_json, dict):
                     return response_json
                 else:
@@ -186,8 +186,8 @@ async def update_user_contact(
             async with session.post(url, headers=HEADERS, json=payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Update User Contact: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Update User Contact: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status == 200:
                     return response_json
                 else:

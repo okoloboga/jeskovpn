@@ -23,7 +23,7 @@ async def generate_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> dict:
-    logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
+    # logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == device_data.user_id).first()
@@ -120,7 +120,7 @@ async def get_user_devices(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Fetching devices for user_id={user_id}")
+    # logger.info(f"Fetching devices for user_id={user_id}")
     
     devices = db.query(Device).filter(Device.user_id == user_id).all()
     
@@ -152,7 +152,7 @@ async def get_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Getting key: user_id={device_data.user_id}, device_name={device_data.device_name}")
+    # logger.info(f"Getting key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
     # Check if device exists
     device = db.query(Device).filter(
@@ -177,7 +177,7 @@ async def rename_device(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Rename device: user_id={device_data.user_id}, device_old_name={device_data.device_old_name}, device_new_name={device_data.device_new_name}")
+    # logger.info(f"Rename device: user_id={device_data.user_id}, device_old_name={device_data.device_old_name}, device_new_name={device_data.device_new_name}")
 
     # Check if device exists
     device = db.query(Device).filter(
@@ -220,7 +220,7 @@ async def remove_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
+    # logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
     # Check if device exists
     device = db.query(Device).filter(

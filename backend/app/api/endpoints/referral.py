@@ -26,7 +26,7 @@ async def add_referral(
             detail="Invalid user_id or inviter_id format"
         )
     
-    logger.info(f"Adding referral: user_id={user_id}, referrer_id={referrer_id}")
+    # logger.info(f"Adding referral: user_id={user_id}, referrer_id={referrer_id}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == user_id).first()

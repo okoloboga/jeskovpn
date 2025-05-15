@@ -30,7 +30,7 @@ async def process_balance_payment(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, "
+    # logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, "
                 f"device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
     
     # Check if user exists
@@ -112,7 +112,7 @@ async def process_balance_payment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid device type or period"
             )
-    logger.info(f'expected_price: {expected_price}')
+
     if payment.amount != expected_price:
         logger.error(f"Amount mismatch: provided={payment.amount}, expected={expected_price}")
         raise HTTPException(
@@ -216,7 +216,7 @@ async def get_subscriptions(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Fetching subscriptions for user_id={user_id}")
+    # logger.info(f"Fetching subscriptions for user_id={user_id}")
     
     current_time = datetime.now(timezone.utc)
     subscriptions = db.query(Subscription).filter(
@@ -246,7 +246,6 @@ async def get_subscriptions(
         monthly_price = 0.0
         for payment in payments:
             if payment.period > 0:
-                logger.info(f"Payment period={payment.period}, amount={payment.amount} for subscription type={sub.type}")
                 monthly_price += payment.amount / payment.period
 
         # Fetch associated devices

@@ -51,7 +51,7 @@ async def get_subscriptions(user_id: int) -> Optional[Dict[str, Any]]:
             async with session.get(url, headers=HEADERS) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Get Subscriptions: Status {status}")
+                # logger.info(f"Get Subscriptions: Status {status}")
                 # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
@@ -83,8 +83,8 @@ async def payment_balance_process(
             async with session.post(url, headers=HEADERS, json=payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Process Balance Payment: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Process Balance Payment: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:
@@ -171,7 +171,7 @@ async def create_ukassa_invoice(
         if payment.status == "pending" and payment.confirmation:
             invoice_url = payment.confirmation.confirmation_url
             invoice_id = payment.id
-            logger.info(f"ЮKassa Invoice created: ID={invoice_id}, URL={invoice_url}")
+            # logger.info(f"ЮKassa Invoice created: ID={invoice_id}, URL={invoice_url}")
             return invoice_url, invoice_id
         else:
             logger.error(f"ЮKassa Invoice creation failed: Status={payment.status}")
@@ -194,7 +194,7 @@ async def check_ukassa_invoice_status(invoice_id: str) -> Optional[Dict[str, Any
             "payload": payment.metadata.get("payload", ""),
             "paid": payment.paid
         }
-        logger.info(f"ЮKassa Invoice status: {json.dumps(result, ensure_ascii=False)}")
+        # logger.info(f"ЮKassa Invoice status: {json.dumps(result, ensure_ascii=False)}")
         return result
     except Exception as e:
         logger.error(f"ЮKassa Invoice status check error: {e}")
@@ -238,8 +238,8 @@ async def create_cryptobot_invoice(
             async with session.post(url, headers=CRYPTOBOT_HEADERS, json=payload_data) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Create CryptoBot Invoice: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Create CryptoBot Invoice: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201) and response_json.get("ok"):
                     invoice_url = response_json["result"]["pay_url"]
                     invoice_id = response_json["result"]["invoice_id"]
@@ -262,7 +262,7 @@ async def check_invoice_status(invoice_id: str) -> Optional[Dict[str, Any]]:
             async with session.get(url, headers=CRYPTOBOT_HEADERS, params=params) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Check Invoice Status: Status {status}")
+                # logger.info(f"Check Invoice Status: Status {status}")
                 # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201) and response_json.get("ok"):
                     invoices = response_json["result"]["items"]
@@ -296,8 +296,8 @@ async def save_invoice(
             async with session.post(url, headers=HEADERS, json=payload_data) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Save Invoice: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Save Invoice: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:
@@ -337,8 +337,8 @@ async def update_invoice_status(invoice_id: str, status: str) -> Optional[Dict[s
             async with session.put(url, headers=HEADERS, json=payload) as response:
                 status = response.status
                 response_json = await response.json()
-                logger.info(f"Update Invoice Status: Status {status}")
-                logger.info(json.dumps(response_json, indent=2))
+                # logger.info(f"Update Invoice Status: Status {status}")
+                # logger.info(json.dumps(response_json, indent=2))
                 if status in (200, 201):
                     return response_json
                 else:

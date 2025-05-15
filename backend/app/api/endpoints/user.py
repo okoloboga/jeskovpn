@@ -19,7 +19,7 @@ async def get_user(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Getting user with ID: {user_id}")
+    # logger.info(f"Getting user with ID: {user_id}")
     
     user = db.query(User).filter(User.user_id == user_id).first()
 
@@ -38,7 +38,7 @@ async def update_contact(
         db: Session = Depends(get_db),
         api_key: str = Depends(get_api_key)
 ) -> dict:
-    logger.info(f"Updating user contact for ID: {data.user_id}; contact_type: {data.contact_type}")
+    # logger.info(f"Updating user contact for ID: {data.user_id}; contact_type: {data.contact_type}")
 
     user = db.query(User).filter(User.user_id == data.user_id).first()
 
@@ -73,7 +73,7 @@ async def update_contact(
                 detail="Phone number must be in E.164 format for Russia (e.g., 79000000000)"
             )
         user.phone_number = normalized_phone
-        logger.info(f"Normalized phone number saved: {normalized_phone}")
+        # logger.info(f"Normalized phone number saved: {normalized_phone}")
     else:
         logger.error(f"Invalid contact_type: {data.contact_type}")
         raise HTTPException(
@@ -97,7 +97,7 @@ async def create_user(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> Any:
-    logger.info(f"Creating user with ID: {user.user_id}")
+    # logger.info(f"Creating user with ID: {user.user_id}")
     
     # Check if user already exists
     db_user = db.query(User).filter(User.user_id == user.user_id).first()

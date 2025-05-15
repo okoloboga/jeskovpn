@@ -152,7 +152,7 @@ async def top_up_balance_handler(
         )
         _, _, amount = callback.data.split("_")
 
-        logger.info(f"User {user_id} adding balance: {amount}")
+        # logger.info(f"User {user_id} adding balance: {amount}")
         
         if amount == "custom":
             await state.set_state(PaymentSG.custom_balance)
@@ -272,7 +272,7 @@ async def buy_subscription_handler(
         period = state_data.get("period", "0")
         device = state_data.get("device")
 
-        logger.info(f'Payment type: {payment_type}; device: {device}; amount: {amount}; balance: {balance}; device type: {device_type}; period: {period}')
+        # logger.info(f'Payment type: {payment_type}; device: {device}; amount: {amount}; balance: {balance}; device type: {device_type}; period: {period}')
         
         # For subscriptions, calculate amount from month_price
         if payment_type == "buy_subscription":
@@ -306,7 +306,7 @@ async def buy_subscription_handler(
                 await callback.message.answer(text=i18n.error.user_not_found())
                 await callback.answer()
                 return
-            logger.info(contact)
+
             email = contact.get('email_address', None)
             phone = contact.get('phone_number', None)
             await state.update_data(amount=amount, payload=payload, payment_type=payment_type)
@@ -456,7 +456,6 @@ async def add_balance_handler(
                 await callback.message.answer(text=i18n.error.user_not_found())
                 await callback.answer()
                 return
-            logger.info(contact)
             email = contact.get('email_address', None)
             phone = contact.get('phone_number', None)
             await state.update_data(amount=amount, payload=payload, payment_type=payment_type)
@@ -576,14 +575,14 @@ async def email_handler(
         result = await user_req.update_user_contact(
             user_id=user_id, contact_type='email', contact=email)
         user = await user_req.get_user(user_id)
-        logger.info(user)
+        # logger.info(user)
         
         if not isinstance(result, dict) or user is None:
             logger.error(f"Invalid response from update_user_contact for user {user_id}")
             await message.answer(text=i18n.error.unexpected())
             return
        
-        logger.info(f"User {user_id} saved email: {email}")
+        # logger.info(f"User {user_id} saved email: {email}")
         email = user.get('email_address', None)
         phone = user.get('phone_number', None)
         
@@ -620,7 +619,7 @@ async def phone_handler(
             user_id=user_id, contact_type='phone', contact=phone)
         
         user = await user_req.get_user(user_id)
-        logger.info(user)
+        # jlogger.info(user)
         
         if not isinstance(result, dict) or user is None:
             logger.error(f"Invalid response from update_user_contact for user {user_id}")
@@ -630,7 +629,7 @@ async def phone_handler(
         email = user.get('email_address', None)
         phone = user.get('phone_number', None)
         
-        logger.info(f"User {user_id} saved phone: {result.get('phone_number')}")
+        # logger.info(f"User {user_id} saved phone: {result.get('phone_number')}")
         keyboard = payment_kb.contact_select_kb(i18n=i18n, email=email, phone=phone)
 
         email = email if email is not None else i18n.no.contact()
@@ -665,14 +664,14 @@ async def process_ukassa_handler(
         device_type = state_data.get("device_type")
         period = state_data.get("period")
         device = state_data.get("device")
-        logger.info(f'\nUPDATE STATE\nAMOUNT {amount}\nPAYMENT_TYPE {payment_type}')       
+        # logger.info(f'\nUPDATE STATE\nAMOUNT {amount}\nPAYMENT_TYPE {payment_type}')       
         if not amount or not payment_type:
             await callback.message.answer(text=i18n.error.invalid_payment_data())
             await callback.answer()
             return
 
         contact = await user_req.get_user(user_id)
-        logger.info(f'USER: {contact}')
+        # logger.info(f'USER: {contact}')
         if contact is None:
             await callback.message.answer(text=i18n.error.no.contact())
             await callback.answer()
@@ -688,9 +687,9 @@ async def process_ukassa_handler(
             await callback.answer()
             return
 
-        logger.info(f"Payment type: {payment_type}; device: {device}; amount: {amount}; "
-                   f"balance: {balance}; device_type: {device_type}; period: {period}; "
-                   f"customer: {customer}; contact: {customer_data}")
+        # logger.info(f"Payment type: {payment_type}; device: {device}; amount: {amount}; "
+        #           f"balance: {balance}; device_type: {device_type}; period: {period}; "
+        #           f"customer: {customer}; contact: {customer_data}")
         payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:ukassa"
 
         result = await payment_req.create_ukassa_invoice(
@@ -711,7 +710,7 @@ async def process_ukassa_handler(
                 currency="RUB",
                 payload=payload
             )
-            logger.info(f"Invoice created for user {user_id}: ID={invoice_id}, URL={invoice_url}")
+            # logger.info(f"Invoice created for user {user_id}: ID={invoice_id}, URL={invoice_url}")
             await callback.message.answer(
                 text=i18n.invoice(invoice_url=invoice_url, invoice_id=invoice_id),
                 reply_markup=payment_kb.pay_inline(i18n, invoice_url)
@@ -785,7 +784,7 @@ async def process_payment(
 
     try:
         payment = message.successful_payment
-        logger.info(payment.invoice_payload)
+        # logger.info(payment.invoice_payload)
         user_id, amount, period, device_type, device, payment_type, method = payment.invoice_payload.split(':')
         result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
         if result is not None:

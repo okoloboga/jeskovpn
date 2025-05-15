@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
@@ -7,8 +6,7 @@ from aiogram.utils.deep_linking import create_start_link
 from aiogram.types import Message
 from fluentogram import TranslatorRunner
 
-from services import user_req, services
-from services.states import SupportSG
+from services import services
 from keyboards import another_kb, main_kb
 from config import get_config, Admin
 
@@ -104,8 +102,6 @@ async def support_handler(
         None
     """
     user_id = message.from_user.id
-    logger.info(f"User {user_id} accessing на русском языке: Показ меню поддержки для пользователя {user_id}")
-
     try:
         keyboard = main_kb.back_inline_kb(i18n)
         await message.answer(text=i18n.ticket.menu(), reply_markup=keyboard)

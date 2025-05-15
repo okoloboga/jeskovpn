@@ -1,6 +1,7 @@
 import logging
 import re
 import asyncio
+import time
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
@@ -109,8 +110,8 @@ async def get_user_data(user_id: int) -> Optional[dict]:
             # Fallback: treat all combo devices as non-routers
             # subscription["combo"]["devices"][device["device_name"]] = device["device_type"]
 
-        logger.info(f'GET subscriptions: {subscriptions}')
-        logger.info(f'GET devices: {devices}')
+        # logger.info(f'GET subscriptions: {subscriptions}')
+        # logger.info(f'GET devices: {devices}')
 
         # Populate durations and combo type
         for sub in subscriptions:
@@ -142,7 +143,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
     """
     user = await get_user_data(user_id)
     
-    logger.info(f'USER: {user}')
+    # logger.info(f'USER: {user}')
     
     if user is None:
         return None
@@ -161,7 +162,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         # Get monthly price from subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
 
-        logger.info(f'combo_routers: {combo_routers}; combo_list: {combo_list}')
+        # logger.info(f'combo_routers: {combo_routers}; combo_list: {combo_list}')
 
         month_price = 0.0
         for sub in subscriptions:
@@ -236,7 +237,7 @@ async def check_slot(user_id: int, device: str) -> str:
         is_full = combo_devices >= (combo_size + 1)
         has_router = len(user_data['subscription']['combo']['routers']) > 0
         
-        logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}, has_router={has_router}")
+        # logger.info(f"Combo subscription: size={combo_size}, devices={combo_devices}, is_full={is_full}, has_router={has_router}")
         
         # Skip combo if adding a router and a router already exists
         if not (device == 'router' and has_router) and not is_full:
@@ -252,8 +253,8 @@ async def check_slot(user_id: int, device: str) -> str:
     device_count = len(user_data['subscription']['device']['devices'])
     router_count = len(user_data['subscription']['router']['devices'])
     
-    logger.info(f"Device subscriptions: {device_subscriptions}, devices: {device_count}")
-    logger.info(f"Router subscriptions: {router_subscriptions}, routers: {router_count}")
+    # logger.info(f"Device subscriptions: {device_subscriptions}, devices: {device_count}")
+    # logger.info(f"Router subscriptions: {router_subscriptions}, routers: {router_count}")
 
     # Check device subscription
     if device in DEVICES:
@@ -318,6 +319,7 @@ async def poll_invoices(bot: Bot):
     while True:
         try:
             active_invoices: List[Dict[str, Any]] = await payment_req.get_active_invoices()
+            logger.info(f'Polling {len(active_invoices)} active invoices')
             for invoice in active_invoices:
                 invoice_id = invoice["invoice_id"]
                 user_id = invoice["user_id"]
@@ -382,7 +384,9 @@ async def poll_invoices(bot: Bot):
                             await payment_req.update_invoice_status(invoice_id, status)
                 elif method == "balance":
                     try:
+                        start_time = time.time()
                         invoice_status = await payment_req.check_invoice_status(invoice_id)
+                        logger.info(f"ЮKassa check for {invoice_id} took {time.time() - start_time:.2f} seconds")
                         if invoice_status:
                             status = invoice_status["status"]
                             if status == "paid":
