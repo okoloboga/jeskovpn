@@ -310,7 +310,7 @@ async def save_invoice(
 async def get_active_invoices() -> List[Dict[str, Any]]:
     """GET /payments/invoices?status=active"""
     url = f"{BASE_URL}/payments/invoices?status=active"
-    logger.info(f"Sending request to backend: GET {url}")
+    # logger.info(f"Sending request to backend: GET {url}")
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, headers=HEADERS) as response:

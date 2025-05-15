@@ -312,7 +312,7 @@ def escape_markdown_v2(text: str) -> str:
     return re.sub(reserved_chars, r'\\\1', text)
 
 async def poll_invoices(bot: Bot):
-    """Poll active crypto invoices every 10 seconds, expire after 15 minutes."""
+    """Poll active invoices (ЮKassa and CryptoBot) every 10 seconds, expire after 15 minutes."""
     INVOICE_TIMEOUT = timedelta(minutes=15)  # 15 минут
 
     while True:
@@ -324,6 +324,7 @@ async def poll_invoices(bot: Bot):
                 default_amount = invoice["amount"]
                 default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:balance"
                 payload = invoice.get("payload", default_payload)
+                
                 try:
                     _, amount, period, device_type, device, payment_type, method = payload.split(':')
                 except ValueError:
@@ -338,10 +339,8 @@ async def poll_invoices(bot: Bot):
                 
                 try:
                     created_at = isoparse(created_at) if isinstance(created_at, str) else created_at
-                    # Убедимся, что created_at имеет часовой пояс
                     if created_at.tzinfo is None:
                         created_at = created_at.replace(tzinfo=timezone.utc)
-                    # Сравниваем с текущим временем в UTC
                     if datetime.now(timezone.utc) - created_at > INVOICE_TIMEOUT:
                         logger.info(f"Invoice {invoice_id} expired after 15 minutes")
                         await payment_req.update_invoice_status(invoice_id, "expired")
@@ -355,106 +354,67 @@ async def poll_invoices(bot: Bot):
                     logger.error(f"Error parsing created_at for invoice {invoice_id}: {e}")
                     continue
 
-                invoice_status = await payment_req.check_invoice_status(invoice_id)
-                if invoice_status:
-                    status = invoice_status["status"]
-                    if status == "paid":
-                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
-                        try:
-                            logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
-                                       f"payment_type: {payment_type}; method: {method}")
-                            balance_response = await payment_req.payment_balance_process(
-                                user_id=user_id, amount=amount, period=period, device_type=device_type,
-                                device=device, payment_type=payment_type, method=method
-                            )
-                            if balance_response:
+                # Разделение по методу платежной системы
+                if method == "ukassa":
+                    status_data = await payment_req.check_ukassa_invoice_status(invoice_id)
+                    if status_data:
+                        status = status_data["status"]
+                        if status == "succeeded" and status_data["paid"]:
+                            logger.info(f"ЮKassa invoice {invoice_id} paid for user {user_id}")
+                            try:
+                                logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
+                                           f"payment_type: {payment_type}; method: {method}")
+                                balance_response = await payment_req.payment_balance_process(
+                                    user_id=user_id, amount=amount, period=period, device_type=device_type,
+                                    device=device, payment_type=payment_type, method=method
+                                )
+                                if balance_response:
+                                    try:
+                                        await bot.send_message(user_id, text="Оплата успешна 🎉")
+                                        await payment_req.update_invoice_status(invoice_id, "completed")
+                                        logger.info(f"ЮKassa invoice {invoice_id} completed, notified user {user_id}")
+                                    except TelegramAPIError as e:
+                                        logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
+                            except Exception as e:
+                                logger.error(f"Error processing ЮKassa payment for invoice {invoice_id}: {e}")
+                        elif status in ["canceled", "expired", "failed"]:
+                            logger.info(f"ЮKassa invoice {invoice_id} {status}, updating status")
+                            await payment_req.update_invoice_status(invoice_id, status)
+                elif method == "balance":
+                    try:
+                        invoice_status = await payment_req.check_invoice_status(invoice_id)
+                        if invoice_status:
+                            status = invoice_status["status"]
+                            if status == "paid":
+                                logger.info(f"CryptoBot invoice {invoice_id} paid for user {user_id}")
                                 try:
-                                    await bot.send_message(user_id, text="Оплата успешна 🎉")
-                                    await payment_req.update_invoice_status(invoice_id, "completed")
-                                    logger.info(f"Invoice {invoice_id} completed, notified user {user_id}")
-                                except TelegramAPIError as e:
-                                    logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
-                        except Exception as e:
-                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
-                    elif status in ["expired", "failed"]:
-                        logger.info(f"Invoice {invoice_id} {status}, updating status")
-                        await payment_req.update_invoice_status(invoice_id, status)
-            await asyncio.sleep(10)
-        except Exception as e:
-            logger.error(f"Polling error: {e}")
-            await asyncio.sleep(30)
-
-async def poll_ukassa_invoices(bot: Bot):
-    """Poll active ЮKassa invoices every 10 seconds, expire after 15 minutes."""
-    INVOICE_TIMEOUT = timedelta(minutes=15)  # 15 минут
-
-    while True:
-        try:
-            active_invoices: List[Dict[str, Any]] = await payment_req.get_active_invoices()
-            for invoice in active_invoices:
-                if invoice["currency"] != "RUB":
-                    continue
-                
-                invoice_id = invoice["invoice_id"]
-                user_id = invoice["user_id"]
-                default_amount = invoice["amount"]
-                default_payload = f"{user_id}:{default_amount}:0:balance:balance:add_balance:ukassa"
-                payload = invoice.get("payload", default_payload)
-                
-                try:
-                    _, amount, period, device_type, device, payment_type, method = payload.split(':')
-                except ValueError:
-                    logger.error(f"Invalid payload format for invoice {invoice_id}: {payload}")
+                                    logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
+                                               f"payment_type: {payment_type}; method: {method}")
+                                    balance_response = await payment_req.payment_balance_process(
+                                        user_id=user_id, amount=amount, period=period, device_type=device_type,
+                                        device=device, payment_type=payment_type, method=method
+                                    )
+                                    if balance_response:
+                                        try:
+                                            await bot.send_message(user_id, text="Оплата успешна 🎉")
+                                            await payment_req.update_invoice_status(invoice_id, "completed")
+                                            logger.info(f"CryptoBot invoice {invoice_id} completed, notified user {user_id}")
+                                        except TelegramAPIError as e:
+                                            logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
+                                except Exception as e:
+                                    logger.error(f"Error processing CryptoBot payment for invoice {invoice_id}: {e}")
+                            elif status in ["expired", "failed"]:
+                                logger.info(f"CryptoBot invoice {invoice_id} {status}, updating status")
+                                await payment_req.update_invoice_status(invoice_id, status)
+                    except Exception as e:
+                        if "400" in str(e):
+                            logger.debug(f"CryptoBot invoice {invoice_id} not found, likely not a CryptoBot invoice")
+                        else:
+                            logger.error(f"Error checking CryptoBot invoice {invoice_id}: {e}")
+                else:
+                    logger.warning(f"Unknown payment method for invoice {invoice_id}: {method}")
                     continue
 
-                # Проверка времени истечения
-                created_at = invoice.get("created_at")
-                if not created_at:
-                    logger.error(f"No created_at for invoice {invoice_id}, skipping timeout check")
-                    continue
-                try:
-                    created_at = isoparse(created_at) if isinstance(created_at, str) else created_at
-                    # Убедимся, что created_at имеет часовой пояс
-                    if created_at.tzinfo is None:
-                        created_at = created_at.replace(tzinfo=timezone.utc)
-                    # Сравниваем с текущим временем в UTC
-                    if datetime.now(timezone.utc) - created_at > INVOICE_TIMEOUT:
-                        logger.info(f"Invoice {invoice_id} expired after 15 minutes")
-                        await payment_req.update_invoice_status(invoice_id, "expired")
-                        try:
-                            await bot.send_message(user_id, text="Ваш инвойс истек. Пожалуйста, создайте новый.")
-                            logger.info(f"Notified user {user_id} about expired invoice {invoice_id}")
-                        except TelegramAPIError as e:
-                            logger.error(f"Failed to notify user {user_id} for expired invoice {invoice_id}: {e}")
-                        continue
-                except Exception as e:
-                    logger.error(f"Error parsing created_at for invoice {invoice_id}: {e}")
-                    continue
-
-                status_data = await payment_req.check_ukassa_invoice_status(invoice_id)
-                if status_data:
-                    status = status_data["status"]
-                    if status == "succeeded" and status_data["paid"]:
-                        logger.info(f"Invoice {invoice_id} paid for user {user_id}")
-                        try:
-                            logger.info(f"period: {period}; device_type: {device_type}; device: {device}; "
-                                       f"payment_type: {payment_type}; method: {method}")
-                            balance_response = await payment_req.payment_balance_process(
-                                user_id=user_id, amount=amount, period=period, device_type=device_type,
-                                device=device, payment_type=payment_type, method=method
-                            )
-                            if balance_response:
-                                try:
-                                    await bot.send_message(user_id, text="Оплата успешна 🎉")
-                                    await payment_req.update_invoice_status(invoice_id, "completed")
-                                    logger.info(f"Invoice {invoice_id} completed, notified user {user_id}")
-                                except TelegramAPIError as e:
-                                    logger.error(f"Failed to notify user {user_id} for invoice {invoice_id}: {e}")
-                        except Exception as e:
-                            logger.error(f"Error processing payment for invoice {invoice_id}: {e}")
-                    elif status in ["canceled", "expired", "failed"]:
-                        logger.info(f"Invoice {invoice_id} {status}, updating status")
-                        await payment_req.update_invoice_status(invoice_id, status)
         except Exception as e:
             logger.error(f"Polling error: {e}")
             await asyncio.sleep(30)
@@ -464,5 +424,4 @@ async def poll_ukassa_invoices(bot: Bot):
 async def on_startup(bot: Bot):
     logger.info("Starting invoice polling")
     asyncio.create_task(poll_invoices(bot), name="poll_invoices")
-    asyncio.create_task(poll_ukassa_invoices(bot), name="poll_ukassa_invoices")
     logger.info("Both polling tasks started")
