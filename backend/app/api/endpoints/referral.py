@@ -45,6 +45,8 @@ async def add_referral(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Referrer not found"
         )
+    # Add 50 rub to inviter 
+    referrer.balance = (referrer.balance or 0) + 50
     
     # Create new referral
     db_referral = Referral(

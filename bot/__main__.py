@@ -7,8 +7,9 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from fluentogram import TranslatorHub, TranslatorRunner
 
+import middlewares
 from utils import TranslatorHub, create_translator_hub
-from middlewares import TranslatorRunnerMiddleware
+from middlewares import TranslatorRunnerMiddleware, BlacklistMiddleware
 from handlers import (main_router, devices_router, payment_router, 
                       admin_router, another_router, unknown_router)
 from config import get_config, BotConfig
@@ -42,6 +43,8 @@ async def main():
     # Routers, dialogs, middlewares
     dp.include_routers(main_router, devices_router, payment_router, admin_router, another_router, unknown_router)
     dp.update.middleware(TranslatorRunnerMiddleware())
+    dp.message.middleware(BlacklistMiddleware())
+    dp.callback_query.middleware(BlacklistMiddleware())
     dp.startup.register(on_startup)
  
     # Skipping old updates

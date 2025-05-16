@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Any
-from datetime import datetime, timezone
+from sqlalchemy.sql import func
+from typing import Any, Optional
+from datetime import datetime, timezone, timedelta
 from passlib.hash import bcrypt
 
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import AdminAuth, User, Device, Subscription
-from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck
+from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin
+from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate
 
 router = APIRouter()
 
@@ -88,13 +89,17 @@ async def get_users_summary(
 async def get_users(
     skip: int = 0,
     limit: int = 20,
+    user_id: Optional[int] = None,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Fetching users: skip={skip}, limit={limit}")
+    logger.info(f"Fetching users: skip={skip}, limit={limit}, user_id={user_id}")
     
     # Fetch users
-    users = db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
+    query = db.query(User).order_by(User.created_at.desc())
+    if user_id is not None:
+        query = query.filter(User.user_id == user_id)
+    users = query.offset(skip).limit(limit).all()
     
     # Prepare response
     current_time = datetime.now(timezone.utc)
@@ -115,7 +120,7 @@ async def get_users(
             "device": {"duration": 0, "devices": []},
             "router": {"duration": 0, "devices": []},
             "combo": {"duration": 0, "devices": [], "type": 0}
-            }
+        }
         
         for sub in subscriptions:
             if sub.type == "device":
@@ -139,8 +144,303 @@ async def get_users(
             "username": user.username,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "subscription": subscription
+            "subscription": subscription,
+            "email_address": user.email_address,
+            "balance": user.balance,
+            "created_at": user.created_at.strftime("%Y-%m-%d %H:%M"),
+            "is_blacklisted": bool(db.query(Blacklist).filter(Blacklist.user_id == user.user_id).first())
         })
     
     logger.info(f"Returning {len(result)} users")
     return result
+
+@router.post("/users/{user_id}/block")
+async def block_user(user_id: int, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    logger.info(f"Blocking user {user_id}")
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        logger.error(f"User {user_id} not found")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Добавляем в черный список
+    blacklist_entry = db.query(Blacklist).filter(Blacklist.user_id == user_id).first()
+    if not blacklist_entry:
+        blacklist_entry = Blacklist(user_id=user_id)
+        db.add(blacklist_entry)
+    
+    # Деактивируем подписки
+    db.query(Subscription).filter(
+        Subscription.user_id == user_id, Subscription.is_active == True
+    ).update({"is_active": False})
+    
+    db.commit()
+    logger.info(f"User {user_id} blocked successfully")
+    return {"status": "success"}
+
+@router.delete("/blacklist/{user_id}")
+async def remove_from_blacklist(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Removing user {user_id} from blacklist")
+    
+    blacklisted = db.query(Blacklist).filter(Blacklist.user_id == user_id).first()
+    if not blacklisted:
+        logger.error(f"User {user_id} not found in blacklist")
+        raise HTTPException(status_code=404, detail="User not found in blacklist")
+    
+    db.delete(blacklisted)
+    db.commit()
+    
+    logger.info(f"User {user_id} removed from blacklist")
+    return {"status": "success"}
+
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: int, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    logger.info(f"Deleting user {user_id}")
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        logger.error(f"User {user_id} not found")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Удаляем связанные данные
+    db.query(Subscription).filter(Subscription.user_id == user_id).delete()
+    db.query(Device).filter(Device.user_id == user_id).delete()
+    db.query(Blacklist).filter(Blacklist.user_id == user_id).delete()
+    db.delete(user)
+    
+    db.commit()
+    logger.info(f"User {user_id} deleted successfully")
+    return {"status": "success"}
+
+@router.get("/devices")
+async def get_devices(
+    skip: int = 0,
+    limit: int = 20,
+    vpn_key: Optional[str] = None,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Fetching devices: skip={skip}, limit={limit}, vpn_key={vpn_key}")
+    
+    query = db.query(Device).order_by(Device.created_at.desc())
+    if vpn_key is not None:
+        query = query.filter(Device.outline_key_id == vpn_key)
+    
+    devices = query.offset(skip).limit(limit).all()
+    current_time = datetime.now(timezone.utc)
+    
+    result = []
+    for device in devices:
+        is_active = device.end_date > current_time
+        result.append({
+            "vpn_key": device.vpn_key,
+            "outline_key_id": device.outline_key_id,
+            "user_id": device.user_id,
+            "device_type": device.device_type,
+            "start_date": device.start_date.strftime("%Y-%m-%d %H:%M"),
+            "end_date": device.end_date.strftime("%Y-%m-%d %H:%M"),
+            "is_active": is_active
+        })
+    
+    logger.info(f"Returning {len(result)} devices")
+    return result
+
+@router.get("/devices/history")
+async def get_device_history(
+    vpn_key: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Fetching history for vpn_key={vpn_key}")
+    
+    devices = db.query(Device).filter(Device.outline_key_id == vpn_key).order_by(Device.created_at.desc()).all()
+    
+    result = [
+        {
+            "user_id": device.user_id,
+            "device_type": device.device_type,
+            "device_name": device.device_name,
+            "start_date": device.start_date.strftime("%Y-%m-%d %H:%M"),
+            "end_date": device.end_date.strftime("%Y-%m-%d %H:%M")
+        }
+        for device in devices
+    ]
+    
+    logger.info(f"Returning {len(result)} history entries for vpn_key={vpn_key}")
+    return result
+
+@router.get("/payments/summary")
+async def get_payments_summary(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info("Fetching payments summary")
+    
+    current_time = datetime.now(timezone.utc)
+    day_ago = current_time - timedelta(days=1)
+    month_ago = current_time - timedelta(days=30)
+    
+    # Инициализация результата
+    result = {
+        "day": {"total_amount": 0.0, "total_count": 0, "by_method": {"ukassa": {"amount": 0.0, "count": 0}, "crypto": {"amount": 0.0, "count": 0}, "stars": {"amount": 0.0, "count": 0}}},
+        "month": {"total_amount": 0.0, "total_count": 0, "by_method": {"ukassa": {"amount": 0.0, "count": 0}, "crypto": {"amount": 0.0, "count": 0}, "stars": {"amount": 0.0, "count": 0}}},
+        "all_time": {"total_amount": 0.0, "total_count": 0, "by_method": {"ukassa": {"amount": 0.0, "count": 0}, "crypto": {"amount": 0.0, "count": 0}, "stars": {"amount": 0.0, "count": 0}}}
+    }
+    
+    # За день
+    day_query = db.query(
+        Payment.method,
+        func.sum(Payment.amount).label("amount"),
+        func.count(Payment.id).label("count")
+    ).filter(
+        Payment.status == "succeeded",
+        Payment.created_at >= day_ago
+    ).group_by(Payment.method).all()
+    logger.info(f"Day query result: {day_query}")
+    
+    for method, amount, count in day_query:
+        if method in result["day"]["by_method"]:
+            result["day"]["by_method"][method] = {"amount": round(float(amount), 2), "count": count}
+            result["day"]["total_amount"] += float(amount)
+            result["day"]["total_count"] += count
+    
+    # За месяц
+    month_query = db.query(
+        Payment.method,
+        func.sum(Payment.amount).label("amount"),
+        func.count(Payment.id).label("count")
+    ).filter(
+        Payment.status == "succeeded",
+        Payment.created_at >= month_ago
+    ).group_by(Payment.method).all()
+    logger.info(f"Month query result: {month_query}")
+    
+    for method, amount, count in month_query:
+        if method in result["month"]["by_method"]:
+            result["month"]["by_method"][method] = {"amount": round(float(amount), 2), "count": count}
+            result["month"]["total_amount"] += float(amount)
+            result["month"]["total_count"] += count
+    
+    # За всё время
+    all_time_query = db.query(
+        Payment.method,
+        func.sum(Payment.amount).label("amount"),
+        func.count(Payment.id).label("count")
+    ).filter(
+        Payment.status == "succeeded"
+    ).group_by(Payment.method).all()
+    logger.info(f"All time query result: {all_time_query}")
+    
+    for method, amount, count in all_time_query:
+        if method in result["all_time"]["by_method"]:
+            result["all_time"]["by_method"][method] = {"amount": round(float(amount), 2), "count": count}
+            result["all_time"]["total_amount"] += float(amount)
+            result["all_time"]["total_count"] += count
+    
+    result["day"]["total_amount"] = round(result["day"]["total_amount"], 2)
+    result["month"]["total_amount"] = round(result["month"]["total_amount"], 2)
+    result["all_time"]["total_amount"] = round(result["all_time"]["total_amount"], 2)
+    
+    logger.info(f"Payments summary: {result}")
+    return result
+
+@router.get("/users/ids")
+async def get_all_users(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info("Fetching all user IDs")
+    
+    user_ids = db.query(User.user_id).all()
+    result = [user_id for (user_id,) in user_ids]
+    
+    logger.info(f"Returning {len(result)} user IDs")
+    return result
+
+@router.get("/admins")
+async def get_admins(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info("Fetching admins")
+    
+    admins = db.query(Admin).all()
+    result = [
+        {
+            "user_id": admin.user_id,
+            "added_at": admin.added_at.strftime("%Y-%m-%d %H:%M")
+        }
+        for admin in admins
+    ]
+    
+    logger.info(f"Returning {len(result)} admins")
+    return result
+
+@router.post("/admins")
+async def add_admin(
+    admin: AdminCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Adding admin {admin.user_id}")
+    
+    existing_admin = db.query(Admin).filter(Admin.user_id == admin.user_id).first()
+    if existing_admin:
+        logger.error(f"Admin {admin.user_id} already exists")
+        raise HTTPException(status_code=400, detail="Admin already exists")
+    
+    new_admin = Admin(user_id=admin.user_id)
+    db.add(new_admin)
+    db.commit()
+    
+    logger.info(f"Admin {admin.user_id} added")
+    return {"status": "success"}
+
+@router.delete("/admins/{user_id}")
+async def delete_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Deleting admin {user_id}")
+    
+    admin = db.query(Admin).filter(Admin.user_id == user_id).first()
+    if not admin:
+        logger.error(f"Admin {user_id} not found")
+        raise HTTPException(status_code=404, detail="Admin not found")
+    
+    db.delete(admin)
+    db.commit()
+    
+    logger.info(f"Admin {user_id} deleted")
+    return {"status": "success"}
+
+@router.get("/admins/check")
+async def check_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Checking if user {user_id} is admin")
+    
+    admin = db.query(Admin).filter(Admin.user_id == user_id).first()
+    is_admin = bool(admin)
+    
+    logger.info(f"User {user_id} is_admin: {is_admin}")
+    return {"is_admin": is_admin}
+
+@router.get("/blacklist/check")
+async def check_blacklist(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Checking if user {user_id} is blacklisted")
+    
+    blacklisted = db.query(Blacklist).filter(Blacklist.user_id == user_id).first()
+    is_blacklisted = bool(blacklisted)
+    
+    logger.info(f"User {user_id} is_blacklisted: {is_blacklisted}")
+    return {"is_blacklisted": is_blacklisted}

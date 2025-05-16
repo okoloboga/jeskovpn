@@ -384,9 +384,8 @@ async def poll_invoices(bot: Bot):
                             await payment_req.update_invoice_status(invoice_id, status)
                 elif method == "crypto":
                     try:
-                        start_time = time.time()
                         invoice_status = await payment_req.check_invoice_status(invoice_id)
-                        logger.info(f"CryptoBot check for {invoice_id} took {time.time() - start_time:.2f} seconds")
+                        # logger.info(f"CryptoBot check for {invoice_id} took {time.time() - start_time:.2f} seconds")
                         if invoice_status:
                             status = invoice_status["status"]
                             if status == "paid":

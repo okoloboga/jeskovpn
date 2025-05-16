@@ -19,7 +19,7 @@ class Referral(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.user_id"))
-    referrer_id = Column(Integer, ForeignKey("users.user_id"))
+    referrer_id = Column(BigInteger, ForeignKey("users.user_id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Invoice(Base):
@@ -85,4 +85,22 @@ class AdminAuth(Base):
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class Blacklist(Base):
+    __tablename__ = "blacklist"
+    
+    user_id = Column(BigInteger, primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    __table_args__ = (
+        {"comment": "Stores blocked user IDs"},
+    )
 
+class Admin(Base):
+    __tablename__ = "admins"
+    
+    user_id = Column(BigInteger, primary_key=True)
+    added_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    __table_args__ = (
+        {"comment": "Stores admin user IDs"},
+    )
