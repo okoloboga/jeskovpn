@@ -10,3 +10,11 @@ class AdminPasswordCheck(BaseModel):
 
 class AdminCreate(BaseModel):
     user_id: int
+
+class PromocodeCreate(BaseModel):
+    code: str
+    type: str
+
+class PromocodeUsageCreate(BaseModel):
+    user_id: int
+    promocode_code: str

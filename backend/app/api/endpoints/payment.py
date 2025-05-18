@@ -113,7 +113,7 @@ async def process_balance_payment(
                 detail="Invalid device type or period"
             )
 
-    if payment.amount != expected_price:
+    if payment.amount != expected_price and payment.method != 'promo':
         logger.error(f"Amount mismatch: provided={payment.amount}, expected={expected_price}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

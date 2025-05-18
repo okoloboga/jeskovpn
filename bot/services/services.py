@@ -49,6 +49,7 @@ INSTUCTIONS_TEMP = {
                'router': "В разработке"
                }
 INSTUCTIONS = {
+        'device': 'В разработке',
         'android': 'В разработке',
         'tv': 'В разработке',
         'iphone/ipad': 'В разработке',

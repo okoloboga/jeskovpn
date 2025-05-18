@@ -78,15 +78,24 @@ async def get_users_summary():
             logger.error(f"get_users_summary: {e}")
             return None
 
-async def get_users(skip: int = 0, limit: int = 20, user_id: Optional[int] = None):
+async def get_users(
+        skip: int = 0, limit: int = 20, user_id: Optional[int] = None, query: Optional[str] = None
+) -> list:
     """GET /admin/users"""
-    url = f"{BASE_URL}/admin/users?skip={skip}&limit={limit}"
+    params: Dict[str, Union[int, str]] = {"skip": skip, "limit": limit}
     if user_id is not None:
-        url += f"&user_id={user_id}"
+        params["user_id"] = user_id
+    if query is not None:
+        params["query"] = query
+    
+    url = f"{BASE_URL}/admin/users"
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, headers=HEADERS) as response:
-                return await response.json()
+            async with session.get(url, headers=HEADERS, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+                logger.error(f"Failed to get users: status {response.status}")
+                return []
         except Exception as e:
             logger.error(f"get_users: {e}")
             return []
@@ -256,4 +265,72 @@ async def is_user_blacklisted(user_id: int) -> bool:
                 return result.get("is_blacklisted", False)
         except Exception as e:
             logger.error(f"is_user_blacklisted: {e}")
+            return False
+
+async def get_promocodes(skip: int = 0, limit: int = 20, code: Optional[str] = None) -> list:
+    """GET /admin/promocodes"""
+    params: Dict[str, Union[int, str]] = {"skip": skip, "limit": limit}
+    if code is not None:
+        params["code"] = code
+    
+    url = f"{BASE_URL}/admin/promocodes"
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=HEADERS, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+                logger.error(f"Failed to get promocodes: status {response.status}")
+                return []
+        except Exception as e:
+            logger.error(f"get_promocodes: {e}")
+            return []
+
+async def create_promocode(code: str, type: str) -> dict:
+    """POST /admin/promocodes"""
+    url = f"{BASE_URL}/admin/promocodes"
+    payload = {"code": code, "type": type}
+    logger.debug(f"Sending POST request to {url} with payload: {payload}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=payload) as response:
+                if response.status in (200, 201):
+                    logger.debug(f"Promocode created: {code}")
+                    return {"success": True, "code": code}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to create promocode {code}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
+        except Exception as e:
+            logger.error(f"create_promocode {code}: {e}")
+            return {"success": False, "error": str(e)}
+
+async def deactivate_promocode(code: str) -> bool:
+    """PATCH /admin/promocodes/{code}"""
+    url = f"{BASE_URL}/admin/promocodes/{code}"
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.patch(url, headers=HEADERS) as response:
+                if response.status in (200, 201):
+                    logger.debug(f"Promocode deactivated: {code}")
+                    return True
+                logger.error(f"Failed to deactivate promocode {code}: status {response.status}")
+                return False
+        except Exception as e:
+            logger.error(f"deactivate_promocode {code}: {e}")
+            return False
+
+async def log_promocode_usage(user_id: int, code: str) -> bool:
+    """POST /promocodes/usage"""
+    url = f"{BASE_URL}/admin/promocodes/usage"
+    payload = {"user_id": user_id, "promocode_code": code}
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=payload) as response:
+                if response.status in (200, 201):
+                    logger.debug(f"Promocode usage logged: user_id={user_id}, code={code}")
+                    return True
+                logger.error(f"Failed to log promocode usage: user_id={user_id}, code={code}, status={response.status}")
+                return False
+        except Exception as e:
+            logger.error(f"log_promocode_usage: user_id={user_id}, code={code}, error={e}")
             return False

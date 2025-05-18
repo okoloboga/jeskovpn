@@ -88,3 +88,72 @@
 2025-05-16 15:51:42,152 [INFO] Admin 5101525651 viewed users list
 2025-05-16 15:51:43,770 [INFO] Admin 5101525651 viewed profile of user 7108224735
 2025-05-16 15:51:45,611 [INFO] Admin 5101525651 unblocked user 7108224735
+2025-05-18 12:28:38,930 [INFO] Admin 5101525651 set password
+2025-05-18 12:31:16,088 [INFO] Admin 5101525651 logged in
+2025-05-18 12:31:19,316 [INFO] Admin 5101525651 viewed users list
+2025-05-18 12:31:24,100 [INFO] Admin 5101525651 returned to main menu
+2025-05-18 12:31:47,306 [INFO] Admin 5101525651 logged in
+2025-05-18 12:31:48,607 [INFO] Admin 5101525651 viewed users list
+2025-05-18 12:31:57,758 [INFO] Admin 5101525651 searched users with query 'djjjaaaa'
+2025-05-18 12:32:00,040 [INFO] Admin 5101525651 viewed profile of user 7108224735
+2025-05-18 12:32:06,188 [INFO] Admin 5101525651 returned to users list
+2025-05-18 12:32:08,070 [INFO] Admin 5101525651 returned to main menu
+2025-05-18 12:32:31,927 [INFO] Admin 5101525651 searched users with query '7108224735'
+2025-05-18 12:32:34,163 [INFO] Admin 5101525651 returned to main menu
+2025-05-18 12:32:36,883 [INFO] Admin 5101525651 viewed users list
+2025-05-18 12:32:44,840 [INFO] Admin 5101525651 searched users with query 'djjjaaaa'
+2025-05-18 12:32:46,186 [INFO] Admin 5101525651 viewed profile of user 7108224735
+2025-05-18 12:32:53,680 [INFO] Admin 5101525651 added balance 100.0 to user 7108224735
+2025-05-18 12:33:13,189 [INFO] Admin 5101525651 logged in
+2025-05-18 12:33:14,479 [INFO] Admin 5101525651 viewed users list
+2025-05-18 12:33:16,091 [INFO] Admin 5101525651 viewed profile of user 7108224735
+2025-05-18 12:33:17,554 [INFO] Admin 5101525651 blocked user 7108224735
+2025-05-18 12:33:23,697 [INFO] Admin 5101525651 unblocked user 7108224735
+2025-05-18 12:33:26,311 [INFO] Admin 5101525651 viewed admins list
+2025-05-18 12:33:27,761 [INFO] Admin 5101525651 started adding new admin
+2025-05-18 12:33:39,897 [INFO] Admin 5101525651 added admin 7108224735
+2025-05-18 12:33:45,406 [INFO] Admin 5101525651 returned to main menu
+2025-05-18 12:33:47,073 [INFO] Admin 5101525651 viewed users list
+2025-05-18 12:33:48,665 [INFO] Admin 5101525651 viewed profile of user 7108224735
+2025-05-18 12:33:50,280 [INFO] Admin 5101525651 blocked user 7108224735
+2025-05-18 12:33:55,464 [INFO] Admin 5101525651 unblocked user 7108224735
+2025-05-18 12:34:12,915 [ERROR] Admin 5101525651 failed to create promocode New
+2025-05-18 12:37:03,691 [INFO] Admin 5101525651 logged in
+2025-05-18 12:37:18,005 [ERROR] Admin 5101525651 failed to create promocode 123
+2025-05-18 12:41:28,349 [INFO] Admin 5101525651 logged in
+2025-05-18 12:42:00,983 [INFO] Admin 5101525651 created promocode 123 with type balance_100
+2025-05-18 12:42:03,527 [INFO] Admin 5101525651 viewed promocode 123
+2025-05-18 12:56:57,823 [INFO] Admin 5101525651 logged in
+2025-05-18 12:57:00,118 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 12:57:02,188 [INFO] Admin 5101525651 viewed promocode 123
+2025-05-18 12:57:06,319 [INFO] Admin 5101525651 deactivated promocode 123
+2025-05-18 12:57:23,540 [INFO] Admin 5101525651 created promocode 234 with type device
+2025-05-18 12:57:25,746 [INFO] Admin 5101525651 viewed promocode 123
+2025-05-18 12:57:28,503 [INFO] Admin 5101525651 viewed promocode 234
+2025-05-18 12:57:31,076 [INFO] Admin 5101525651 deactivated promocode 234
+2025-05-18 12:57:34,573 [INFO] Admin 5101525651 viewed promocode 234
+2025-05-18 12:57:54,111 [ERROR] Admin 5101525651 failed to create promocode 234
+2025-05-18 13:04:43,420 [INFO] Admin 5101525651 logged in
+2025-05-18 13:04:44,362 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 13:04:56,958 [ERROR] Admin 5101525651 failed to create promocode 234: Промокод с кодом '234' уже существует
+2025-05-18 13:06:47,304 [INFO] Admin 5101525651 logged in
+2025-05-18 13:06:48,879 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 13:09:32,641 [INFO] Admin 5101525651 logged in
+2025-05-18 13:09:34,406 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 13:09:48,531 [ERROR] Admin 5101525651 failed to create promocode 1234: Invalid promocode type
+2025-05-18 13:26:22,704 [INFO] Admin 5101525651 logged in
+2025-05-18 13:26:24,032 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 13:26:38,656 [INFO] Admin 5101525651 created promocode 1234 with type device_promo
+2025-05-18 13:35:42,991 [INFO] Admin 5101525651 logged in
+2025-05-18 13:35:44,048 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 13:35:45,850 [INFO] Admin 5101525651 viewed promocode 1234
+2025-05-18 13:36:04,312 [INFO] Admin 5101525651 created promocode Qwerty with type device_promo
+2025-05-18 13:40:20,653 [INFO] Admin 5101525651 set password
+2025-05-18 13:40:38,725 [INFO] Admin 5101525651 created promocode Qwerty with type device_promo
+2025-05-18 13:55:35,897 [INFO] Admin 5101525651 set password
+2025-05-18 13:55:49,657 [INFO] Admin 5101525651 created promocode Qwerty with type device_promo
+2025-05-18 13:59:35,145 [INFO] Admin 5101525651 logged in
+2025-05-18 13:59:36,948 [INFO] Admin 5101525651 viewed promocodes list
+2025-05-18 14:00:04,341 [INFO] Admin 5101525651 created promocode Qwer with type combo_5
+2025-05-18 14:00:07,138 [INFO] Admin 5101525651 viewed promocode Qwerty
+2025-05-18 14:00:10,095 [INFO] Admin 5101525651 returned to main menu

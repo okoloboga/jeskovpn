@@ -1,6 +1,8 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
+from sqlalchemy.sql import or_, func
 from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 from passlib.hash import bcrypt
@@ -8,8 +10,8 @@ from passlib.hash import bcrypt
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin
-from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate
+from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin, Promocode, PromocodeUsage
+from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate, PromocodeCreate, PromocodeUsageCreate
 
 router = APIRouter()
 
@@ -90,16 +92,31 @@ async def get_users(
     skip: int = 0,
     limit: int = 20,
     user_id: Optional[int] = None,
+    query: Optional[str] = None,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Fetching users: skip={skip}, limit={limit}, user_id={user_id}")
+    logger.info(f"Fetching users: skip={skip}, limit={limit}, user_id={user_id}, query={query}")
     
     # Fetch users
-    query = db.query(User).order_by(User.created_at.desc())
+    query_db = db.query(User).order_by(User.created_at.desc())
     if user_id is not None:
-        query = query.filter(User.user_id == user_id)
-    users = query.offset(skip).limit(limit).all()
+        query_db = query_db.filter(User.user_id == user_id)
+    elif query is not None:
+        # Регистронезависимый поиск по всем полям
+        search_term = f"%{query}%"
+        query_db = query_db.filter(
+            or_(
+                func.lower(User.username).like(func.lower(search_term)),
+                User.user_id == query if query.isdigit() else False,
+                func.lower(User.first_name).like(func.lower(search_term)),
+                func.lower(User.last_name).like(func.lower(search_term)),
+                func.lower(User.email_address).like(func.lower(search_term)),
+                func.lower(User.phone_number).like(func.lower(search_term))
+            )
+        )
+    
+    users = query_db.offset(skip).limit(limit).all()
     
     # Prepare response
     current_time = datetime.now(timezone.utc)
@@ -444,3 +461,135 @@ async def check_blacklist(
     
     logger.info(f"User {user_id} is_blacklisted: {is_blacklisted}")
     return {"is_blacklisted": is_blacklisted}
+
+@router.get("/promocodes")
+async def get_promocodes(
+    skip: int = 0,
+    limit: int = 20,
+    code: Optional[str] = None,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Fetching promocodes: skip={skip}, limit={limit}, code={code}")
+    
+    query = db.query(Promocode)
+    if code is not None:
+        query = query.filter(Promocode.code == code)
+    
+    promocodes = query.offset(skip).limit(limit).all()
+    result = []
+    for promocode in promocodes:
+        usage_count = db.query(PromocodeUsage).filter(
+            PromocodeUsage.promocode_code == promocode.code
+        ).count()
+        result.append({
+            "code": promocode.code,
+            "type": promocode.type,
+            "usage_count": usage_count,
+            "is_active": promocode.is_active,
+            "created_at": promocode.created_at.strftime("%Y-%m-%d %H:%M")
+        })
+    
+    logger.info(f"Returning {len(result)} promocodes")
+    return result
+
+@router.post("/promocodes/usage")
+async def log_promocode_usage(
+    usage: PromocodeUsageCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Logging promocode usage: user_id={usage.user_id}, code={usage.promocode_code}")
+    
+    promocode = db.query(Promocode).filter(Promocode.code == usage.promocode_code).first()
+    if not promocode:
+        logger.error(f"Promocode not found: {usage.promocode_code}")
+        raise HTTPException(status_code=404, detail="Promocode not found")
+    
+    if not promocode.is_active:
+        logger.error(f"Promocode not active: {usage.promocode_code}")
+        raise HTTPException(status_code=400, detail="Promocode not active")
+    
+    # Проверяем, не использовал ли пользователь промокод
+    if db.query(PromocodeUsage).filter(
+        PromocodeUsage.user_id == usage.user_id,
+        PromocodeUsage.promocode_code == usage.promocode_code
+    ).first():
+        logger.error(f"Promocode already used by user: {usage.promocode_code}, user_id={usage.user_id}")
+        raise HTTPException(status_code=400, detail="Promocode already used")
+    
+    new_usage = PromocodeUsage(
+        user_id=usage.user_id,
+        promocode_code=usage.promocode_code
+    )
+    db.add(new_usage)
+    db.commit()
+    
+    logger.info(f"Promocode usage logged: user_id={usage.user_id}, code={usage.promocode_code}")
+    return {"status": "success"}
+
+@router.post("/promocodes")
+async def create_promocode(
+    promocode: PromocodeCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Creating promocode: code={promocode.code}, type={promocode.type}")
+    
+    # Валидация code
+    if not re.match(r"^[a-zA-Z0-9]+$", promocode.code):
+        logger.error(f"Invalid promocode format: {promocode.code}")
+        raise HTTPException(status_code=400, detail="Code must contain only letters and digits")
+    
+    # Валидация type
+    valid_types = [
+        "device_promo", "combo_5", "combo_10",
+        *[f"balance_{amount}" for amount in range(1, 10001)]  # Предполагаем разумный диапазон
+    ]
+    if promocode.type not in valid_types:
+        logger.error(f"Invalid promocode type: {promocode.type}")
+        raise HTTPException(status_code=400, detail="Invalid promocode type")
+    
+    # Проверка уникальности
+    if db.query(Promocode).filter(Promocode.code == promocode.code).first():
+        logger.error(f"Promocode already exists: {promocode.code}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Промокод с кодом '{promocode.code}' уже существует"
+        )
+
+    new_promocode = Promocode(
+        code=promocode.code,
+        type=promocode.type,
+        is_active=True
+    )
+    db.add(new_promocode)
+    db.commit()
+    
+    logger.info(f"Promocode created: {promocode.code}")
+    return {"status": "success", "code": promocode.code}
+
+@router.patch("/promocodes/{code}")
+async def deactivate_promocode(
+    code: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Deactivating promocode: {code}")
+    
+    promocode = db.query(Promocode).filter(Promocode.code == code).first()
+    if not promocode:
+        logger.error(f"Promocode not found: {code}")
+        raise HTTPException(status_code=404, detail="Promocode not found")
+    
+    if not promocode.is_active:
+        logger.error(f"Promocode already deactivated: {code}")
+        raise HTTPException(status_code=400, detail="Promocode already deactivated")
+    
+    promocode.is_active = False
+    db.commit()
+    
+    logger.info(f"Promocode deactivated: {code}")
+    return {"status": "success", "code": code}
+
+

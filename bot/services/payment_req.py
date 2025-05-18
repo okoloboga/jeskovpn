@@ -41,6 +41,7 @@ CRYPTOBOT_HEADERS = {
         "Crypto-Pay-API-Token": cryptobot_api,
         "Content-Type": "application/json"
     }
+
 async def get_subscriptions(user_id: int) -> Optional[Dict[str, Any]]:
     """GET /payments/subscriptions/{user_id}"""
     url = f"{BASE_URL}/payments/subscriptions/{user_id}"

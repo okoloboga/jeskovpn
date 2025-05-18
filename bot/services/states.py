@@ -11,6 +11,8 @@ class DevicesSG(StatesGroup):
     device_name = State()
     rename_device = State()
     select_instruction = State()
+    enter_promo = State()
+    device_promo = State()
 
 class SupportSG(StatesGroup):
     create_ticket = State()
@@ -20,3 +22,7 @@ class AdminAuthStates(StatesGroup):
     waiting_for_password = State()
     waiting_for_broadcast_message = State()
     waiting_for_new_admin_id = State()
+    add_balance = State()
+    add_promo_code = State()
+    add_promo_type = State()
+    search_users = State()

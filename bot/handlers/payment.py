@@ -2,18 +2,16 @@ import logging
 import re
 
 from typing import Union
-from pydantic import EmailStr
 from aiogram import Router, F, Bot
 from aiogram.filters import StateFilter
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery, \
-                        ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, Message, LabeledPrice, PreCheckoutQuery
 from fluentogram import TranslatorRunner
 
 from services import services, user_req, payment_req, PaymentSG, DevicesSG, \
-                     MONTH_DAY, START_PRICE, MONTH_PRICE_STARS 
-from keyboards import devices_kb, payment_kb, main_kb
+                     START_PRICE, MONTH_PRICE_STARS 
+from keyboards import payment_kb, main_kb
 
 payment_router = Router()
 
@@ -385,7 +383,7 @@ async def buy_subscription_handler(
                 payload=payload,
                 provider_token="",
                 currency="XTR",
-                prices=[LabeledPrice(label=i18n.payment.label(), amount=1)],
+                prices=[LabeledPrice(label=i18n.payment.label(), amount=stars_amount)],
                 start_parameter=payment_type
             )
         else:
@@ -660,7 +658,7 @@ async def process_ukassa_handler(
         state_data = await state.get_data()
         payment_type = state_data.get("payment_type")
         amount = state_data.get("amount")
-        balance = state_data.get("balance")
+
         device_type = state_data.get("device_type")
         period = state_data.get("period")
         device = state_data.get("device")
@@ -788,7 +786,13 @@ async def process_payment(
         user_id, amount, period, device_type, device, payment_type, method = payment.invoice_payload.split(':')
         result = await payment_req.payment_balance_process(user_id, amount, period, device_type, device, payment_type, method)
         if result is not None:
-            if device not in ('5', '10'):
+            if device == 'balance':
+                    await message.answer(
+                        i18n.promo.success.balance(),
+                        reply_markup=main_kb.back_inline_kb(i18n)
+                    )
+
+            elif device not in ('5', '10'):
                 await state.set_state(DevicesSG.device_name)
                 await message.answer(
                         text=i18n.buy.subscription.success(balance=(int(balance))),

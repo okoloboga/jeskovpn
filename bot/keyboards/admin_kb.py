@@ -16,7 +16,11 @@ def admin_main_menu_kb() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📢 Рассылка")
         )
         builder.row(
-            KeyboardButton(text="🛡 Безопасность")
+            KeyboardButton(text="🛡 Безопасность"),
+            KeyboardButton(text="🔍 Поиск пользователей")
+        )
+        builder.row(
+            KeyboardButton(text="🎟 Промокоды")
         )
         return builder.as_markup(
             resize_keyboard=True,
@@ -81,6 +85,12 @@ def user_profile_kb(user_id: int, is_blacklisted: bool = False) -> InlineKeyboar
                     callback_data=f"admin_block_user_{user_id}"
                 )
             )
+        builder.row(
+            InlineKeyboardButton(
+                text="💰 Пополнить баланс",
+                callback_data=f"admin_add_balance_{user_id}"
+            )
+        )
         builder.row(
             InlineKeyboardButton(text="🔙 К списку", callback_data="admin_back_to_users")
         )
@@ -198,4 +208,63 @@ def admin_add_kb() -> InlineKeyboardMarkup:
         return builder.as_markup()
     except Exception as e:
         logger.error(f"Unexpected error in admin_add_kb: {e}")
+        return InlineKeyboardMarkup()
+
+def promocodes_list_kb(promocodes, page: int, per_page: int) -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        for promocode in promocodes:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{promocode['code']} ({promocode['type']})",
+                    callback_data=f"admin_promocode_profile_{promocode['code']}"
+                )
+            )
+        
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(
+                InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin_promocodes_page_{page-1}")
+            )
+        nav_buttons.append(
+            InlineKeyboardButton(text=f"Стр. {page+1}", callback_data="noop")
+        )
+        if len(promocodes) == per_page:
+            nav_buttons.append(
+                InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"admin_promocodes_page_{page+1}")
+            )
+        
+        if nav_buttons:
+            builder.row(*nav_buttons)
+        
+        builder.row(
+            InlineKeyboardButton(text="➕ Добавить код", callback_data="admin_add_promocode")
+        )
+        builder.row(
+            InlineKeyboardButton(text="🔙 В меню", callback_data="admin_back_to_main")
+        )
+        return builder.as_markup()
+    except (KeyError, TypeError) as e:
+        logger.error(f"Data error in promocodes_list_kb: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocodes_list_kb: {e}")
+        return InlineKeyboardMarkup()
+
+def promocode_profile_kb(code: str, is_active: bool) -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        if is_active:
+            builder.row(
+                InlineKeyboardButton(
+                    text="🔴 Деактивировать",
+                    callback_data=f"admin_deactivate_promocode_{code}"
+                )
+            )
+        builder.row(
+            InlineKeyboardButton(text="🔙 К списку", callback_data="admin_promocodes_page_0")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
         return InlineKeyboardMarkup()

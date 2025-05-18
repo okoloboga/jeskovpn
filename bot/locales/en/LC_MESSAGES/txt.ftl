@@ -251,9 +251,8 @@ buy-subscription-success-combo = 🎉 Congratulations, you have activated your J
 
 ticket-menu = Tech support: 💬
               @Jesko_support
-noticket = Write your first request to tech support. 💬
-ticket-sended = Request sent ✅
-reply-ticket = Reply to request 💬
+promo-success-balance = 🎉 Top-Up balance Success!
+promo-enter-code = Enter Promocode
 
 unknown-message = Unclear message ❓
 
@@ -273,3 +272,9 @@ error-wrong-email = 🚫 Wrong E-Mail!
 error-no-number =  🚫 Phone number not provided!
 error-no-contact =  🚫 Phone number or E-Mail not provided!
 error-payment_failed = 🚫 Create payment invoice error!
+
+error-promo = 🚫 Process Promo error!
+error-promo-invalid_type = 🚫 Incorrect Promo type!
+error-promo-already_used = 🚫 Promo already used!
+error-promo-not_found = 🚫 Promocode not found!
+error-promo-not_active = 🚫 Promocode not active yet!

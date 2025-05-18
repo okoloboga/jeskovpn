@@ -1,12 +1,14 @@
 import logging
+import re
+
 from typing import Optional
 from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InlineKeyboardButton, InlineKeyboardMarkup
 from fluentogram import TranslatorRunner
 
-from services import admin_req, AdminAuthStates
+from services import admin_req, payment_req, AdminAuthStates
 from utils.admin_auth import is_admin
 from keyboards import admin_kb
 from config import get_config, Admin
@@ -139,6 +141,7 @@ async def admin_user_profile(callback: CallbackQuery):
     text = (
         f"👤 Пользователь: {user['username'] or user['first_name'] or 'N/A'} (ID: {user_id})\n"
         f"\n📧 Email: {user.get('email_address', 'N/A')}\n"
+        f"📱 Номер телефона: {user.get('phone_number', 'N/A')}\n"
         f"\n💰 Баланс: {user.get('balance', 0.0)}\n"
         f"\n📅 Регистрация: {user.get('created_at', 'N/A')}\n"
         f"\n📱 Подписки:\n"
@@ -158,6 +161,108 @@ async def admin_user_profile(callback: CallbackQuery):
 
     )
     admin_logger.info(f"Admin {callback.from_user.id} viewed profile of user {user_id}")
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("admin_add_balance_"))
+async def admin_add_balance_start(callback: CallbackQuery, state: FSMContext):
+    user_id = int(callback.data.split("_")[-1])
+    await state.update_data(user_id=user_id)
+    await callback.message.answer("Введите сумму для пополнения баланса (например, 1000.50):")
+    await state.set_state(AdminAuthStates.add_balance)
+    await callback.answer()
+
+@admin_router.message(AdminAuthStates.add_balance)
+async def admin_add_balance_amount(message: Message, state: FSMContext):
+    amount_text = message.text.strip()
+    try:
+        amount = float(amount_text)
+        if amount <= 0:
+            await message.answer("Сумма должна быть больше 0. Попробуйте снова:")
+            return
+    except ValueError:
+        await message.answer("Сумма должна быть числом (например, 1000.50). Попробуйте снова:")
+        return
+    
+    data = await state.get_data()
+    user_id = data["user_id"]
+    await state.update_data(amount=amount)
+    
+    # Клавиатура подтверждения
+    confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data=f"admin_confirm_balance_{user_id}"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="admin_cancel_balance")
+        ]
+    ])
+    await message.answer(
+        f"Пополнить баланс ID {user_id} на {amount}?",
+        reply_markup=confirm_kb
+    )
+
+@admin_router.callback_query(F.data.startswith("admin_confirm_balance_"))
+async def admin_confirm_balance(callback: CallbackQuery, state: FSMContext):
+    user_id = int(callback.data.split("_")[-1])
+    data = await state.get_data()
+    amount = data.get("amount")
+    
+    if not amount:
+        await callback.message.answer("Ошибка: сумма не найдена.")
+        await state.clear()
+        await callback.answer()
+        return
+    
+    # Вызов payment_balance_process
+    result = await payment_req.payment_balance_process(
+        user_id=user_id,
+        amount=amount,
+        period=0,
+        device_type="balance",
+        device="balance",
+        payment_type="add_balance",
+        method="admin"
+    )
+    
+    if result:
+        await callback.message.answer(f"Баланс пользователя {user_id} пополнен на {amount}.")
+        admin_logger.info(f"Admin {callback.from_user.id} added balance {amount} to user {user_id}")
+        
+        # Обновляем профиль пользователя
+        users = await admin_req.get_users(user_id=user_id)
+        if users:
+            user = users[0]
+            subscription = user["subscription"]
+            text = (
+                f"👤 Пользователь: {user['username'] or user['first_name'] or 'N/A'} (ID: {user_id})\n"
+                f"\n📧 Email: {user.get('email_address', 'N/A')}\n"
+                f"\n💰 Баланс: {user.get('balance', 0.0)}\n"
+                f"\n📅 Регистрация: {user.get('created_at', 'N/A')}\n"
+                f"\n📱 Подписки:\n"
+            )
+            if subscription["device"]["duration"] > 0:
+                text += f"  - Устройство: {subscription['device']['duration']} дней, "
+                text += f"устройства: {', '.join(subscription['device']['devices']) or 'нет'}\n"
+            if subscription["router"]["duration"] > 0:
+                text += f"  - Роутер: {subscription['router']['duration']} дней, "
+                text += f"устройства: {', '.join(subscription['router']['devices']) or 'нет'}\n"
+            if subscription["combo"]["duration"] > 0:
+                text += f"  - Комбо ({subscription['combo']['type']}): {subscription['combo']['duration']} дней, "
+                text += f"устройства: {', '.join(subscription['combo']['devices']) or 'нет'}\n"
+            await callback.message.edit_text(
+                text,
+                reply_markup=admin_kb.user_profile_kb(user_id, is_blacklisted=user.get("is_blacklisted", False)),
+                parse_mode="HTML"
+            )
+    else:
+        await callback.message.answer(f"Ошибка пополнения баланса пользователя {user_id}.")
+        admin_logger.error(f"Admin {callback.from_user.id} failed to add balance {amount} to user {user_id}")
+    
+    await state.clear()
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_cancel_balance")
+async def admin_cancel_balance(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Пополнение баланса отменено.")
+    await state.clear()
     await callback.answer()
 
 @admin_router.callback_query(F.data.startswith("admin_unblock_user_"))
@@ -538,4 +643,193 @@ async def admin_cancel_add_admin(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
 
+@admin_router.message(F.text == "🔍 Поиск пользователей")
+async def admin_search_users_start(message: Message, state: FSMContext):
+    await message.answer("Введите запрос для поиска (username, ID, email, имя, телефон):")
+    await state.set_state(AdminAuthStates.search_users)
 
+@admin_router.message(AdminAuthStates.search_users)
+async def admin_search_users_process(message: Message, state: FSMContext):
+    query = message.text.strip()
+    if not query:
+        await message.answer("Запрос не может быть пустым. Попробуйте снова:")
+        return
+    
+    users = await admin_req.get_users(query=query, skip=0, limit=20)
+    if not users:
+        await message.answer("Пользователи не найдены.")
+        await state.clear()
+        return
+    
+    admin_logger.info(f"Admin {message.from_user.id} searched users with query '{query}'")
+    await message.answer(
+        "📋 Результаты поиска:",
+        reply_markup=admin_kb.users_list_kb(users, page=0, per_page=20),
+        parse_mode="HTML"
+    )
+    await state.clear()
+
+
+@admin_router.message(F.text == "🎟 Промокоды")
+async def admin_promocodes_start(message: Message):
+    promocodes = await admin_req.get_promocodes(skip=0, limit=20)
+    if not promocodes:
+        await message.answer(
+            "Промокоды не найдены.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="➕ Добавить код", callback_data="admin_add_promocode"),
+                InlineKeyboardButton(text="🔙 В меню", callback_data="admin_back_to_main")
+            ]])
+        )
+        return
+    
+    admin_logger.info(f"Admin {message.from_user.id} viewed promocodes list")
+    await message.answer(
+        "📋 Список промокодов:",
+        reply_markup=admin_kb.promocodes_list_kb(promocodes, page=0, per_page=20),
+        parse_mode="HTML"
+    )
+
+@admin_router.callback_query(F.data.startswith("admin_promocodes_page_"))
+async def admin_promocodes_page(callback: CallbackQuery):
+    page = int(callback.data.split("_")[-1])
+    promocodes = await admin_req.get_promocodes(skip=page * 20, limit=20)
+    if not promocodes:
+        await callback.message.edit_text(
+            "Промокоды не найдены.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="➕ Добавить код", callback_data="admin_add_promocode"),
+                InlineKeyboardButton(text="🔙 В меню", callback_data="admin_back_to_main")
+            ]])
+        )
+        return
+    
+    await callback.message.edit_text(
+        "📋 Список промокодов:",
+        reply_markup=admin_kb.promocodes_list_kb(promocodes, page=page, per_page=20),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_add_promocode")
+async def admin_add_promocode_start(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введите код промокода (только буквы и цифры):")
+    await state.set_state(AdminAuthStates.add_promo_code)
+    await callback.answer()
+
+@admin_router.message(AdminAuthStates.add_promo_code)
+async def admin_add_promocode_code(message: Message, state: FSMContext):
+    code = message.text.strip()
+    if not re.match(r"^[a-zA-Z0-9]+$", code):
+        await message.answer("Код должен содержать только буквы и цифры. Попробуйте снова:")
+        return
+    
+    await state.update_data(code=code)
+    await message.answer(
+        str("Введите тип промокода\n\n") +
+        "Для создания промокода на пополнения баланса введите: balance_СУММА\n\n" +
+        "Промокод подписки на 1 устройство (1 месяц): device_promo\n" +
+        "Промокод кобмо: combo_5 или combo_10")
+    await state.set_state(AdminAuthStates.add_promo_type)
+
+@admin_router.message(AdminAuthStates.add_promo_type)
+async def admin_add_promocode_type(message: Message, state: FSMContext):
+    type_ = message.text.strip().lower()
+    valid_types = [
+        "device_promo", "combo_5", "combo_10",
+        *[f"balance_{amount}" for amount in range(1, 10001)]
+    ]
+    if type_ not in valid_types:
+        await message.answer("Недопустимый тип промокода. Попробуйте снова:")
+        return
+    
+    data = await state.get_data()
+    code = data["code"]
+    
+    result = await admin_req.create_promocode(code, type_)
+    if result["success"]:
+        await message.answer(f"Промокод {code} создан.")
+        admin_logger.info(f"Admin {message.from_user.id} created promocode {code} with type {type_}")
+        
+        # Показываем обновлённый список
+        promocodes = await admin_req.get_promocodes(skip=0, limit=20)
+        if promocodes:
+            await message.answer(
+                "📋 Список промокодов:",
+                reply_markup=admin_kb.promocodes_list_kb(promocodes, page=0, per_page=20),
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                "Промокоды не найдены.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="➕ Добавить код", callback_data="admin_add_promocode"),
+                    InlineKeyboardButton(text="🔙 В меню", callback_data="admin_back_to_main")
+                ]])
+            )
+    else:
+        error_msg = result["error"]
+        await message.answer(
+            f"Ошибка создания промокода: {error_msg}\nПопробуйте ввести другой код:",
+            parse_mode="HTML"
+        )
+        admin_logger.error(f"Admin {message.from_user.id} failed to create promocode {code}: {error_msg}")
+        await state.set_state(AdminAuthStates.add_promo_code)  # Возвращаемся к вводу кода
+        return
+    
+    await state.clear()
+
+@admin_router.callback_query(F.data.startswith("admin_promocode_profile_"))
+async def admin_promocode_profile(callback: CallbackQuery):
+    code = callback.data.split("_")[-1]
+    promocodes = await admin_req.get_promocodes(code=code)
+    if not promocodes:
+        await callback.message.edit_text("Промокод не найден.")
+        await callback.answer()
+        return
+    
+    promocode = promocodes[0]
+    text = (
+        f"🎟 Промокод: {promocode['code']}\n"
+        f"\n📋 Тип: {promocode['type']}\n"
+        f"\n📊 Использований: {promocode['usage_count']}\n"
+        f"\n🔄 Статус: {'Активен' if promocode['is_active'] else 'Деактивирован'}\n"
+        f"\n📅 Создан: {promocode['created_at']}\n"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=admin_kb.promocode_profile_kb(code, promocode['is_active']),
+        parse_mode="HTML"
+    )
+    admin_logger.info(f"Admin {callback.from_user.id} viewed promocode {code}")
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("admin_deactivate_promocode_"))
+async def admin_deactivate_promocode(callback: CallbackQuery):
+    code = callback.data.split("_")[-1]
+    success = await admin_req.deactivate_promocode(code)
+    if success:
+        await callback.message.answer(f"Промокод {code} деактивирован.")
+        admin_logger.info(f"Admin {callback.from_user.id} deactivated promocode {code}")
+        
+        # Обновляем профиль промокода
+        promocodes = await admin_req.get_promocodes(code=code)
+        if promocodes:
+            promocode = promocodes[0]
+            text = (
+                f"🎟 Промокод: {promocode['code']}\n"
+                f"\n📋 Тип: {promocode['type']}\n"
+                f"\n📊 Использований: {promocode['usage_count']}\n"
+                f"\n🔄 Статус: {'Активен' if promocode['is_active'] else 'Деактивирован'}\n"
+                f"\n📅 Создан: {promocode['created_at']}\n"
+            )
+            await callback.message.edit_text(
+                text,
+                reply_markup=admin_kb.promocode_profile_kb(code, promocode['is_active']),
+                parse_mode="HTML"
+            )
+    else:
+        await callback.message.answer(f"Ошибка деактивации промокода {code}.")
+        admin_logger.error(f"Admin {callback.from_user.id} failed to deactivate promocode {code}")
+    
+    await callback.answer()

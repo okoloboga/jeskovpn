@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.filters import StateFilter
 from fluentogram import TranslatorRunner
 
-from services import services, vpn_req, PaymentSG, DevicesSG
+from services import services, vpn_req, admin_req, payment_req, PaymentSG, DevicesSG
 from keyboards import payment_kb, devices_kb, main_kb
 
 devices_router = Router()
@@ -36,7 +36,8 @@ async def devices_button_handler(
     Shows a list of user's devices and combo cells, along with the subscription fee.
 
     Args:
-        event (Union[CallbackQuery, Message]): The incoming event (callback or message).
+        event (Union[CallbackQuery, Message])
+        : The incoming event (callback or message).
         i18n (TranslatorRunner): Translator for localized responses.
 
     Returns:
@@ -742,3 +743,117 @@ async def instruction_handler(
     instruction = services.INSTUCTIONS[device_type]
     await callback.message.answer(text=instruction)
     await callback.answer()
+
+@devices_router.message(F.text == "/promo")
+async def cmd_promo(
+        message: Message, 
+        state: FSMContext, 
+        i18n: TranslatorRunner
+) -> None:
+    await message.answer(i18n.promo.enter.code())
+    await state.set_state(DevicesSG.enter_promo)
+
+@devices_router.message(DevicesSG.enter_promo)
+async def process_promo_code(
+        message: Message, 
+        state: FSMContext, 
+        i18n: TranslatorRunner
+) -> None:
+
+    code = message.text.strip()
+    promocodes = await admin_req.get_promocodes(code=code)
+    
+    if not promocodes:
+        await message.answer(i18n.error.promo.not_found())
+        await state.clear()
+        return
+    
+    promocode = promocodes[0]
+    if not promocode["is_active"]:
+        await message.answer(i18n.error.promo.not_active())
+        await state.clear()
+        return
+    
+    user_id = message.from_user.id
+    promo_type = promocode["type"]
+    
+    # Логируем использование промокода
+    if not await admin_req.log_promocode_usage(user_id, code):
+        await message.answer(i18n.error.promo.already_used())
+        await state.clear()
+        return
+    
+    # Формируем параметры для payment_balance_process
+    params = {"user_id": user_id, "method": "promo"}
+    
+    if promo_type.startswith("balance_"):
+        try:
+            amount = float(promo_type.split("_")[1])
+        except (IndexError, ValueError):
+            await message.answer(i18n.error.promo.invalid_type())
+            await state.clear()
+            return
+        params.update({
+            "amount": amount,
+            "period": 0,
+            "device_type": "balance",
+            "device": "balance",
+            "payment_type": "add_balance"
+        })
+    elif promo_type == "device_promo":
+        params.update({
+            "amount": 0,
+            "period": 1,
+            "device_type": "device",
+            "device": "device",
+            "payment_type": "buy_subscription"
+        })
+    elif promo_type in ("combo_5", "combo_10"):
+        device = "5" if promo_type == "combo_5" else "10"
+        params.update({
+            "amount": 0,
+            "period": 1,
+            "device_type": "combo",
+            "device": device,
+            "payment_type": "buy_subscription"
+        })
+    else:
+        await message.answer(i18n.error.promo.invalid_type())
+        await state.clear()
+        return
+    
+    # Вызываем payment_balance_process
+    result = await payment_req.payment_balance_process(**params)
+    if not result:
+        await message.answer(i18n.error.promo())
+        await state.clear()
+        return
+    
+    logger.info(f"User {user_id} used promocode {code} with type {promo_type}")
+    user_data = await services.get_user_data(user_id)
+    if user_data is None:
+        await message.answer(text=i18n.error.unexpected())
+        return
+
+
+
+    # Обрабатываем ответ в зависимости от типа
+    if promo_type.startswith("balance_"):
+        await message.answer(
+            i18n.promo.success.balance(),
+            reply_markup=main_kb.back_inline_kb(i18n)
+        )
+        await state.clear()
+    elif promo_type == "device_promo":
+        await state.set_state(DevicesSG.device_name)
+        await message.answer(
+            i18n.subscription.success.promo(),
+            reply_markup=main_kb.back_inline_kb(i18n)
+
+        )
+    elif promo_type in ("combo_5", "combo_10"):
+        await message.answer(
+            i18n.buy.subscription.success.combo(),
+            reply_markup=main_kb.back_inline_kb(i18n)
+        )
+        await state.clear()
