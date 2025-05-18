@@ -14,6 +14,7 @@ class AdminCreate(BaseModel):
 class PromocodeCreate(BaseModel):
     code: str
     type: str
+    max_usage: int
 
 class PromocodeUsageCreate(BaseModel):
     user_id: int

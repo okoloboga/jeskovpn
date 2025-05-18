@@ -486,12 +486,60 @@ async def get_promocodes(
             "code": promocode.code,
             "type": promocode.type,
             "usage_count": usage_count,
+            "max_usage": promocode.max_usage,
             "is_active": promocode.is_active,
             "created_at": promocode.created_at.strftime("%Y-%m-%d %H:%M")
         })
     
     logger.info(f"Returning {len(result)} promocodes")
     return result
+
+@router.post("/promocodes")
+async def create_promocode(
+    promocode: PromocodeCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Creating promocode: code={promocode.code}, type={promocode.type}, max_usage={promocode.max_usage}")
+    
+    # Валидация code
+    if not re.match(r"^[a-zA-Z0-9]+$", promocode.code):
+        logger.error(f"Invalid promocode format: {promocode.code}")
+        raise HTTPException(status_code=400, detail="Код должен содержать только буквы и цифры")
+    
+    # Валидация type
+    valid_types = [
+        "device", "combo_5", "combo_10",
+        *[f"balance_{amount}" for amount in range(1, 10001)]
+    ]
+    if promocode.type not in valid_types:
+        logger.error(f"Invalid promocode type: {promocode.type}")
+        raise HTTPException(status_code=400, detail="Недопустимый тип промокода")
+    
+    # Валидация max_usage
+    if promocode.max_usage < 0:
+        logger.error(f"Invalid max_usage: {promocode.max_usage}")
+        raise HTTPException(status_code=400, detail="Максимальное количество использований должно быть >= 0")
+    
+    # Проверка уникальности
+    if db.query(Promocode).filter(Promocode.code == promocode.code).first():
+        logger.error(f"Promocode already exists: {promocode.code}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Промокод с кодом '{promocode.code}' уже существует"
+        )
+    
+    new_promocode = Promocode(
+        code=promocode.code,
+        type=promocode.type,
+        is_active=True,
+        max_usage=promocode.max_usage
+    )
+    db.add(new_promocode)
+    db.commit()
+    
+    logger.info(f"Promocode created: {promocode.code}")
+    return {"status": "success", "code": promocode.code}
 
 @router.post("/promocodes/usage")
 async def log_promocode_usage(
@@ -518,78 +566,58 @@ async def log_promocode_usage(
         logger.error(f"Promocode already used by user: {usage.promocode_code}, user_id={usage.user_id}")
         raise HTTPException(status_code=400, detail="Promocode already used")
     
+    # Проверяем ограничение max_usage
+    if promocode.max_usage > 0:
+        usage_count = db.query(PromocodeUsage).filter(
+            PromocodeUsage.promocode_code == promocode.code
+        ).count()
+        if usage_count >= promocode.max_usage:
+            promocode.is_active = False
+            db.commit()
+            logger.info(f"Promocode deactivated: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
+            raise HTTPException(status_code=400, detail="Промокод достиг максимального количества использований")
+    
     new_usage = PromocodeUsage(
         user_id=usage.user_id,
         promocode_code=usage.promocode_code
     )
     db.add(new_usage)
+    
+    # Проверяем, нужно ли деактивировать после добавления
+    if promocode.max_usage > 0:
+        usage_count = db.query(PromocodeUsage).filter(
+            PromocodeUsage.promocode_code == promocode.code
+        ).count()
+        if usage_count >= promocode.max_usage:
+            promocode.is_active = False
+            db.commit()
+            logger.info(f"Promocode deactivated: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
+            # Уведомление админов будет отправлено из handlers/devices.py
+    
     db.commit()
     
     logger.info(f"Promocode usage logged: user_id={usage.user_id}, code={usage.promocode_code}")
     return {"status": "success"}
 
-@router.post("/promocodes")
-async def create_promocode(
-    promocode: PromocodeCreate,
-    db: Session = Depends(get_db),
-    api_key: str = Depends(get_api_key)
-):
-    logger.info(f"Creating promocode: code={promocode.code}, type={promocode.type}")
-    
-    # Валидация code
-    if not re.match(r"^[a-zA-Z0-9]+$", promocode.code):
-        logger.error(f"Invalid promocode format: {promocode.code}")
-        raise HTTPException(status_code=400, detail="Code must contain only letters and digits")
-    
-    # Валидация type
-    valid_types = [
-        "device_promo", "combo_5", "combo_10",
-        *[f"balance_{amount}" for amount in range(1, 10001)]  # Предполагаем разумный диапазон
-    ]
-    if promocode.type not in valid_types:
-        logger.error(f"Invalid promocode type: {promocode.type}")
-        raise HTTPException(status_code=400, detail="Invalid promocode type")
-    
-    # Проверка уникальности
-    if db.query(Promocode).filter(Promocode.code == promocode.code).first():
-        logger.error(f"Promocode already exists: {promocode.code}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Промокод с кодом '{promocode.code}' уже существует"
-        )
-
-    new_promocode = Promocode(
-        code=promocode.code,
-        type=promocode.type,
-        is_active=True
-    )
-    db.add(new_promocode)
-    db.commit()
-    
-    logger.info(f"Promocode created: {promocode.code}")
-    return {"status": "success", "code": promocode.code}
-
-@router.patch("/promocodes/{code}")
-async def deactivate_promocode(
+@router.delete("/promocodes/{code}")
+async def delete_promocode(
     code: str,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Deactivating promocode: {code}")
+    logger.info(f"Deleting promocode: {code}")
     
     promocode = db.query(Promocode).filter(Promocode.code == code).first()
     if not promocode:
         logger.error(f"Promocode not found: {code}")
         raise HTTPException(status_code=404, detail="Promocode not found")
     
-    if not promocode.is_active:
-        logger.error(f"Promocode already deactivated: {code}")
-        raise HTTPException(status_code=400, detail="Promocode already deactivated")
+    usage_count = db.query(PromocodeUsage).filter(
+        PromocodeUsage.promocode_code == code
+    ).count()
     
-    promocode.is_active = False
+    db.delete(promocode)  # Удаляет промокод и связанные promocode_usages (ON DELETE CASCADE)
     db.commit()
     
-    logger.info(f"Promocode deactivated: {code}")
-    return {"status": "success", "code": code}
-
-
+    logger.info(f"Promocode deleted: {code}, removed {usage_count} promocode_usages")
+    return {"status": "success", "usage_count": usage_count}

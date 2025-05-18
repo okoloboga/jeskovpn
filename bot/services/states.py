@@ -25,4 +25,5 @@ class AdminAuthStates(StatesGroup):
     add_balance = State()
     add_promo_code = State()
     add_promo_type = State()
+    add_promo_max_usage = State()
     search_users = State()

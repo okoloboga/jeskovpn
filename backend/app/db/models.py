@@ -112,6 +112,7 @@ class Promocode(Base):
     type = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    max_usage = Column(Integer, default=0, nullable=False)
 
 class PromocodeUsage(Base):
     __tablename__ = "promocode_usages"

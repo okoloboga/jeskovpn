@@ -734,22 +734,38 @@ async def admin_add_promocode_code(message: Message, state: FSMContext):
 
 @admin_router.message(AdminAuthStates.add_promo_type)
 async def admin_add_promocode_type(message: Message, state: FSMContext):
-    type_ = message.text.strip().lower()
+    type_ = message.text.strip()
     valid_types = [
-        "device_promo", "combo_5", "combo_10",
+        "device", "combo_5", "combo_10",
         *[f"balance_{amount}" for amount in range(1, 10001)]
     ]
     if type_ not in valid_types:
         await message.answer("Недопустимый тип промокода. Попробуйте снова:")
         return
     
+    await state.update_data(type=type_)
+    await message.answer("Введите максимальное количество использований (0 = без ограничений):")
+    await state.set_state(AdminAuthStates.add_promo_max_usage)
+
+@admin_router.message(AdminAuthStates.add_promo_max_usage)
+async def admin_add_promocode_max_usage(message: Message, state: FSMContext):
+    try:
+        max_usage = int(message.text.strip())
+        if max_usage < 0:
+            await message.answer("Максимальное количество использований должно быть >= 0. Попробуйте снова:")
+            return
+    except ValueError:
+        await message.answer("Введите число >= 0. Попробуйте снова:")
+        return
+    
     data = await state.get_data()
     code = data["code"]
+    type_ = data["type"]
     
-    result = await admin_req.create_promocode(code, type_)
+    result = await admin_req.create_promocode(code, type_, max_usage)
     if result["success"]:
         await message.answer(f"Промокод {code} создан.")
-        admin_logger.info(f"Admin {message.from_user.id} created promocode {code} with type {type_}")
+        admin_logger.info(f"Admin {message.from_user.id} created promocode {code} with type {type_}, max_usage {max_usage}")
         
         # Показываем обновлённый список
         promocodes = await admin_req.get_promocodes(skip=0, limit=20)
@@ -774,7 +790,7 @@ async def admin_add_promocode_type(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
         admin_logger.error(f"Admin {message.from_user.id} failed to create promocode {code}: {error_msg}")
-        await state.set_state(AdminAuthStates.add_promo_code)  # Возвращаемся к вводу кода
+        await state.set_state(AdminAuthStates.add_promo_code)
         return
     
     await state.clear()
@@ -784,21 +800,24 @@ async def admin_promocode_profile(callback: CallbackQuery):
     code = callback.data.split("_")[-1]
     promocodes = await admin_req.get_promocodes(code=code)
     if not promocodes:
-        await callback.message.edit_text("Промокод не найден.")
+        await callback.message.edit_text("Промокод не найден.", parse_mode="HTML")
         await callback.answer()
         return
     
     promocode = promocodes[0]
+    is_active = "🟢 Активен" if promocode["is_active"] else "🔴 Неактивен"
+    usage_text = f"{promocode['usage_count']}/∞" if promocode["max_usage"] == 0 else f"{promocode['usage_count']}/{promocode['max_usage']}"
     text = (
-        f"🎟 Промокод: {promocode['code']}\n"
-        f"\n📋 Тип: {promocode['type']}\n"
-        f"\n📊 Использований: {promocode['usage_count']}\n"
-        f"\n🔄 Статус: {'Активен' if promocode['is_active'] else 'Деактивирован'}\n"
-        f"\n📅 Создан: {promocode['created_at']}\n"
+        f"<b>🎟 Промокод:</b> {promocode['code']}\n"
+        f"<b>📋 Тип:</b> {promocode['type']}\n"
+        f"<b>🔄 Статус:</b> {is_active}\n"
+        f"<b>📊 Использований:</b> {usage_text}\n"
+        f"<b>📅 Создан:</b> {promocode['created_at']}"
     )
+    
     await callback.message.edit_text(
         text,
-        reply_markup=admin_kb.promocode_profile_kb(code, promocode['is_active']),
+        reply_markup=admin_kb.promocode_profile_kb(code, promocode),
         parse_mode="HTML"
     )
     admin_logger.info(f"Admin {callback.from_user.id} viewed promocode {code}")
@@ -807,29 +826,24 @@ async def admin_promocode_profile(callback: CallbackQuery):
 @admin_router.callback_query(F.data.startswith("admin_deactivate_promocode_"))
 async def admin_deactivate_promocode(callback: CallbackQuery):
     code = callback.data.split("_")[-1]
-    success = await admin_req.deactivate_promocode(code)
-    if success:
-        await callback.message.answer(f"Промокод {code} деактивирован.")
-        admin_logger.info(f"Admin {callback.from_user.id} deactivated promocode {code}")
-        
-        # Обновляем профиль промокода
-        promocodes = await admin_req.get_promocodes(code=code)
-        if promocodes:
-            promocode = promocodes[0]
-            text = (
-                f"🎟 Промокод: {promocode['code']}\n"
-                f"\n📋 Тип: {promocode['type']}\n"
-                f"\n📊 Использований: {promocode['usage_count']}\n"
-                f"\n🔄 Статус: {'Активен' if promocode['is_active'] else 'Деактивирован'}\n"
-                f"\n📅 Создан: {promocode['created_at']}\n"
-            )
-            await callback.message.edit_text(
-                text,
-                reply_markup=admin_kb.promocode_profile_kb(code, promocode['is_active']),
-                parse_mode="HTML"
-            )
+    result = await admin_req.delete_promocode(code)
+    
+    if result["success"]:
+        usage_count = result["usage_count"]
+        await callback.message.edit_text(
+            f"Промокод <b>{code}</b> удалён.",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Назад", callback_data="admin_promocodes_list")
+            ]])
+        )
+        admin_logger.info(f"Admin {callback.from_user.id} deleted promocode {code}")
+        admin_logger.info(f"Deleted {usage_count} promocode_usages for promocode {code}")
     else:
-        await callback.message.answer(f"Ошибка деактивации промокода {code}.")
-        admin_logger.error(f"Admin {callback.from_user.id} failed to deactivate promocode {code}")
+        await callback.message.edit_text(
+            f"Ошибка удаления промокода: {result['error']}",
+            parse_mode="HTML"
+        )
+        admin_logger.error(f"Admin {callback.from_user.id} failed to delete promocode {code}: {result['error']}")
     
     await callback.answer()

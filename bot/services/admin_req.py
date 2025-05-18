@@ -285,10 +285,10 @@ async def get_promocodes(skip: int = 0, limit: int = 20, code: Optional[str] = N
             logger.error(f"get_promocodes: {e}")
             return []
 
-async def create_promocode(code: str, type: str) -> dict:
+async def create_promocode(code: str, type: str, max_usage: int) -> dict:
     """POST /admin/promocodes"""
     url = f"{BASE_URL}/admin/promocodes"
-    payload = {"code": code, "type": type}
+    payload = {"code": code, "type": type, "max_usage": max_usage}
     logger.debug(f"Sending POST request to {url} with payload: {payload}")
     async with aiohttp.ClientSession() as session:
         try:
@@ -304,20 +304,23 @@ async def create_promocode(code: str, type: str) -> dict:
             logger.error(f"create_promocode {code}: {e}")
             return {"success": False, "error": str(e)}
 
-async def deactivate_promocode(code: str) -> bool:
-    """PATCH /admin/promocodes/{code}"""
+async def delete_promocode(code: str) -> dict:
     url = f"{BASE_URL}/admin/promocodes/{code}"
+    logger.debug(f"Sending DELETE request to {url}")
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.patch(url, headers=HEADERS) as response:
-                if response.status in (200, 201):
-                    logger.debug(f"Promocode deactivated: {code}")
-                    return True
-                logger.error(f"Failed to deactivate promocode {code}: status {response.status}")
-                return False
+            async with session.delete(url, headers=HEADERS) as response:
+                if response.status in (200, 204):
+                    response_json = await response.json()
+                    logger.debug(f"Promocode deleted: {code}")
+                    return {"success": True, "usage_count": response_json.get("usage_count", 0)}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to delete promocode {code}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
         except Exception as e:
-            logger.error(f"deactivate_promocode {code}: {e}")
-            return False
+            logger.error(f"delete_promocode {code}: {e}")
+            return {"success": False, "error": str(e)}
 
 async def log_promocode_usage(user_id: int, code: str) -> bool:
     """POST /promocodes/usage"""
