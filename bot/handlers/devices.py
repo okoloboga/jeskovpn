@@ -815,8 +815,6 @@ async def process_promo_code(
         await message.answer(text=i18n.error.unexpected())
         return
 
-
-
     # Обрабатываем ответ в зависимости от типа
     if promo_type.startswith("balance_"):
         await message.answer(

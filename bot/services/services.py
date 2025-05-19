@@ -87,9 +87,9 @@ async def get_user_data(user_id: int) -> Optional[dict]:
         
         # Form subscription in updated format
         subscription = {
-            "device": {"devices": {}, "duration": 0},
-            "router": {"devices": {}, "duration": 0},
-            "combo": {"devices": {}, "routers": {}, "duration": 0, "type": 0}
+            "device": {"devices": {}, "duration": 0, "paused_at": None},
+            "router": {"devices": {}, "duration": 0, "paused_at": None},
+            "combo": {"devices": {}, "routers": {}, "duration": 0, "type": 0, "paused_at": None}
         }
         
         # Populate devices
@@ -111,22 +111,32 @@ async def get_user_data(user_id: int) -> Optional[dict]:
             # Fallback: treat all combo devices as non-routers
             # subscription["combo"]["devices"][device["device_name"]] = device["device_type"]
 
-        # logger.info(f'GET subscriptions: {subscriptions}')
-        # logger.info(f'GET devices: {devices}')
-
+        # Determine if all subscriptions are paused
+        paused = True
+        if subscriptions:  # If there are subscriptions
+            for sub in subscriptions:
+                if sub["paused_at"] is None:
+                    paused = False
+                    break
+        # Else, subscriptions is empty, so paused remains True
+        
         # Populate durations and combo type
         for sub in subscriptions:
             if sub["type"] == "device":
                 subscription["device"]["duration"] = sub["remaining_days"]
+                subscription["device"]["paused_at"] = sub["paused_at"]
             elif sub["type"] == "router":
                 subscription["router"]["duration"] = sub["remaining_days"]
+                subscription["router"]["paused_at"] = sub["paused_at"]
             elif sub["type"] == "combo":
                 subscription["combo"]["duration"] = sub["remaining_days"]
                 subscription["combo"]["type"] = sub["combo_size"]
+                subscription["combo"]["paused_at"] = sub["paused_at"]
         
         return {
             "balance": user["balance"],
-            "subscription": subscription
+            "subscription": subscription,
+            "paused": paused
         }
     except Exception as e:
         logger.error(f"Failed to fetch user {user_id}: {e}")
@@ -144,7 +154,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
     """
     user = await get_user_data(user_id)
     
-    # logger.info(f'USER: {user}')
+    # logger.info(f'\n\nUSER: {user}\n\n')
     
     if user is None:
         return None
@@ -163,12 +173,19 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         # Get monthly price from subscriptions
         subscriptions = await payment_req.get_subscriptions(user_id) or []
 
+        # logger.info(f'\n\nSUBSCRIPTIONS: {subscriptions}\n\n')
         # logger.info(f'combo_routers: {combo_routers}; combo_list: {combo_list}')
 
         month_price = 0.0
+        active_remaining_days = []
         for sub in subscriptions:
-            month_price += float(sub["monthly_price"])
+            logger.info(f'\n\n{sub}')
+            if sub["paused_at"] is None:
+                month_price += float(sub["monthly_price"])
+                active_remaining_days.append(sub["remaining_days"])
         
+        days_left = max(active_remaining_days) if active_remaining_days else 0
+
         devices_len = len(devices_list) if devices_list is not None else 0
         routers_len = len(routers_list) if routers_list is not None else 0
         combo_len = len(combo_list) if combo_list is not None else 0
@@ -193,7 +210,8 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
             'devices_list': all_list,
             'durations': durations,
             'is_subscribed': is_subscribed,
-            'active_subscriptions': active_subscriptions
+            'active_subscriptions': active_subscriptions,
+            'days_left': days_left
             }
         
         return result

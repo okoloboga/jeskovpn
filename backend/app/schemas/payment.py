@@ -35,6 +35,7 @@ class SubscriptionResponse(BaseModel):
     remaining_days: int
     monthly_price: float
     device_type: List[str]
+    paused_at: Optional[datetime]
 
 class InvoiceBase(BaseModel):
     user_id: int

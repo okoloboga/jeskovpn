@@ -69,11 +69,12 @@ async def balance_button_handler(
                 )
 
         inline_keyboard = payment_kb.add_balance_kb(i18n)
-        days_left = user_info.get('durations', (0, 0, 0))        
+        paused = user_data.get("paused", True)
+        days_left = max(user_info.get("durations", (0, 0, 0))) if paused == False else 0
         is_subscribed = user_info.get('is_subscribed', False)
         text_head = i18n.balance.menu(
                         balance=balance, 
-                        days=max(days_left)
+                        days=days_left
                     )
         text_tail = i18n.balance.advice()
 
@@ -82,7 +83,7 @@ async def balance_button_handler(
                 i18n=i18n,
                 is_subscribed=is_subscribed,
                 balance=balance,
-                days_left=max(days_left)
+                days_left=days_left
                 ))
             await event.message.answer(text=text_tail, reply_markup=inline_keyboard)
         else:
@@ -90,7 +91,7 @@ async def balance_button_handler(
                 i18n=i18n,
                 is_subscribed=is_subscribed,
                 balance=balance,
-                days_left=max(days_left)
+                days_left=days_left
                 ))
             await event.answer(text=text_tail, reply_markup=inline_keyboard)
 

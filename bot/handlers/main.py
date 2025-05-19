@@ -94,7 +94,8 @@ async def command_start_getter(
         else:
             # month_price = user_info.get('month_price', 0)
             balance = user_data.get("balance", 0)
-            days_left = user_info.get("durations", (0, 0, 0))
+            paused = user_data.get("paused", True)
+            days_left = user_info.get("days_left", 0)
             active_subscriptions = user_info.get('active_subscriptions', {})
             is_subscribed = user_info.get('is_subscribed', False)
         
@@ -118,7 +119,7 @@ async def command_start_getter(
                     i18n=i18n,
                     is_subscribed=is_subscribed,
                     balance=balance,
-                    days_left=max(days_left)
+                    days_left=days_left
                 )
             )
             keyboard_inline = main_kb.connect_vpn_inline_kb(i18n)
@@ -179,7 +180,8 @@ async def main_menu_handler(
 
         # month_price = user_info.get('month_price')
         balance = user_data.get("balance", 0)
-        days_left = user_info.get("durations", (0, 0, 0))
+        paused = user_data.get("paused", True)
+        days_left = user_info.get("days_left", 0)
         # logger.info(f'days_left: {days_left}; days_left_max: {max(days_left)}')
         active_subscriptions = user_info.get("active_subscriptions", {})
         is_subscribed = user_info.get('is_subscribed', False)
@@ -187,7 +189,7 @@ async def main_menu_handler(
             i18n=i18n,
             is_subscribed=is_subscribed,
             balance=balance,
-            days_left=max(days_left)
+            days_left=days_left
         )
 
         keyboard_inline=main_kb.connect_vpn_inline_kb(i18n)

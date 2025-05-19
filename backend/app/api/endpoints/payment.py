@@ -190,8 +190,8 @@ async def process_balance_payment(
         ).order_by(Subscription.end_date.desc()).first()
         
         start_date = current_time
-        if last_subscription and last_subscription.end_date > current_time:
-            start_date = last_subscription.end_date
+        # if last_subscription and last_subscription.end_date > current_time:
+        #    start_date = last_subscription.end_date
         
         subscription = Subscription(
             user_id=payment.user_id,
@@ -199,7 +199,8 @@ async def process_balance_payment(
             combo_size=0,
             start_date=start_date,
             end_date=start_date + timedelta(days=duration_days),
-            is_active=True
+            is_active=True,
+            paused_at=start_date
         )
         db.add(subscription)
     
@@ -227,12 +228,11 @@ async def get_subscriptions(
 
     result = []
     for sub in subscriptions:
-
         # Calculate remaining days
         remaining_days_raw = sub.end_date - current_time
         remaining_days = int(remaining_days_raw.days)
 
-        # Calculate monthly price from Payment history
+        # Find the latest payment for this subscription
         payment_filter = [
             Payment.user_id == user_id,
             Payment.device_type == sub.type,
@@ -241,12 +241,12 @@ async def get_subscriptions(
         if sub.type == "combo":
             payment_filter.append(Payment.device == str(sub.combo_size))
         
-        payments = db.query(Payment).filter(*payment_filter).all()
+        payment = db.query(Payment).filter(*payment_filter).order_by(Payment.created_at.desc()).first()
 
         monthly_price = 0.0
-        for payment in payments:
-            if payment.period > 0:
-                monthly_price += payment.amount / payment.period
+        if payment and payment.period > 0:
+            monthly_price = payment.amount / payment.period
+            logger.info(f"Payment found for sub_id={sub.id}, type={sub.type}, monthly_price={monthly_price}")
 
         # Fetch associated devices
         devices = db.query(Device).filter(
@@ -264,7 +264,8 @@ async def get_subscriptions(
             "combo_size": sub.combo_size,
             "remaining_days": remaining_days,
             "monthly_price": round(monthly_price, 2),
-            "device_type": device_types
+            "device_type": device_types,
+            "paused_at": sub.paused_at
         })
     
     logger.info(f"Returning {len(result)} active subscriptions for user_id={user_id}")

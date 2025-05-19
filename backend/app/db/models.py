@@ -59,6 +59,7 @@ class Subscription(Base):
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
     is_active = Column(Boolean, default=True, index=True)
+    paused_at = Column(DateTime(timezone=True), nullable=True)
     
     __table_args__ = (
         {"comment": "Stores user subscriptions with start and end dates"},

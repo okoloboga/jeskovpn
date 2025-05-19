@@ -1,8 +1,7 @@
-from sys import builtin_module_names
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 import copy
 
@@ -23,7 +22,7 @@ async def generate_key(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ) -> dict:
-    # logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
+    logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
     
     # Check if user exists
     user = db.query(User).filter(User.user_id == device_data.user_id).first()
@@ -46,44 +45,49 @@ async def generate_key(
             detail="Device name already exists for this user"
         )
 
-    # Check if user has an active subscription
+    # Check if user has a subscription (active or paused)
     current_time = datetime.now(timezone.utc)
     combo_size = 0
     if device_data.slot == "combo":
-        # Find active combo subscription
+        # Find combo subscription (active or paused)
         subscription = db.query(Subscription).filter(
             Subscription.user_id == device_data.user_id,
             Subscription.type == "combo",
-            Subscription.end_date > current_time,
             Subscription.is_active == True
         ).first()
         
         if subscription:
             combo_size = subscription.combo_size
         else:
-            # Find last non-active subscription
+            # Find last non-active subscription for default combo_size
             last_subscription = db.query(Subscription).filter(
                 Subscription.user_id == device_data.user_id,
                 Subscription.type == "combo"
             ).order_by(Subscription.end_date.desc()).first()
-            combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5 if no previous subscription
+            combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5
     else:
-        # For device or router, combo_size remains 0
+        # For device or router
         subscription = db.query(Subscription).filter(
             Subscription.user_id == device_data.user_id,
             Subscription.type == device_data.slot,
             Subscription.combo_size == combo_size,
-            Subscription.end_date > current_time,
             Subscription.is_active == True
         ).first()
-
-
+    
     if not subscription:
-        logger.error(f"No active subscription for user {device_data.user_id} and slot {device_data.slot}")
+        logger.error(f"No subscription for user {device_data.user_id} and slot {device_data.slot}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No active subscription"
+            detail="No subscription"
         )
+    
+    # Resume subscription if paused
+    if subscription.paused_at:
+        logger.info(f"Resuming paused subscription for user_id={device_data.user_id}, type={device_data.slot}")
+        remaining_days = (subscription.end_date - subscription.paused_at).days
+        subscription.end_date = current_time + timedelta(days=remaining_days)
+        subscription.paused_at = None
+        db.add(subscription)
     
     # Get Outline API configuration
     config = get_app_config()
@@ -92,8 +96,7 @@ async def generate_key(
 
     # Generate VPN key using Outline API
     vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
-    # vpn_key, outline_key_id = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpGT3Y4dlV6NWFVZUNyUk1uN0hBeEtZ@31.128.48.13:26247/?outline=1', '1'
-    logger.info(f'access key: {vpn_key}; key_id: {outline_key_id}')
+    logger.info(f"Access key: {vpn_key}; key_id: {outline_key_id}")
 
     # Create device record
     db_device = Device(
@@ -105,7 +108,7 @@ async def generate_key(
         outline_key_id=outline_key_id,
         start_date=subscription.start_date,
         end_date=subscription.end_date,
-        created_at=datetime.now(timezone.utc)
+        created_at=current_time
     )
     
     db.add(db_device)
@@ -250,9 +253,31 @@ async def remove_key(
     else:
         logger.warning(f"No outline_key_id for device {device_data.device_name}, skipping Outline API call")
     
-    # Delete device record
+    # Delete device record and commit to database
     db.delete(device)
     db.commit()
+    
+    # Check if there are any devices left for the subscription type
+    remaining_devices = db.query(Device).filter(
+        Device.user_id == device_data.user_id,
+        Device.device == device.device
+    ).count()
+
+    logger.info(f"REMAINING_DEVICES: {remaining_devices}")
+    
+    if remaining_devices == 0:
+        # Find the corresponding subscription
+        subscription = db.query(Subscription).filter(
+            Subscription.user_id == device_data.user_id,
+            Subscription.type == device.device,
+            Subscription.is_active == True
+        ).first()
+        
+        if subscription:
+            logger.info(f"No devices left for user_id={device_data.user_id}, type={device.device}. Pausing subscription.")
+            subscription.paused_at = datetime.now(timezone.utc)
+            db.add(subscription)
+            db.commit()  # Commit subscription changes
     
     logger.info(f"Device removed successfully: user_id={device_data.user_id}, device_name={device_data.device_name}")
     return {"status": "Device removed"}
