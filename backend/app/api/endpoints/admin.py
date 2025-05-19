@@ -572,9 +572,9 @@ async def log_promocode_usage(
             PromocodeUsage.promocode_code == promocode.code
         ).count()
         if usage_count >= promocode.max_usage:
-            promocode.is_active = False
+            db.delete(promocode)
             db.commit()
-            logger.info(f"Promocode deactivated: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
+            logger.info(f"Promocode deleted: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
             raise HTTPException(status_code=400, detail="Промокод достиг максимального количества использований")
     
     new_usage = PromocodeUsage(
@@ -582,6 +582,7 @@ async def log_promocode_usage(
         promocode_code=usage.promocode_code
     )
     db.add(new_usage)
+    db.commit()
     
     # Проверяем, нужно ли деактивировать после добавления
     if promocode.max_usage > 0:
@@ -589,12 +590,10 @@ async def log_promocode_usage(
             PromocodeUsage.promocode_code == promocode.code
         ).count()
         if usage_count >= promocode.max_usage:
-            promocode.is_active = False
+            db.delete(promocode)
             db.commit()
-            logger.info(f"Promocode deactivated: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
+            logger.info(f"Promocode deleted: {promocode.code}, max_usage reached ({usage_count}/{promocode.max_usage})")
             # Уведомление админов будет отправлено из handlers/devices.py
-    
-    db.commit()
     
     logger.info(f"Promocode usage logged: user_id={usage.user_id}, code={usage.promocode_code}")
     return {"status": "success"}

@@ -823,7 +823,7 @@ async def process_promo_code(
         )
         await state.clear()
     elif promo_type == "device_promo":
-        await state.set_state(DevicesSG.device_name)
+        # await state.set_state(DevicesSG.device_name)
         await message.answer(
             i18n.subscription.success.promo(),
             reply_markup=main_kb.back_inline_kb(i18n)
@@ -834,4 +834,4 @@ async def process_promo_code(
             i18n.buy.subscription.success.combo(),
             reply_markup=main_kb.back_inline_kb(i18n)
         )
-        await state.clear()
+    await state.clear()
