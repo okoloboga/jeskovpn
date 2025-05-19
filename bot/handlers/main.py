@@ -26,6 +26,7 @@ logging.basicConfig(
 async def command_start_getter(
     message: Message,
     i18n: TranslatorRunner,
+    state: FSMContext,
     command: Command
 ) -> None:
     """
@@ -45,6 +46,7 @@ async def command_start_getter(
     first_name = message.from_user.first_name 
     last_name = message.from_user.last_name
     username = message.from_user.username
+    await state.clear()
 
     logger.info(f"Processing /start for user {user_id}, first_name: {first_name}, last_name: {last_name}, username: {username}")
     logger.info(f"Command arguments: {command.args}")

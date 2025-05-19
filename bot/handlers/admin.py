@@ -734,9 +734,9 @@ async def admin_add_promocode_code(message: Message, state: FSMContext):
 
 @admin_router.message(AdminAuthStates.add_promo_type)
 async def admin_add_promocode_type(message: Message, state: FSMContext):
-    type_ = message.text.strip()
+    type_ = message.text.strip().lower()
     valid_types = [
-        "device", "combo_5", "combo_10",
+        "device_promo", "combo_5", "combo_10",
         *[f"balance_{amount}" for amount in range(1, 10001)]
     ]
     if type_ not in valid_types:
@@ -832,10 +832,7 @@ async def admin_deactivate_promocode(callback: CallbackQuery):
         usage_count = result["usage_count"]
         await callback.message.edit_text(
             f"Промокод <b>{code}</b> удалён.",
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="🔙 Назад", callback_data="admin_promocodes_list")
-            ]])
+            parse_mode="HTML"
         )
         admin_logger.info(f"Admin {callback.from_user.id} deleted promocode {code}")
         admin_logger.info(f"Deleted {usage_count} promocode_usages for promocode {code}")

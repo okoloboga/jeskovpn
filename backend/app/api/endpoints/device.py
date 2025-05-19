@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.db.models import User, Device, Subscription
 from app.schemas.device import DeviceKeyCreate, DeviceKeyGet, DeviceKeyPut, DeviceKeyDelete, DeviceUsersResponse, UserDevicesResponse, \
                                DeviceUsersResponse, UserDevicesResponse
-from app.services.outline import create_outline_key
+from app.services.outline import create_outline_key, delete_outline_key
 from app.core.config import get_app_config
 
 router = APIRouter()
@@ -219,8 +219,8 @@ async def remove_key(
     device_data: DeviceKeyDelete,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
-) -> Any:
-    # logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
+) -> dict:
+    logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
     # Check if device exists
     device = db.query(Device).filter(
@@ -235,10 +235,24 @@ async def remove_key(
             detail="Device not found"
         )
     
+    # Get Outline API configuration
+    config = get_app_config()
+    outline_api_url = config.outline.api_url
+    outline_cert_sha256 = config.outline.cert_sha256
+
+    # Delete Outline VPN key if outline_key_id exists
+    if device.outline_key_id:
+        try:
+            await delete_outline_key(outline_api_url, outline_cert_sha256, device.outline_key_id)
+        except HTTPException as e:
+            logger.error(f"Failed to delete Outline key for device {device_data.device_name}: {e.detail}")
+            raise  # Re-raise to prevent device deletion
+    else:
+        logger.warning(f"No outline_key_id for device {device_data.device_name}, skipping Outline API call")
+    
     # Delete device record
     db.delete(device)
     db.commit()
     
-    logger.info(f"Key removed successfully: user_id={device_data.user_id}, device_name={device_data.device_name}")
+    logger.info(f"Device removed successfully: user_id={device_data.user_id}, device_name={device_data.device_name}")
     return {"status": "Device removed"}
-

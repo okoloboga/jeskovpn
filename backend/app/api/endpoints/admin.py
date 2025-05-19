@@ -509,7 +509,7 @@ async def create_promocode(
     
     # Валидация type
     valid_types = [
-        "device", "combo_5", "combo_10",
+        "device_promo", "combo_5", "combo_10",
         *[f"balance_{amount}" for amount in range(1, 10001)]
     ]
     if promocode.type not in valid_types:

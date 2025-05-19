@@ -2,8 +2,7 @@ import httpx
 import logging
 from typing import Optional, Tuple
 from fastapi import HTTPException, status
-
-logger = logging.getLogger(__name__)
+from app.core.logging import logger
 
 async def create_outline_key(api_url: str, cert_sha256: str) -> Tuple[str, str]:
     """
@@ -52,6 +51,46 @@ async def create_outline_key(api_url: str, cert_sha256: str) -> Tuple[str, str]:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"Failed to generate VPN key: {e.response.text}"
+            )
+        except httpx.RequestError as e:
+            logger.error(f"Outline API connection error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Failed to connect to Outline API"
+            )
+
+async def delete_outline_key(api_url: str, cert_sha256: str, outline_key_id: str) -> None:
+    """
+    Delete an access key using Outline Management API.
+    
+    Args:
+        api_url: Outline API URL (e.g., https://195.133.64.129:53470/IT1hLCPJJRgkP9C8aNe3gA)
+        cert_sha256: Certificate SHA256 fingerprint
+        outline_key_id: ID of the key to delete (e.g., "1")
+    
+    Raises:
+        HTTPException: If the API request fails
+    """
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    
+    async with httpx.AsyncClient(verify=False) as client:
+        try:
+            response = await client.delete(
+                f"{api_url}/access-keys/{outline_key_id}",
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            logger.info(f"Deleted Outline key: id={outline_key_id}")
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Outline API error: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to delete VPN key: {e.response.text}"
             )
         except httpx.RequestError as e:
             logger.error(f"Outline API connection error: {e}")

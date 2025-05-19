@@ -107,7 +107,6 @@ class Admin(Base):
 
 class Promocode(Base):
     __tablename__ = "promocodes"
-    
     code = Column(String(50), primary_key=True)
     type = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -116,7 +115,6 @@ class Promocode(Base):
 
 class PromocodeUsage(Base):
     __tablename__ = "promocode_usages"
-    
     user_id = Column(BigInteger, ForeignKey("users.user_id"), primary_key=True)
-    promocode_code = Column(String(50), ForeignKey("promocodes.code"), primary_key=True)
+    promocode_code = Column(String(50), ForeignKey("promocodes.code", ondelete="CASCADE"), primary_key=True)
     used_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

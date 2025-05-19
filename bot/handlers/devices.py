@@ -708,28 +708,8 @@ async def remove_device_handler(
             await callback.edit_text(text=i18n.error.user_not_found(),
                                      reply_markup=main_kb.back_inline_kb(i18n))
             return
-        devices_list = user_info.get("devices_list", ([], [], []))
-        devices, routers, combo = devices_list
-        subscriptions = user_info.get("active_subscriptions", {})
-        
-        # Create list of empty buttons, if combo is active
-        if 'combo' in subscriptions:
-            combo_type, _ = subscriptions.get('combo')
-            combo_count = len(combo)
-            empty_slots = int(combo_type) - combo_count
-            combo = (empty_slots, combo)
-        else:
-            combo = (0, [])
-
-        devices = devices + routers
-
         await callback.message.edit_text(text=i18n.device.removed(device=device),
-                                         reply_markup=devices_kb.my_devices_kb(
-                                             i18n=i18n,
-                                             devices=devices,
-                                             combo_cells=combo
-                                             )
-                                         )
+                                         reply_markup=devices_kb.back_device_kb(i18n=i18n))
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await callback.answer(text=i18n.error.unexpected())
