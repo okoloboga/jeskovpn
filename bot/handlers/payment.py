@@ -692,7 +692,7 @@ async def process_ukassa_handler(
         payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:ukassa"
 
         result = await payment_req.create_ukassa_invoice(
-            amount=10,
+            amount=amount,
             currency="RUB",
             payload=payload,
             i18n=i18n,
