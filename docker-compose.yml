@@ -18,7 +18,9 @@ services:
       options:
         max-size: "10m"  # Maximum size of log file
         max-file: "3"    # Maximum number of log files
-
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
   db:
     image: postgres:15
     environment:
@@ -65,6 +67,9 @@ services:
       options:
         max-size: "10m"  # Maximum size of log file
         max-file: "3"    # Maximum number of log files
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
 volumes:
   pgdata:
