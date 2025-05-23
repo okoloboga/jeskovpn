@@ -114,7 +114,7 @@ async def create_user(
         first_name=user.first_name,
         last_name=user.last_name,
         username=user.username,
-        balance=0.0,
+        balance=100.0,
     )
     
     db.add(db_user)

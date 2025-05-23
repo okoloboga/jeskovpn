@@ -1,9 +1,8 @@
 import logging
 import re
+import json
 
-from typing import Optional
 from aiogram import Router, F, Bot
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, InlineKeyboardButton, InlineKeyboardMarkup
 from fluentogram import TranslatorRunner
@@ -843,4 +842,132 @@ async def admin_deactivate_promocode(callback: CallbackQuery):
         )
         admin_logger.error(f"Admin {callback.from_user.id} failed to delete promocode {code}: {result['error']}")
     
+    await callback.answer()
+
+@admin_router.message(F.text == "🖥 Серверы Outline")
+async def admin_outline_servers(
+        message: Message
+) -> None:
+   
+    servers = await admin_req.get_outline_servers()
+    if not servers:
+        await message.answer(
+            "Нет серверов Outline.",
+            reply_markup=admin_kb.outline_servers_kb(servers=[])
+        )
+    else:
+        await message.answer(
+            "<b>Серверы Outline</b>",
+            parse_mode="HTML",
+            reply_markup=admin_kb.outline_servers_kb(servers)
+        )
+    
+    admin_logger.info(f"Admin {message.from_user.id} viewed outline servers")
+
+@admin_router.callback_query(F.data == "admin_add_outline_server")
+async def admin_add_outline_server(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+   
+    await callback.message.edit_text(
+        "Введите данные сервера в формате JSON:\n"
+        'Пример: {"apiUrl":"https://example.com:12345/abc","certSha256":"847B4427DCBCBA150CF28D932AE4CA017E5024FAE3B9F54095C17051320C03E4"}',
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Назад", callback_data="admin_outline_servers")
+        ]])
+    )
+    await state.set_state(AdminAuthStates.enter_json)
+    await callback.answer()
+
+@admin_router.message(AdminAuthStates.enter_json)
+async def process_outline_server_json(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        data = json.loads(message.text)
+        api_url = data.get("apiUrl")
+        cert_sha256 = data.get("certSha256")
+        
+        if not api_url or not cert_sha256:
+            await message.answer("Ошибка: JSON должен содержать apiUrl и certSha256.")
+            return
+        
+        if not re.match(r"^https?://", api_url):
+            await message.answer("Ошибка: apiUrl должен начинаться с http:// или https://.")
+            return
+        
+        if not re.match(r"^[A-F0-9]{64}$", cert_sha256):
+            await message.answer("Ошибка: certSha256 должен быть 64-символьной строкой из A-F0-9.")
+            return
+        
+        result = await admin_req.create_outline_server(api_url, cert_sha256)
+        if result["success"]:
+            await message.answer(
+                f"Сервер {api_url} добавлен."
+            )
+            admin_logger.info(f"Admin {message.from_user.id} added outline server {api_url}")
+        else:
+            await message.answer(f"Ошибка: {result['error']}")
+    except json.JSONDecodeError:
+        await message.answer("Ошибка: Неверный формат JSON.")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+    
+    await state.clear()
+
+@admin_router.callback_query(F.data.startswith("admin_delete_outline_server_"))
+async def admin_delete_outline_server(
+        callback: CallbackQuery
+) -> None:
+
+    server_id = int(callback.data.split("_")[-1])
+    result = await admin_req.delete_outline_server(server_id)
+    if result["success"]:
+        await callback.message.edit_text(
+            f"Сервер {server_id} удалён."
+        )
+        admin_logger.info(f"Admin {callback.from_user.id} deleted outline server {server_id}")
+    else:
+        await callback.message.edit_text(f"Ошибка: {result['error']}")
+    
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("admin_view_server_"))
+async def admin_view_server(
+        callback: CallbackQuery
+) -> None:
+
+    server_id = int(callback.data.split("_")[-1])
+    servers = await admin_req.get_outline_servers()
+    server = next((s for s in servers if s["id"] == server_id), None)
+    
+    if not server:
+        await callback.message.edit_text(
+            "Сервер не найден.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Назад", callback_data="admin_outline_servers")
+            ]])
+        )
+        await callback.answer()
+        return
+    
+    status = "🟢 Активен" if server["is_active"] else "🔴 Неактивен"
+    text = (
+        f"<b>Сервер {server['id']}</b>\n\n"
+        f"ID: {server['id']}\n"
+        f"URL: {server['api_url']}\n"
+        f"Ключей: {server['key_count']}/2000\n"
+        f"Статус: {status}\n"
+        f"Создан: {server['created_at']}"
+    )
+    
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=admin_kb.outline_server_menu_kb(str(server['id']))
+    )
+    
+    admin_logger.info(f"Admin {callback.from_user.id} viewed outline server {server_id}")
     await callback.answer()

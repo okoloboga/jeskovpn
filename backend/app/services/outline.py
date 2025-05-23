@@ -1,10 +1,12 @@
 import httpx
-import logging
-from typing import Optional, Tuple
+from typing import Tuple
 from fastapi import HTTPException, status
 from app.core.logging import logger
 
-async def create_outline_key(api_url: str, cert_sha256: str) -> Tuple[str, str]:
+async def create_outline_key(
+        api_url: str, 
+        cert_sha256: str
+) -> Tuple[str, str]:
     """
     Create a new access key using Outline Management API.
     
@@ -22,8 +24,7 @@ async def create_outline_key(api_url: str, cert_sha256: str) -> Tuple[str, str]:
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    
-    async with httpx.AsyncClient(verify=False) as client:  # Игнорируем SSL-проверку
+    async with httpx.AsyncClient(verify=False) as client:
         try:
             response = await client.post(
                 f"{api_url}/access-keys",

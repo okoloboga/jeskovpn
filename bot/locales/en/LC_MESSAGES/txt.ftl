@@ -278,3 +278,4 @@ error-promo-invalid_type = 🚫 Incorrect Promo type!
 error-promo-already_used = 🚫 Promo already used!
 error-promo-not_found = 🚫 Promocode not found!
 error-promo-not_active = 🚫 Promocode not active yet!
+error-no-available-servers = 🚫 Нет доступных серверов VPN!

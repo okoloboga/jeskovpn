@@ -10,8 +10,10 @@ from passlib.hash import bcrypt
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin, Promocode, PromocodeUsage
-from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate, PromocodeCreate, PromocodeUsageCreate
+from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin, Promocode, \
+        PromocodeUsage, OutlineServer
+from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate, PromocodeCreate, \
+        PromocodeUsageCreate, OutlineServerCreate
 
 router = APIRouter()
 
@@ -620,3 +622,74 @@ async def delete_promocode(
     
     logger.info(f"Promocode deleted: {code}, removed {usage_count} promocode_usages")
     return {"status": "success", "usage_count": usage_count}
+
+@router.post("/outline/servers")
+async def create_outline_server(
+    server: OutlineServerCreate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Creating outline server: {server.api_url}")
+
+    api_url_str = str(server.api_url)
+    if db.query(OutlineServer).filter(OutlineServer.api_url == api_url_str).first():
+        logger.error(f"Server already exists: {server.api_url}")
+        raise HTTPException(
+            status_code=400,
+            detail="Server with this URL already exists"
+        )
+    
+    db_server = OutlineServer(
+        api_url=str(api_url_str),
+        cert_sha256=server.cert_sha256,
+        key_count=0,
+        is_active=True
+    )
+    db.add(db_server)
+    db.commit()
+    db.refresh(db_server)
+    
+    logger.info(f"Outline server created: {api_url_str}")
+    return {"status": "success", "server_id": db_server.id}
+
+@router.get("/outline/servers")
+async def get_outline_servers(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info("Fetching outline servers")
+    
+    servers = db.query(OutlineServer).all()
+    result = [
+        {
+            "id": server.id,
+            "api_url": server.api_url,
+            "cert_sha256": server.cert_sha256,
+            "key_count": server.key_count,
+            "is_active": server.is_active,
+            "created_at": server.created_at.strftime("%Y-%m-%d %H:%M")
+        }
+        for server in servers
+    ]
+    
+    logger.info(f"Returning {len(result)} outline servers")
+    return result
+
+@router.delete("/outline/servers/{server_id}")
+async def delete_outline_server(
+    server_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Deleting outline server: {server_id}")
+    
+    server = db.query(OutlineServer).filter(OutlineServer.id == server_id).first()
+    if not server:
+        logger.error(f"Server not found: {server_id}")
+        raise HTTPException(status_code=404, detail="Server not found")
+    
+    db.delete(server)
+    db.commit()
+    
+    logger.info(f"Outline server deleted: {server_id}")
+    return {"status": "success"}

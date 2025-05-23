@@ -20,7 +20,8 @@ def admin_main_menu_kb() -> ReplyKeyboardMarkup:
             KeyboardButton(text="🔍 Поиск пользователей")
         )
         builder.row(
-            KeyboardButton(text="🎟 Промокоды")
+            KeyboardButton(text="🎟 Промокоды"),
+            KeyboardButton(text="🖥 Серверы Outline")
         )
         return builder.as_markup(
             resize_keyboard=True,
@@ -268,3 +269,32 @@ def promocode_profile_kb(code: str, is_active: bool) -> InlineKeyboardMarkup:
     except Exception as e:
         logger.error(f"Unexpected error in promocode_profile_kb: {e}")
         return InlineKeyboardMarkup()
+
+def outline_servers_kb(servers: list) -> InlineKeyboardMarkup:
+
+    try:
+        builder = InlineKeyboardBuilder()
+        for server in servers:
+            text = f"ID: {server['id']}. ({server['key_count']}/2000)"
+            builder.row(
+                InlineKeyboardButton(text=text, callback_data=f"admin_view_server_{server['id']}"),
+            )
+        builder.row(InlineKeyboardButton(text="➕ Добавить сервер", callback_data="admin_add_outline_server"))
+        builder.row(InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu"))
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
+        return InlineKeyboardMarkup()
+
+def outline_server_menu_kb(server_id: str) -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"admin_delete_outline_server_{server_id}")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
+        return InlineKeyboardMarkup()
+
+

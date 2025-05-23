@@ -2,13 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any
 from datetime import datetime, timezone, timedelta
-import uuid
-import copy
+from zoneinfo import ZoneInfo
 
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import User, Device, Subscription
+from app.db.models import User, Device, Subscription, OutlineServer
 from app.schemas.device import DeviceKeyCreate, DeviceKeyGet, DeviceKeyPut, DeviceKeyDelete, DeviceUsersResponse, UserDevicesResponse, \
                                DeviceUsersResponse, UserDevicesResponse
 from app.services.outline import create_outline_key, delete_outline_key
@@ -24,7 +23,6 @@ async def generate_key(
 ) -> dict:
     logger.info(f"Generating key: user_id={device_data.user_id}, device={device_data.device}, device_name={device_data.device_name}, slot={device_data.slot}")
     
-    # Check if user exists
     user = db.query(User).filter(User.user_id == device_data.user_id).first()
     if not user:
         logger.error(f"User with ID {device_data.user_id} not found")
@@ -33,7 +31,6 @@ async def generate_key(
             detail="User not found"
         )
 
-    # Check if device name already exists
     existing_device = db.query(Device).filter(
         Device.user_id == device_data.user_id,
         Device.device_name == device_data.device_name
@@ -45,11 +42,9 @@ async def generate_key(
             detail="Device name already exists for this user"
         )
 
-    # Check if user has a subscription (active or paused)
-    current_time = datetime.now(timezone.utc)
+    current_time = datetime.now(ZoneInfo("UTC"))
     combo_size = 0
     if device_data.slot == "combo":
-        # Find combo subscription (active or paused)
         subscription = db.query(Subscription).filter(
             Subscription.user_id == device_data.user_id,
             Subscription.type == "combo",
@@ -59,14 +54,12 @@ async def generate_key(
         if subscription:
             combo_size = subscription.combo_size
         else:
-            # Find last non-active subscription for default combo_size
             last_subscription = db.query(Subscription).filter(
                 Subscription.user_id == device_data.user_id,
                 Subscription.type == "combo"
             ).order_by(Subscription.end_date.desc()).first()
-            combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5
+            combo_size = last_subscription.combo_size if last_subscription else 5
     else:
-        # For device or router
         subscription = db.query(Subscription).filter(
             Subscription.user_id == device_data.user_id,
             Subscription.type == device_data.slot,
@@ -81,31 +74,39 @@ async def generate_key(
             detail="No subscription"
         )
     
-    # Resume subscription if paused
     if subscription.paused_at:
         logger.info(f"Resuming paused subscription for user_id={device_data.user_id}, type={device_data.slot}")
         remaining_days = (subscription.end_date - subscription.paused_at).days
         subscription.end_date = current_time + timedelta(days=remaining_days)
         subscription.paused_at = None
         db.add(subscription)
-    
-    # Get Outline API configuration
-    config = get_app_config()
-    outline_api_url = config.outline.api_url
-    outline_cert_sha256 = config.outline.cert_sha256
 
-    # Generate VPN key using Outline API
-    vpn_key, outline_key_id = await create_outline_key(outline_api_url, outline_cert_sha256)
+    server = db.query(OutlineServer).filter(
+        OutlineServer.is_active == True,
+        OutlineServer.key_count < 2000
+    ).first()
+    
+    if not server:
+        logger.error("No available outline servers")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Нет доступных серверов"
+        )
+
+    vpn_key, outline_key_id = await create_outline_key(server.api_url, server.cert_sha256)
     logger.info(f"Access key: {vpn_key}; key_id: {outline_key_id}")
 
-    # Create device record
+    server.key_count += 1
+    db.add(server)
+    
     db_device = Device(
         user_id=device_data.user_id,
-        device=device_data.slot,  # Use slot as device type
+        device=device_data.slot,
         device_type=device_data.device,
         device_name=device_data.device_name,
         vpn_key=vpn_key,
         outline_key_id=outline_key_id,
+        server_id=server.id,
         start_date=subscription.start_date,
         end_date=subscription.end_date,
         created_at=current_time
@@ -225,7 +226,6 @@ async def remove_key(
 ) -> dict:
     logger.info(f"Removing key: user_id={device_data.user_id}, device_name={device_data.device_name}")
     
-    # Check if device exists
     device = db.query(Device).filter(
         Device.user_id == device_data.user_id,
         Device.device_name == device_data.device_name
@@ -238,26 +238,27 @@ async def remove_key(
             detail="Device not found"
         )
     
-    # Get Outline API configuration
-    config = get_app_config()
-    outline_api_url = config.outline.api_url
-    outline_cert_sha256 = config.outline.cert_sha256
+    if device.server_id:
+        server = db.query(OutlineServer).filter(OutlineServer.id == device.server_id).first()
+        if server and server.key_count > 0:
+            server.key_count -= 1
+            db.add(server)
+            logger.info(f"Decremented key_count for server {server.id}: {server.key_count}")
 
-    # Delete Outline VPN key if outline_key_id exists
     if device.outline_key_id:
         try:
-            await delete_outline_key(outline_api_url, outline_cert_sha256, device.outline_key_id)
+            server = db.query(OutlineServer).filter(OutlineServer.id == device.server_id).first()
+            if server:
+                await delete_outline_key(server.api_url, server.cert_sha256, device.outline_key_id)
+            else:
+                logger.warning(f"No server found for device {device_data.device_name}, skipping Outline API call")
         except HTTPException as e:
             logger.error(f"Failed to delete Outline key for device {device_data.device_name}: {e.detail}")
-            raise  # Re-raise to prevent device deletion
-    else:
-        logger.warning(f"No outline_key_id for device {device_data.device_name}, skipping Outline API call")
+            raise
     
-    # Delete device record and commit to database
     db.delete(device)
     db.commit()
     
-    # Check if there are any devices left for the subscription type
     remaining_devices = db.query(Device).filter(
         Device.user_id == device_data.user_id,
         Device.device == device.device
@@ -266,7 +267,6 @@ async def remove_key(
     logger.info(f"REMAINING_DEVICES: {remaining_devices}")
     
     if remaining_devices == 0:
-        # Find the corresponding subscription
         subscription = db.query(Subscription).filter(
             Subscription.user_id == device_data.user_id,
             Subscription.type == device.device,
@@ -275,9 +275,9 @@ async def remove_key(
         
         if subscription:
             logger.info(f"No devices left for user_id={device_data.user_id}, type={device.device}. Pausing subscription.")
-            subscription.paused_at = datetime.now(timezone.utc)
+            subscription.paused_at = datetime.now(ZoneInfo("UTC"))
             db.add(subscription)
-            db.commit()  # Commit subscription changes
+            db.commit()
     
     logger.info(f"Device removed successfully: user_id={device_data.user_id}, device_name={device_data.device_name}")
     return {"status": "Device removed"}

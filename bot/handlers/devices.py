@@ -611,7 +611,8 @@ async def fill_device_name(
         elif result == 'already_exists':
             await message.answer(text=i18n.device.name.already.exists())
         else:
-            await message.answer(text=i18n.error.unexpected())
+            await message.answer(text=i18n.error.no.available.servers())
+        await state.clear()
     except Exception as e:
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())

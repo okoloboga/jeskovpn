@@ -337,3 +337,56 @@ async def log_promocode_usage(user_id: int, code: str) -> bool:
         except Exception as e:
             logger.error(f"log_promocode_usage: user_id={user_id}, code={code}, error={e}")
             return False
+
+async def create_outline_server(api_url: str, cert_sha256: str) -> dict:
+    url = f"{BASE_URL}/admin/outline/servers"
+    payload = {"api_url": api_url, "cert_sha256": cert_sha256}
+    logger.debug(f"Sending POST request to {url} with payload: {payload}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=payload) as response:
+                if response.status in (200, 201):
+                    response_json = await response.json()
+                    logger.debug(f"Outline server created: {api_url}")
+                    return {"success": True, "server_id": response_json.get("server_id")}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to create outline server {api_url}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
+        except Exception as e:
+            logger.error(f"create_outline_server {api_url}: {e}")
+            return {"success": False, "error": str(e)}
+
+async def get_outline_servers() -> list:
+    url = f"{BASE_URL}/admin/outline/servers"
+    logger.debug(f"Sending GET request to {url}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url, headers=HEADERS) as response:
+                if response.status == 200:
+                    servers = await response.json()
+                    logger.debug(f"Retrieved {len(servers)} outline servers")
+                    return servers
+                else:
+                    logger.error(f"Failed to get outline servers: status {response.status}")
+                    return []
+        except Exception as e:
+            logger.error(f"get_outline_servers: {e}")
+            return []
+
+async def delete_outline_server(server_id: int) -> dict:
+    url = f"{BASE_URL}/admin/outline/servers/{server_id}"
+    logger.debug(f"Sending DELETE request to {url}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.delete(url, headers=HEADERS) as response:
+                if response.status in (200, 204):
+                    logger.debug(f"Outline server deleted: {server_id}")
+                    return {"success": True}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to delete outline server {server_id}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
+        except Exception as e:
+            logger.error(f"delete_outline_server {server_id}: {e}")
+            return {"success": False, "error": str(e)}

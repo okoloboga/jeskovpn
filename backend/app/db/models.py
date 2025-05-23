@@ -75,8 +75,19 @@ class Device(Base):
     device_name = Column(String)
     vpn_key = Column(String)
     outline_key_id = Column(String, nullable=True)
+    server_id = Column(Integer, ForeignKey("outline_servers.id", ondelete="SET NULL"))
     start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     end_date = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class OutlineServer(Base):
+    __tablename__ = "outline_servers"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    api_url = Column(String(255), nullable=False)
+    cert_sha256 = Column(String(64), nullable=False)
+    key_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class AdminAuth(Base):
