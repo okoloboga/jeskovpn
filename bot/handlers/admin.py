@@ -932,10 +932,7 @@ async def process_key_limit(
         result = await admin_req.create_outline_server(api_url, cert_sha256, key_limit)
         if result["success"]:
             await message.answer(
-                f"Сервер {api_url} добавлен с лимитом {key_limit} ключей.",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                    InlineKeyboardButton(text="🔙 Назад", callback_data="admin_outline_servers")
-                ]])
+                f"Сервер {api_url} добавлен с лимитом {key_limit} ключей."
             )
             admin_logger.info(f"Admin {message.from_user.id} added outline server {api_url} with key_limit {key_limit}")
         else:
