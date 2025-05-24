@@ -629,27 +629,28 @@ async def create_outline_server(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Creating outline server: {server.api_url}")
-
+    logger.info(f"Creating outline server: {server.api_url} with key_limit={server.key_limit}")
+    
     api_url_str = str(server.api_url)
     if db.query(OutlineServer).filter(OutlineServer.api_url == api_url_str).first():
-        logger.error(f"Server already exists: {server.api_url}")
+        logger.error(f"Server already exists: {api_url_str}")
         raise HTTPException(
             status_code=400,
             detail="Server with this URL already exists"
         )
     
     db_server = OutlineServer(
-        api_url=str(api_url_str),
+        api_url=api_url_str,
         cert_sha256=server.cert_sha256,
         key_count=0,
+        key_limit=server.key_limit,
         is_active=True
     )
     db.add(db_server)
     db.commit()
     db.refresh(db_server)
     
-    logger.info(f"Outline server created: {api_url_str}")
+    logger.info(f"Outline server created: {api_url_str} with key_limit={server.key_limit}")
     return {"status": "success", "server_id": db_server.id}
 
 @router.get("/outline/servers")
@@ -666,6 +667,7 @@ async def get_outline_servers(
             "api_url": server.api_url,
             "cert_sha256": server.cert_sha256,
             "key_count": server.key_count,
+            "key_limit": server.key_limit,
             "is_active": server.is_active,
             "created_at": server.created_at.strftime("%Y-%m-%d %H:%M")
         }

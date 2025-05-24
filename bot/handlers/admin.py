@@ -901,17 +901,49 @@ async def process_outline_server_json(
         if not re.match(r"^[A-F0-9]{64}$", cert_sha256):
             await message.answer("Ошибка: certSha256 должен быть 64-символьной строкой из A-F0-9.")
             return
-        
-        result = await admin_req.create_outline_server(api_url, cert_sha256)
-        if result["success"]:
-            await message.answer(
-                f"Сервер {api_url} добавлен."
-            )
-            admin_logger.info(f"Admin {message.from_user.id} added outline server {api_url}")
-        else:
-            await message.answer(f"Ошибка: {result['error']}")
+
+        await state.update_data(api_url=api_url, cert_sha256=cert_sha256)
+        await message.answer(
+            "Введите лимит ключей для сервера (целое число больше 0):",
+        )
+        admin_logger.info(f"Admin {message.from_user.id} added outline server {api_url}")
+        await state.set_state(AdminAuthStates.enter_key_limit)
+
     except json.JSONDecodeError:
         await message.answer("Ошибка: Неверный формат JSON.")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+    
+    await state.clear()
+
+@admin_router.message(AdminAuthStates.enter_key_limit)
+async def process_key_limit(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        key_limit = int(message.text)
+        if key_limit <= 0:
+            await message.answer("Ошибка: Лимит ключей должен быть больше 0.")
+            return
+        
+        state_data = await state.get_data()
+        api_url = state_data.get("api_url")
+        cert_sha256 = state_data.get("cert_sha256")
+        
+        result = await admin_req.create_outline_server(api_url, cert_sha256, key_limit)
+        if result["success"]:
+            await message.answer(
+                f"Сервер {api_url} добавлен с лимитом {key_limit} ключей.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="🔙 Назад", callback_data="admin_outline_servers")
+                ]])
+            )
+            admin_logger.info(f"Admin {message.from_user.id} added outline server {api_url} with key_limit {key_limit}")
+        else:
+            await message.answer(f"Ошибка: {result['error']}")
+    except ValueError:
+        await message.answer("Ошибка: Введите целое число.")
     except Exception as e:
         await message.answer(f"Ошибка: {str(e)}")
     
@@ -958,7 +990,7 @@ async def admin_view_server(
         f"<b>Сервер {server['id']}</b>\n\n"
         f"ID: {server['id']}\n"
         f"URL: {server['api_url']}\n"
-        f"Ключей: {server['key_count']}/2000\n"
+        f"Ключей: {server['key_count']}/{server['key_limit']}\n"
         f"Статус: {status}\n"
         f"Создан: {server['created_at']}"
     )

@@ -87,6 +87,7 @@ class OutlineServer(Base):
     api_url = Column(String(255), nullable=False)
     cert_sha256 = Column(String(64), nullable=False)
     key_count = Column(Integer, default=0)
+    key_limit = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

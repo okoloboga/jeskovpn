@@ -23,11 +23,13 @@ class PromocodeUsageCreate(BaseModel):
 class OutlineServerCreate(BaseModel):
     api_url: HttpUrl
     cert_sha256: str = Field(..., pattern=r"^[A-F0-9]{64}$")
+    key_limit: int = Field(..., gt=0)
 
 class OutlineServerResponse(BaseModel):
     id: int
     api_url: str
     cert_sha256: str
     key_count: int
+    key_limit: int
     is_active: bool
     created_at: str

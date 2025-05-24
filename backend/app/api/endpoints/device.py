@@ -83,7 +83,7 @@ async def generate_key(
 
     server = db.query(OutlineServer).filter(
         OutlineServer.is_active == True,
-        OutlineServer.key_count < 2000
+        OutlineServer.key_count < OutlineServer.key_limit
     ).first()
     
     if not server:

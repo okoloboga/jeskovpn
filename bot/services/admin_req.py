@@ -338,9 +338,14 @@ async def log_promocode_usage(user_id: int, code: str) -> bool:
             logger.error(f"log_promocode_usage: user_id={user_id}, code={code}, error={e}")
             return False
 
-async def create_outline_server(api_url: str, cert_sha256: str) -> dict:
+async def create_outline_server(api_url: str, cert_sha256: str, key_limit: int) -> dict:
     url = f"{BASE_URL}/admin/outline/servers"
-    payload = {"api_url": api_url, "cert_sha256": cert_sha256}
+    payload = {
+            "api_url": api_url, 
+            "cert_sha256": cert_sha256,
+            "key_limit": key_limit
+            }
+
     logger.debug(f"Sending POST request to {url} with payload: {payload}")
     async with aiohttp.ClientSession() as session:
         try:

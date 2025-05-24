@@ -275,7 +275,7 @@ def outline_servers_kb(servers: list) -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
         for server in servers:
-            text = f"ID: {server['id']}. ({server['key_count']}/2000)"
+            text = f"ID: {server['id']}. ({server['key_count']}/{server['key_limit']})"
             builder.row(
                 InlineKeyboardButton(text=text, callback_data=f"admin_view_server_{server['id']}"),
             )

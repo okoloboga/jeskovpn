@@ -28,3 +28,4 @@ class AdminAuthStates(StatesGroup):
     add_promo_max_usage = State()
     search_users = State()
     enter_json = State()
+    enter_key_limit = State()
