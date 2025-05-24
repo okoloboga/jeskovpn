@@ -913,8 +913,6 @@ async def process_outline_server_json(
         await message.answer("Ошибка: Неверный формат JSON.")
     except Exception as e:
         await message.answer(f"Ошибка: {str(e)}")
-    
-    await state.clear()
 
 @admin_router.message(AdminAuthStates.enter_key_limit)
 async def process_key_limit(
