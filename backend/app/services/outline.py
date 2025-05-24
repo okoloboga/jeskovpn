@@ -26,8 +26,8 @@ async def create_outline_key(
     }
     async with httpx.AsyncClient(verify=False) as client:
         try:
-            url = "https://195.133.64.129:53470/IT1hLCPJJRgkP9C8aNe3gA/access-keys"
-            # url = f"{api_url}/access-keys"
+            # url = "https://195.133.64.129:53470/IT1hLCPJJRgkP9C8aNe3gA/access-keys"
+            url = f"{api_url}/access-keys"
             response = await client.post(
                 url,
                 headers=headers,
