@@ -297,4 +297,15 @@ def outline_server_menu_kb(server_id: str) -> InlineKeyboardMarkup:
         logger.error(f"Unexpected error in promocode_profile_kb: {e}")
         return InlineKeyboardMarkup()
 
+def broadcast_image_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+                InlineKeyboardButton(text="Пропустить", callback_data="skip_broadcast_image"),
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
+        return InlineKeyboardMarkup()
+
 

@@ -21,6 +21,7 @@ class AdminAuthStates(StatesGroup):
     waiting_for_new_password = State()
     waiting_for_password = State()
     waiting_for_broadcast_message = State()
+    waiting_for_broadcast_image = State()
     waiting_for_new_admin_id = State()
     add_balance = State()
     add_promo_code = State()

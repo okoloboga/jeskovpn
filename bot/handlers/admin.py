@@ -505,16 +505,23 @@ async def admin_finance_menu(message: Message, state: FSMContext):
     admin_logger.info(f"Admin {message.from_user.id} viewed finance summary")
 
 @admin_router.message(F.text == "📢 Рассылка")
-async def admin_broadcast_menu(message: Message, state: FSMContext):
+async def admin_broadcast_menu(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    
     await message.answer(
-        "Введите текст для рассылки:",
-        reply_markup=admin_kb.broadcast_menu_kb()
+        "Введите текст для рассылки:"
     )
     await state.set_state(AdminAuthStates.waiting_for_broadcast_message)
     admin_logger.info(f"Admin {message.from_user.id} started broadcast")
 
 @admin_router.message(AdminAuthStates.waiting_for_broadcast_message)
-async def admin_broadcast_receive_message(message: Message, state: FSMContext, bot: Bot):
+async def admin_broadcast_receive_message(
+        message: Message, 
+        state: FSMContext
+) -> None:
+
     text = message.text.strip()
     if not text:
         await message.answer("Текст не может быть пустым. Введите текст:")
@@ -523,9 +530,62 @@ async def admin_broadcast_receive_message(message: Message, state: FSMContext, b
         await message.answer("Текст слишком длинный (максимум 4096 символов). Введите короче:")
         return
     
+    await state.update_data(broadcast_text=text)
+    await message.answer(
+        "Загрузите изображение для рассылки или нажмите 'Пропустить':",
+        reply_markup=admin_kb.broadcast_image_kb()
+    )
+    await state.set_state(AdminAuthStates.waiting_for_broadcast_image)
+    admin_logger.info(f"Admin {message.from_user.id} entered broadcast text")
+
+@admin_router.message(AdminAuthStates.waiting_for_broadcast_image, F.photo)
+async def admin_broadcast_receive_image(
+        message: Message, 
+        state: FSMContext, 
+        bot: Bot
+) -> None:
+    photo = message.photo[-1]  # Берем фото с самым высоким качеством
+    state_data = await state.get_data()
+    text = state_data.get("broadcast_text")
+    
     user_ids = await admin_req.get_all_users()
     if not user_ids:
         await message.answer("Пользователи не найдены.")
+        await state.clear()
+        return
+    
+    success_count = 0
+    fail_count = 0
+    for user_id in user_ids:
+        try:
+            await bot.send_photo(
+                chat_id=user_id,
+                photo=photo.file_id,
+                caption=text
+            )
+            success_count += 1
+        except Exception as e:
+            admin_logger.error(f"Broadcast to user {user_id} failed: {e}")
+            fail_count += 1
+    
+    await message.answer(
+        f"Рассылка завершена:\n✅ Успешно: {success_count}\n❌ Неуспешно: {fail_count}"
+    )
+    admin_logger.info(f"Admin {message.from_user.id} sent broadcast with image: {success_count} success, {fail_count} failed")
+    await state.clear()
+
+@admin_router.callback_query(F.data == "skip_broadcast_image", AdminAuthStates.waiting_for_broadcast_image)
+async def admin_broadcast_skip_image(
+        callback: CallbackQuery, 
+        state: FSMContext, 
+        bot: Bot
+) -> None:
+    state_data = await state.get_data()
+    text = state_data.get("broadcast_text")
+    
+    user_ids = await admin_req.get_all_users()
+    if not user_ids:
+        await callback.message.edit_text("Пользователи не найдены.")
         await state.clear()
         return
     
@@ -539,11 +599,12 @@ async def admin_broadcast_receive_message(message: Message, state: FSMContext, b
             admin_logger.error(f"Broadcast to user {user_id} failed: {e}")
             fail_count += 1
     
-    await message.answer(
+    await callback.message.edit_text(
         f"Рассылка завершена:\n✅ Успешно: {success_count}\n❌ Неуспешно: {fail_count}"
     )
-    admin_logger.info(f"Admin {message.from_user.id} sent broadcast: {success_count} success, {fail_count} failed")
+    admin_logger.info(f"Admin {callback.from_user.id} sent broadcast without image: {success_count} success, {fail_count} failed")
     await state.clear()
+    await callback.answer()
 
 @admin_router.callback_query(F.data == "admin_broadcast_send")
 async def admin_broadcast_send(callback: CallbackQuery, state: FSMContext):
