@@ -640,7 +640,7 @@ async def create_outline_server(
         )
     
     db_server = OutlineServer(
-        api_url=api_url_str,
+        api_url=str(api_url_str),
         cert_sha256=server.cert_sha256,
         key_count=0,
         key_limit=server.key_limit,
