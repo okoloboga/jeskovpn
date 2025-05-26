@@ -50,6 +50,11 @@ main-menu-button = Go to main menu 🏠
 email-button = E-Mail @
 phone-button = Phone Number 📱
 pay-button = Pay 💵
+buy-tickets = 🎟 Buy tickets
+ticket-count1-button = 1 ticket 
+ticket-count5-button = 5 tickets
+ticket-count10-button = 10 tickets
+cancel = ❌ Cancel
 
 active-sub-head = Active subscriptions
 
@@ -254,8 +259,29 @@ ticket-menu = Tech support: 💬
 promo-success-balance = 🎉 Top-Up balance Success!
 promo-enter-code = Enter Promocode
 
+no-active-raffles = 😔 No active raffles
+raffle-info = 🎉 Raffle: { $name }
+              💰 Ticket price: { $ticket_price }
+              📅 Start date: { $start_date }
+              📅 End date: { $end_date }
+              🎟 Your tickets: { $ticket_count }
+
+enter-ticket-count = 🎟 Enter the number of tickets
+raffle-ticket-purchase = 🎫 Purchase of { $count } tickets for the raffle "{ $raffle_name }"
+invoice = 💸 Invoice created!
+         
+          🔗 [Pay]({ $invoice_url })
+          🆔 Invoice ID: { $invoice_id }
+
+forsubscription = For Subscription
+
 unknown-message = Unclear message ❓
 
+error-invalid-ticket-count = ❌ Invalid ticket count, enter a number greater than 0
+error-raffle-notfound = 😕 Raffle not found
+error-cannot-buy-tickets = 🚫 Buying tickets is not available for this raffle
+error-payment: 😔 Error creating invoice, try again later
+error: 😔 Something went wrong, try again later
 error-only-admin = 🚫 Access only for admins
 error-user_not_found = 🚫 User not found
 error-telegram_failed = 🚫 Telegram error
@@ -272,7 +298,6 @@ error-wrong-email = 🚫 Wrong E-Mail!
 error-no-number =  🚫 Phone number not provided!
 error-no-contact =  🚫 Phone number or E-Mail not provided!
 error-payment_failed = 🚫 Create payment invoice error!
-
 error-promo = 🚫 Process Promo error!
 error-promo-invalid_type = 🚫 Incorrect Promo type!
 error-promo-already_used = 🚫 Promo already used!

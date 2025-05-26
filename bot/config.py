@@ -7,7 +7,8 @@ from yaml import load, SafeLoader
 ConfigType = TypeVar("ConfigType", bound=BaseModel)
 
 class BotConfig(BaseModel):
-    token: SecretStr    
+    token: SecretStr
+    url: str
 
 class Yookassa(BaseModel):
     id: str
@@ -23,6 +24,9 @@ class Backend(BaseModel):
 class CryptoBot(BaseModel):
     url: str
     key: str
+
+class Channel(BaseModel):
+    id: str
 
 @lru_cache(maxsize=1)
 def parse_config_file() -> dict:

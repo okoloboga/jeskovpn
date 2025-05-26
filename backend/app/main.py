@@ -5,7 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import logging
 
-from app.api.endpoints import admin, user, referral, payment, device
+from app.api.endpoints import admin, user, referral, payment, device, raffles
 from app.core.security import get_api_key
 from app.core.config import get_app_config
 from app.db.base import Base
@@ -36,6 +36,7 @@ app.include_router(referral.router, prefix="/referrals", tags=["referrals"], dep
 app.include_router(payment.router, prefix="/payments", tags=["payments"], dependencies=[Depends(get_api_key)])
 app.include_router(device.router, prefix="/devices", tags=["devices"], dependencies=[Depends(get_api_key)])
 app.include_router(admin.router, prefix="/admin", tags=["admin"], dependencies=[Depends(get_api_key)])
+app.include_router(raffles.router, prefix="/raffles", tags=["raffles"], dependencies=[Depends(get_api_key)])
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler(timezone="UTC")

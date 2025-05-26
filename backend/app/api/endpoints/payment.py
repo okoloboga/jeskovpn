@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from app.core.logging import logger
 from app.core.security import get_api_key
 from app.db.session import get_db
-from app.db.models import User, Payment, Invoice, Subscription, Device
+from app.db.models import User, Payment, Invoice, Subscription, Device, Raffle, Ticket
 from app.schemas.payment import BalancePaymentCreate, InvoiceResponse, InvoiceCreate, InvoiceUpdate, SubscriptionResponse
 
 router = APIRouter()
@@ -29,11 +29,12 @@ async def process_balance_payment(
     payment: BalancePaymentCreate,
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
-) -> Any:
-    # logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, device_type={payment.device_type}, "
-    #            f"device={payment.device}, payment_type={payment.payment_type}, method={payment.method}")
+) -> dict:
+    logger.info(f"Processing balance payment: user_id={payment.user_id}, amount={payment.amount}, "
+                f"device_type={payment.device_type}, device={payment.device}, "
+                f"payment_type={payment.payment_type}, method={payment.method}")
     
-    # Check if user exists
+    # Проверка существования пользователя
     user = db.query(User).filter(User.user_id == payment.user_id).first()
     if not user:
         logger.error(f"User with ID {payment.user_id} not found")
@@ -42,7 +43,7 @@ async def process_balance_payment(
             detail="User not found"
         )
     
-    # Handle add_balance case
+    # Обработка add_balance
     if payment.payment_type == "add_balance":
         if payment.amount <= 0:
             logger.error(f"Invalid amount for add_balance: {payment.amount}")
@@ -51,10 +52,7 @@ async def process_balance_payment(
                 detail="Amount must be positive for add_balance"
             )
         
-        # Add to balance
         user.balance = (user.balance or 0) + payment.amount
-        
-        # Create payment record
         db_payment = Payment(
             user_id=payment.user_id,
             amount=payment.amount,
@@ -71,13 +69,86 @@ async def process_balance_payment(
         logger.info(f"Balance added successfully: user_id={payment.user_id}, amount={payment.amount}")
         return {"status": "Payment successful"}
     
-    # Validate price for subscription
+    # Обработка покупки билетов
+    if payment.payment_type == "ticket":
+        try:
+            raffle_id = int(payment.device)  # device содержит raffle_id
+        except ValueError:
+            logger.error(f"Invalid raffle_id: {payment.device}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid raffle_id"
+            )
+        
+        raffle = db.query(Raffle).filter(Raffle.id == raffle_id).first()
+        if not raffle or not raffle.is_active or raffle.type != "ticket":
+            logger.error(f"Invalid or inactive raffle: raffle_id={raffle_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or inactive raffle"
+            )
+        
+        # Проверяем, что сумма соответствует цене билетов
+        if raffle.ticket_price is None or raffle.ticket_price <= 0:
+            logger.error(f"Invalid ticket price for raffle: raffle_id={raffle_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ticket price"
+            )
+        
+        ticket_count = payment.amount // raffle.ticket_price
+        if ticket_count <= 0 or payment.amount % raffle.ticket_price != 0:
+            logger.error(f"Invalid amount for tickets: amount={payment.amount}, ticket_price={raffle.ticket_price}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Amount must be a multiple of ticket price"
+            )
+        
+        # Начисляем билеты
+        try:
+            db_ticket = db.query(Ticket).filter(
+                Ticket.raffle_id == raffle_id,
+                Ticket.user_id == int(payment.user_id)  # Явное приведение к int
+            ).first()
+            if db_ticket:
+                db_ticket.count += ticket_count
+            else:
+                db_ticket = Ticket(
+                    raffle_id=raffle_id,
+                    user_id=int(payment.user_id),  # Явное приведение к int
+                    count=ticket_count
+                )
+                db.add(db_ticket)
+        except Exception as e:
+            logger.error(f"Error creating/updating ticket: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error processing tickets"
+            )
+        
+        # Создаём запись платежа
+        db_payment = Payment(
+            user_id=payment.user_id,
+            amount=payment.amount,
+            period=payment.period,
+            device_type=payment.device_type,
+            device=payment.device,
+            payment_type=payment.payment_type,
+            method=payment.method,
+            status="succeeded"
+        )
+        db.add(db_payment)
+        db.commit()
+        
+        logger.info(f"Tickets purchased successfully: user_id={payment.user_id}, raffle_id={raffle_id}, count={ticket_count}")
+        return {"status": "Payment successful"}
+    
+    # Валидация цены подписки
     expected_price = 0
     combo_size = 0
     current_time = datetime.now(timezone.utc)
 
     if payment.device_type == "combo":
-        # Find active combo subscription
         subscription = db.query(Subscription).filter(
             Subscription.user_id == payment.user_id,
             Subscription.type == "combo",
@@ -88,12 +159,11 @@ async def process_balance_payment(
         if subscription:
             combo_size = subscription.combo_size
         else:
-            # Find last non-active subscription
             last_subscription = db.query(Subscription).filter(
                 Subscription.user_id == payment.user_id,
                 Subscription.type == "combo"
             ).order_by(Subscription.end_date.desc()).first()
-            combo_size = last_subscription.combo_size if last_subscription else 5  # Default to 5 if no previous subscription
+            combo_size = last_subscription.combo_size if last_subscription else 5
             combo_size = 10 if payment.device == "10" else combo_size
         try:
             expected_price = MONTH_PRICE["combo"][str(combo_size)][str(payment.period)]
@@ -120,7 +190,6 @@ async def process_balance_payment(
             detail="Amount does not match expected price"
         )
     
-    # Check balance for balance payment
     if payment.method == "balance":
         if user.balance < payment.amount:
             logger.error(f"Insufficient balance for user {payment.user_id}: {user.balance} < {payment.amount}")
@@ -130,7 +199,7 @@ async def process_balance_payment(
             )
         user.balance -= payment.amount
     
-    # Create payment record
+    # Создание записи платежа
     db_payment = Payment(
         user_id=payment.user_id,
         amount=payment.amount,
@@ -143,12 +212,11 @@ async def process_balance_payment(
     )
     db.add(db_payment)
     
-    # Update or create subscription
+    # Обновление или создание подписки
     current_time = datetime.now(timezone.utc)
-    duration_days = payment.period * 30
+    duration_days = int(payment.period) * 30
     
     if payment.device_type == "combo":
-        # For combo, extend existing subscription if it exists
         subscription = db.query(Subscription).filter(
             Subscription.user_id == payment.user_id,
             Subscription.type == "combo",
@@ -158,11 +226,9 @@ async def process_balance_payment(
         ).first()
         
         if subscription:
-            # Extend existing combo subscription
             subscription.end_date += timedelta(days=duration_days)
             subscription.is_active = True
         else:
-            # Create new combo subscription
             last_subscription = db.query(Subscription).filter(
                 Subscription.user_id == payment.user_id,
                 Subscription.type == "combo",
@@ -183,16 +249,12 @@ async def process_balance_payment(
             )
             db.add(subscription)
     else:
-        # For device or router, always create a new subscription
         last_subscription = db.query(Subscription).filter(
             Subscription.user_id == payment.user_id,
             Subscription.type == payment.device_type
         ).order_by(Subscription.end_date.desc()).first()
         
         start_date = current_time
-        # if last_subscription and last_subscription.end_date > current_time:
-        #    start_date = last_subscription.end_date
-        
         subscription = Subscription(
             user_id=payment.user_id,
             type=payment.device_type,
@@ -204,8 +266,32 @@ async def process_balance_payment(
         )
         db.add(subscription)
     
-    # Skip device synchronization until device is created
-    # Devices will be synced when added via POST /devices/key
+    # Начисление билетов для активных розыгрышей типа "subscription"
+    active_raffles = db.query(Raffle).filter(
+        Raffle.type == "subscription",
+        Raffle.is_active == True,
+        Raffle.start_date <= current_time,
+        Raffle.end_date > current_time
+    ).all()
+    
+    ticket_count = int(payment.period) if payment.device_type != "combo" else combo_size + 1
+    
+    for raffle in active_raffles:
+        if current_time >= raffle.start_date:
+            ticket = db.query(Ticket).filter(
+                Ticket.raffle_id == raffle.id,
+                Ticket.user_id == int(payment.user_id)
+            ).first()
+            if ticket:
+                ticket.count += ticket_count
+            else:
+                ticket = Ticket(
+                    raffle_id=raffle.id,
+                    user_id=int(payment.user_id),
+                    count=ticket_count
+                )
+                db.add(ticket)
+    
     db.commit()
     
     logger.info(f"Balance payment processed successfully: user_id={payment.user_id}, amount={payment.amount}")

@@ -366,7 +366,7 @@ async def poll_invoices(bot: Bot):
                         logger.info(f"Invoice {invoice_id} expired after 15 minutes")
                         await payment_req.update_invoice_status(invoice_id, "expired")
                         try:
-                            await bot.send_message(user_id, text="Ваш инвойс истек. Пожалуйста, создайте новый.")
+                            await bot.send_message(user_id, text="Ваша ссылка на оплату истекла. Пожалуйста, создайте новую.")
                             logger.info(f"Notified user {user_id} about expired invoice {invoice_id}")
                         except TelegramAPIError as e:
                             logger.error(f"Failed to notify user {user_id} for expired invoice {invoice_id}: {e}")

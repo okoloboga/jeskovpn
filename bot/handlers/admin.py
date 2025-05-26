@@ -1,22 +1,28 @@
 import logging
 import re
 import json
+import os
 
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from fluentogram import TranslatorRunner
+from datetime import datetime, timezone
 
-from services import admin_req, payment_req, AdminAuthStates
+from services import admin_req, payment_req, raffle_req, AdminAuthStates, RaffleAdminStates
 from utils.admin_auth import is_admin
 from keyboards import admin_kb
-from config import get_config, Admin
+from config import get_config, Admin, Channel, BotConfig
 
 admin_router = Router()
 admin = get_config(Admin, "admin")
-admin_id = admin.id 
+channel = get_config(Channel, "channel")
+bot_config = get_config(BotConfig, "bot")
+admin_id = admin.id
 PER_PAGE = 20
-
+CHANNEL_ID = channel.id
+BOT_URL = bot_config.url
 logger = logging.getLogger(__name__)
 admin_logger = logging.getLogger("admin_actions")
 
@@ -703,7 +709,7 @@ async def admin_cancel_add_admin(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
 
-@admin_router.message(F.text == "🔍 Поиск пользователей")
+@admin_router.message(F.text == "🔍 Поиск")
 async def admin_search_users_start(message: Message, state: FSMContext):
     await message.answer("Введите запрос для поиска (username, ID, email, имя, телефон):")
     await state.set_state(AdminAuthStates.search_users)
@@ -905,7 +911,7 @@ async def admin_deactivate_promocode(callback: CallbackQuery):
     
     await callback.answer()
 
-@admin_router.message(F.text == "🖥 Серверы Outline")
+@admin_router.message(F.text == "🖥 Серверы")
 async def admin_outline_servers(
         message: Message
 ) -> None:
@@ -1059,3 +1065,579 @@ async def admin_view_server(
     
     admin_logger.info(f"Admin {callback.from_user.id} viewed outline server {server_id}")
     await callback.answer()
+
+###########
+# RAFFLES #
+###########
+
+@admin_router.message(F.text == "🎉 Розыгрыш")
+async def raffles_menu(
+        message: Message
+) -> None:
+    await message.answer(
+        "Меню розыгрышей",
+        reply_markup=admin_kb.admin_raffle_menu_kb()
+    )
+
+@admin_router.callback_query(F.data == "admin_create_raffle")
+async def create_raffle_start(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    await callback.message.answer(
+        "Выберите тип розыгрыша",
+        reply_markup=admin_kb.raffle_type_kb()
+    )
+    await state.set_state(RaffleAdminStates.select_type)
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("raffle_type_"))
+async def process_raffle_type(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffle_type = callback.data.split("_")[-1]
+    await state.update_data(raffle_type=raffle_type)
+    await callback.message.answer("Введите название розыгрыша")
+    await state.set_state(RaffleAdminStates.enter_name)
+    await callback.answer()
+
+@admin_router.message(RaffleAdminStates.enter_name)
+async def process_raffle_name(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    await state.update_data(name=message.text)
+    data = await state.get_data()
+    if data["raffle_type"] == "ticket":
+        await message.answer("Введите цену билета (в рублях)")
+        await state.set_state(RaffleAdminStates.enter_ticket_price)
+    else:
+        await message.answer("Введите дату начала (гггг-мм-дд чч:мм, например, 2025-05-30 12:00)")
+        await state.set_state(RaffleAdminStates.enter_start_date)
+
+@admin_router.message(RaffleAdminStates.enter_ticket_price)
+async def process_ticket_price(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        ticket_price = float(message.text)
+        if ticket_price <= 0:
+            await message.answer("Цена билета должна быть больше 0")
+            return
+        await state.update_data(ticket_price=ticket_price)
+        await message.answer("Введите дату начала (гггг-мм-дд чч:мм, например, 2025-05-30 12:00)")
+        await state.set_state(RaffleAdminStates.enter_start_date)
+    except ValueError:
+        await message.answer("Некорректная цена билета, введите число")
+
+@admin_router.message(RaffleAdminStates.enter_start_date)
+async def process_start_date(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        start_date = datetime.strptime(message.text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        await state.update_data(start_date=start_date)
+        await message.answer("Введите дату окончания (гггг-мм-дд чч:мм, например, 2025-06-30 12:00)")
+        await state.set_state(RaffleAdminStates.enter_end_date)
+    except ValueError:
+        await message.answer("Некорректный формат даты, используйте гггг-мм-дд чч:мм")
+
+@admin_router.message(RaffleAdminStates.enter_end_date)
+async def process_end_date(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        end_date = datetime.strptime(message.text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        data = await state.get_data()
+        if end_date <= data["start_date"]:
+            await message.answer("Дата окончания должна быть позже даты начала")
+            return
+        await state.update_data(end_date=end_date)
+        await message.answer("Загрузите изображение для розыгрыша")
+        await state.set_state(RaffleAdminStates.upload_images)
+    except ValueError:
+        await message.answer("Некорректный формат даты, используйте гггг-мм-дд чч:мм")
+
+@admin_router.message(RaffleAdminStates.upload_images, F.photo)
+async def process_images(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    data = await state.get_data()
+    images = data.get("images", [])
+    file_id = message.photo[-1].file_id
+    file_path = f"photos/{file_id}.jpg"
+    os.makedirs("photos", exist_ok=True)
+    
+    try:
+        file = await message.bot.get_file(file_id)
+        if not file.file_path:
+            await message.answer("Ошибка: не удалось получить путь к файлу")
+            return
+        logger.info(f"File path: {file.file_path}")
+        await message.bot.download_file(file.file_path, destination=file_path)
+        images.append(file_id)
+        await state.update_data(images=images)
+        await message.answer(
+            "Изображение загружено",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Загрузить ещё", callback_data="upload_another")],
+                [InlineKeyboardButton(text="Завершить загрузку", callback_data="finish_upload")]
+            ])
+        )
+    except Exception as e:
+        logger.error(f"Error downloading image: {e}")
+        await message.answer("Ошибка при загрузке изображения")
+
+@admin_router.callback_query(F.data == "upload_another")
+async def upload_another_image(
+        callback: CallbackQuery
+) -> None:
+    await callback.message.answer("Загрузите изображение для розыгрыша")
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "finish_upload")
+async def finish_upload(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    data = await state.get_data()
+    raffle = {
+        "type": data["raffle_type"],
+        "name": data["name"],
+        "ticket_price": data.get("ticket_price"),
+        "start_date": data["start_date"].isoformat(),
+        "end_date": data["end_date"].isoformat(),
+        "images": data.get("images", [])
+    }
+    response = await raffle_req.create_raffle(raffle)
+    if response:
+        raffle_id = response["id"]
+        await callback.message.answer("Розыгрыш создан!")
+        # Отправка поста в канал
+        channel_id = CHANNEL_ID  # Заменить на реальный ID канала
+        text = f"Новый розыгрыш: {raffle['name']}"
+        await callback.message.bot.send_photo(
+            chat_id=channel_id,
+            photo=raffle["images"][0],
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Участвовать", url=BOT_URL)]
+            ])
+        )
+        await state.clear()
+    else:
+        await callback.message.answer("Ошибка при создании розыгрыша")
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_edit_raffle")
+async def edit_raffle_start(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    try:
+        raffles = await raffle_req.get_active_raffles()
+        if not raffles:
+            await callback.message.answer("Нет активных розыгрышей или произошла ошибка при их получении")
+            await callback.answer()
+            return
+        
+        builder = InlineKeyboardBuilder()
+        for raffle in raffles:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{raffle['name']} (ID: {raffle['id']})",
+                    callback_data=f"edit_raffle_{raffle['id']}"
+                )
+            )
+        builder.row(
+            InlineKeyboardButton(text="Назад", callback_data="admin_raffles")
+        )
+        await callback.message.answer("Выберите розыгрыш для редактирования", reply_markup=builder.as_markup())
+        await state.set_state(RaffleAdminStates.select_raffle)
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Error in edit_raffle_start: {e}")
+        await callback.message.answer("Произошла ошибка при получении розыгрышей")
+        await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("edit_raffle_"))
+async def select_raffle_to_edit(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffle_id = int(callback.data.split("_")[-1])
+    await state.update_data(raffle_id=raffle_id)
+    
+    try:
+        raffle = await raffle_req.get_active_raffles(raffle_id)
+        if not raffle:
+            await callback.message.answer("Ошибка: розыгрыш не найден")
+            await callback.answer()
+            return
+        
+        # Форматируем информацию о розыгрыше
+        start_date = datetime.fromisoformat(raffle["start_date"]).strftime("%Y-%m-%d %H:%M")
+        end_date = datetime.fromisoformat(raffle["end_date"]).strftime("%Y-%m-%d %H:%M")
+        ticket_price = f"{raffle['ticket_price']} руб." if raffle.get("ticket_price") else "Бесплатно"
+        is_active = "Активен" if raffle["is_active"] else "Неактивен"
+        
+        text = (
+            f"📋 Информация о розыгрыше (ID: {raffle['id']}):\n"
+            f"🏷 Название: {raffle['name']}\n"
+            f"🎟 Цена билета: {ticket_price}\n"
+            f"📅 Дата начала: {start_date}\n"
+            f"📅 Дата окончания: {end_date}\n"
+            f"🔄 Статус: {is_active}\n\n"
+            "Что хотите изменить?"
+        )
+        
+        # Создаём клавиатуру
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Название", callback_data="edit_name")],
+            [InlineKeyboardButton(text="Цена билета", callback_data="edit_ticket_price")],
+            [InlineKeyboardButton(text="Дата начала", callback_data="edit_start_date")],
+            [InlineKeyboardButton(text="Дата окончания", callback_data="edit_end_date")],
+            [InlineKeyboardButton(text="Изображения", callback_data="edit_images")],
+            [InlineKeyboardButton(text="Статус активности", callback_data="edit_is_active")]
+        ])
+        
+        # Отправляем сообщение с фото или без
+        if raffle.get("images"):
+            await callback.message.answer_photo(
+                photo=raffle["images"][0],  # Первый file_id
+                caption=text,
+                reply_markup=keyboard
+            )
+        else:
+            await callback.message.answer(
+                text=text,
+                reply_markup=keyboard
+            )
+        
+        await state.set_state(RaffleAdminStates.edit_field)
+        await callback.answer()
+    
+    except Exception as e:
+        logger.error(f"Error in select_raffle_to_edit: {e}")
+        await callback.message.answer("Произошла ошибка при получении данных розыгрыша")
+        await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("edit_"))
+async def process_edit_field(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    field = callback.data.split("_")[-1]
+    logger.debug(f"Processing edit field: {field}")
+    
+    # Маппинг для устаревших или некорректных callback_data
+    field_map = {
+        "price": "ticket_price",
+        "date": "start_date",  # По умолчанию редактируем start_date
+        "start_date": "start_date",
+        "end_date": "end_date",
+        "active": "is_active",
+        "is_active": "is_active",
+        "name": "name",
+        "images": "images"
+    }
+    
+    if field not in field_map:
+        logger.error(f"Unknown edit field: {field}")
+        await callback.message.answer("Ошибка: неизвестное поле для редактирования")
+        await callback.answer()
+        return
+    
+    field_key = field_map[field]
+    messages = {
+        "name": "Введите новое название розыгрыша",
+        "ticket_price": "Введите новую цену билета (в рублях)",
+        "start_date": "Введите новую дату начала (гггг-мм-дд чч:мм)",
+        "end_date": "Введите новую дату окончания (гггг-мм-дд чч:мм)",
+        "images": "Загрузите новое изображение",
+        "is_active": "Укажите статус активности (1 - активен, 0 - неактивен)"
+    }
+    
+    try:
+        await callback.message.answer(messages[field_key])
+        await state.update_data(edit_field=field_key)
+        await state.set_state(RaffleAdminStates.edit_field)
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Error in process_edit_field: {e}")
+        await callback.message.answer("Произошла ошибка при выборе поля")
+        await callback.answer()
+
+@admin_router.message(RaffleAdminStates.edit_field)
+async def process_edit_value(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    data = await state.get_data()
+    field = data["edit_field"]
+    raffle_id = data["raffle_id"]
+    update_data = {}
+    
+    try:
+        if field == "name":
+            update_data["name"] = message.text
+        elif field == "ticket_price":
+            ticket_price = float(message.text)
+            if ticket_price <= 0:
+                await message.answer("Цена билета должна быть больше 0")
+                return
+            update_data["ticket_price"] = ticket_price
+        elif field == "start_date":
+            start_date = datetime.strptime(message.text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            update_data["start_date"] = start_date.isoformat()
+        elif field == "end_date":
+            end_date = datetime.strptime(message.text, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            raffle = await raffle_req.get_active_raffles(raffle_id)
+            if not raffle or "start_date" not in raffle:
+                await message.answer("Ошибка: не удалось получить данные розыгрыша")
+                return
+            if end_date <= datetime.fromisoformat(raffle["start_date"]):
+                await message.answer("Дата окончания должна быть позже даты начала")
+                return
+            update_data["end_date"] = end_date.isoformat()
+        elif field == "is_active":
+            is_active = message.text.strip() == "1"
+            update_data["is_active"] = is_active
+        elif field == "images":
+            if not message.photo:
+                await message.answer("Пожалуйста, загрузите изображение")
+                return
+            file_id = message.photo[-1].file_id
+            file_path = f"photos/{file_id}.jpg"
+            os.makedirs("photos", exist_ok=True)
+            file = await message.bot.get_file(file_id)
+            await file.download(destination_file=file_path)
+            update_data["images"] = [file_path]
+        
+        response = await raffle_req.update_raffle(raffle_id, update_data)
+        if response:
+            await message.answer("Розыгрыш обновлён!")
+        else:
+            await message.answer("Ошибка при обновлении розыгрыша")
+        await state.clear()
+    except ValueError:
+        await message.answer("Некорректный формат данных")
+    except Exception as e:
+        logger.error(f"Error in process_edit_value: {e}")
+        await message.answer("Произошла ошибка")
+
+@admin_router.callback_query(F.data == "admin_set_winners")
+async def set_winners_start(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffles = await raffle_req.get_active_raffles()
+    if not raffles:
+        await callback.message.answer("Нет активных розыгрышей")
+        await callback.answer()
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for raffle in raffles:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{raffle['name']} (ID: {raffle['id']})",
+                callback_data=f"set_winner_raffle_{raffle['id']}"
+            )
+        )
+
+    await callback.message.answer("Выберите розыгрыш для выбора победителя", reply_markup=builder.as_markup())
+    await state.set_state(RaffleAdminStates.select_raffle)
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("set_winner_raffle_"))
+async def select_winner_raffle(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffle_id = int(callback.data.split("_")[-1])
+    await state.update_data(raffle_id=raffle_id)
+    await callback.message.answer("Введите user_id победителя")
+    await state.set_state(RaffleAdminStates.select_winner)
+    await callback.answer()
+
+@admin_router.message(RaffleAdminStates.select_winner)
+async def process_winner(
+        message: Message, 
+        state: FSMContext
+) -> None:
+    try:
+        user_id = int(message.text)
+        data = await state.get_data()
+        raffle_id = data["raffle_id"]
+        
+        # Устанавливаем победителя
+        response = await raffle_req.set_winners(raffle_id, {"user_id": user_id})
+        if not response:
+            await message.answer("Ошибка при добавлении победителя")
+            await state.clear()
+            return
+        
+        # Получаем данные розыгрыша
+        raffle = await raffle_req.get_active_raffles(raffle_id)
+        if not raffle:
+            await message.answer("Ошибка: розыгрыш не найден")
+            await state.clear()
+            return
+        
+        # Формируем сообщение для канала
+        text = (
+            f"🎉 Розыгрыш *{raffle['name']}* Завершен\n"
+            f"🏆 Победитель - `{user_id}`"
+        )
+        
+        # Отправляем сообщение в канал
+        try:
+            if raffle.get("images"):
+                await message.bot.send_photo(
+                    chat_id=CHANNEL_ID,
+                    photo=raffle["images"][0],  # Первое изображение
+                    caption=text,
+                    parse_mode="Markdown"
+                )
+            else:
+                await message.bot.send_message(
+                    chat_id=CHANNEL_ID,
+                    text=text,
+                    parse_mode="Markdown"
+                )
+            logger.info(f"Winner announcement sent to channel {CHANNEL_ID} for raffle_id={raffle_id}")
+        except Exception as e:
+            logger.error(f"Error sending message to channel {CHANNEL_ID}: {e}")
+            await message.answer("Победитель добавлен, но не удалось отправить сообщение в канал")
+        
+        await message.answer("Победитель добавлен!")
+        await state.clear()
+        
+    except ValueError:
+        await message.answer("Некорректный user_id")
+    except Exception as e:
+        logger.error(f"Error in process_winner: {e}")
+        await message.answer("Произошла ошибка")
+
+@admin_router.callback_query(F.data == "admin_add_tickets")
+async def add_tickets_start(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffles = await raffle_req.get_active_raffles()
+    if not raffles:
+        await callback.message.answer("Нет активных розыгрышей")
+        await callback.answer()
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for raffle in raffles:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{raffle['name']} (ID: {raffle['id']})",
+                callback_data=f"add_tickets_raffle_{raffle['id']}"
+            )
+        )
+
+    await callback.message.answer("Выберите розыгрыш для добавления билетов", reply_markup=builder.as_markup())
+    await state.set_state(RaffleAdminStates.select_raffle)
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("add_tickets_raffle_"))
+async def select_tickets_raffle(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffle_id = int(callback.data.split("_")[-1])
+    await state.update_data(raffle_id=raffle_id)
+    await callback.message.answer("Введите user_id и количество билетов (формат: user_id количество)")
+    await state.set_state(RaffleAdminStates.add_tickets)
+    await callback.answer()
+
+@admin_router.message(RaffleAdminStates.add_tickets)
+async def process_add_tickets(
+        message: Message,
+        state: FSMContext
+) -> None:
+    try:
+        user_id, count = map(int, message.text.split())
+        if count <= 0:
+            await message.answer("Количество билетов должно быть больше 0")
+            return
+        data = await state.get_data()
+        raffle_id = data["raffle_id"]
+        response = await raffle_req.add_tickets(
+                raffle_id, 
+                {"user_id": user_id, "count": count})
+        if response:
+            await message.answer("Билеты добавлены!")
+        else:
+            await message.answer("Ошибка при добавлении билетов")
+        await state.clear()
+    except ValueError:
+        await message.answer("Некорректный формат, введите: user_id количество")
+    except Exception as e:
+        logger.error(f"Error in process_add_tickets: {e}")
+        await message.answer("Произошла ошибка")
+
+@admin_router.callback_query(F.data == "admin_view_participants")
+async def view_participants_start(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    raffles = await raffle_req.get_active_raffles()
+    if not raffles:
+        await callback.message.answer("Нет активных розыгрышей")
+        await callback.answer()
+        return
+    
+    builder = InlineKeyboardBuilder()
+    for raffle in raffles:
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{raffle['name']} (ID: {raffle['id']})",
+                callback_data=f"view_participants_{raffle['id']}"
+            )
+        )
+
+    await callback.message.answer("Выберите розыгрыш для просмотра участников", reply_markup=builder.as_markup())
+    await state.set_state(RaffleAdminStates.select_raffle)
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("view_participants_") | F.data.startswith("admin_participants_"))
+async def view_participants(
+        callback: CallbackQuery, 
+        state: FSMContext
+) -> None:
+    try:
+        parts = callback.data.split("_")
+        raffle_id = int(parts[-2] if parts[0] == "admin_participants" else parts[-1])
+        page = int(parts[-1]) if parts[0] == "admin_participants" else 0
+        per_page = 10
+        
+        tickets = await raffle_req.get_tickets(raffle_id, page, per_page)
+        if not tickets:
+            await callback.message.answer("Нет участников в этом розыгрыше")
+            await callback.answer()
+            return
+        
+        await callback.message.edit_text(
+            text="Участники розыгрыша:",
+            reply_markup=admin_kb.raffle_participants_kb(
+                tickets, 
+                raffle_id, 
+                page, 
+                per_page
+                ))
+        await state.update_data(raffle_id=raffle_id)
+        await callback.answer()
+    except Exception as e:
+        logger.error(f"Error in view_participants: {e}")
+        await callback.message.answer("Произошла ошибка")
+        await callback.answer()

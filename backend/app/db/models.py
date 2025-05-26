@@ -1,5 +1,7 @@
-from sqlalchemy import Column, BigInteger, Boolean, Integer, String, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, BigInteger, Boolean, Integer, String, Float, \
+        DateTime, ForeignKey, JSON, ARRAY
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .base import Base
 
 class User(Base):
@@ -131,3 +133,56 @@ class PromocodeUsage(Base):
     user_id = Column(BigInteger, ForeignKey("users.user_id"), primary_key=True)
     promocode_code = Column(String(50), ForeignKey("promocodes.code", ondelete="CASCADE"), primary_key=True)
     used_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class Raffle(Base):
+    __tablename__ = "raffles"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String, nullable=False)  # "subscription" or "ticket"
+    name = Column(String, nullable=False)  # Название розыгрыша
+    ticket_price = Column(Float, nullable=True)  # Цена билета для типа "ticket" (например, 100.0)
+    start_date = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    end_date = Column(DateTime(timezone=True), nullable=False)
+    is_active = Column(Boolean, default=True, index=True)
+    images = Column(ARRAY(String), nullable=True)  # Список file_id картинок из Telegram
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    tickets = relationship("Ticket", back_populates="raffle")
+    winners = relationship("Winner", back_populates="raffle")
+    
+    __table_args__ = (
+        {"comment": "Stores raffle details"},
+    )
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    raffle_id = Column(Integer, ForeignKey("raffles.id"), index=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id"), index=True)
+    count = Column(Integer, default=0)  # Количество билетов
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    raffle = relationship("Raffle", back_populates="tickets")
+    user = relationship("User")
+    
+    __table_args__ = (
+        {"comment": "Stores user tickets for raffles"},
+    )
+
+
+class Winner(Base):
+    __tablename__ = "winners"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    raffle_id = Column(Integer, ForeignKey("raffles.id"), index=True)
+    user_id = Column(BigInteger, ForeignKey("users.user_id"), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    raffle = relationship("Raffle", back_populates="winners")
+    user = relationship("User")
+    
+    __table_args__ = (
+        {"comment": "Stores raffle winners"},
+    )
+

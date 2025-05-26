@@ -14,6 +14,10 @@ class DevicesSG(StatesGroup):
     enter_promo = State()
     device_promo = State()
 
+class RaffleStates(StatesGroup):
+    select_tickets = State()
+    confirm_payment = State()
+
 class SupportSG(StatesGroup):
     create_ticket = State()
 
@@ -30,3 +34,16 @@ class AdminAuthStates(StatesGroup):
     search_users = State()
     enter_json = State()
     enter_key_limit = State()
+
+class RaffleAdminStates(StatesGroup):
+    select_type = State()
+    enter_name = State()
+    enter_ticket_price = State()
+    enter_start_date = State()
+    enter_end_date = State()
+    upload_images = State()
+    edit_field = State()
+    select_winner = State()
+    add_tickets = State()
+    select_raffle = State()
+    select_user = State()

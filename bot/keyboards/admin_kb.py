@@ -1,4 +1,5 @@
 import logging
+from typing import Any, List, Dict
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
@@ -9,20 +10,21 @@ def admin_main_menu_kb() -> ReplyKeyboardMarkup:
         builder = ReplyKeyboardBuilder()
         builder.row(
             KeyboardButton(text="👤 Пользователи"),
-            KeyboardButton(text="🔑 Ключи")
+            KeyboardButton(text="🔍 Поиск")
         )
         builder.row(
             KeyboardButton(text="💰 Финансы"),
-            KeyboardButton(text="📢 Рассылка")
+            KeyboardButton(text="📢 Рассылка"),
+            KeyboardButton(text="🖥 Серверы")
         )
         builder.row(
             KeyboardButton(text="🛡 Безопасность"),
-            KeyboardButton(text="🔍 Поиск пользователей")
+            KeyboardButton(text="🔑 Ключи")
         )
         builder.row(
-            KeyboardButton(text="🎟 Промокоды"),
-            KeyboardButton(text="🖥 Серверы Outline")
-        )
+             KeyboardButton(text="🎟 Промокоды"),          
+             KeyboardButton(text="🎉 Розыгрыш")
+                )
         return builder.as_markup(
             resize_keyboard=True,
             input_field_placeholder="Выберите действие"
@@ -308,4 +310,74 @@ def broadcast_image_kb() -> InlineKeyboardMarkup:
         logger.error(f"Unexpected error in promocode_profile_kb: {e}")
         return InlineKeyboardMarkup()
 
+def admin_raffle_menu_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="Создать", callback_data="admin_create_raffle"),
+            InlineKeyboardButton(text="Редактировать", callback_data="admin_edit_raffle")
+        )
+        builder.row(
+            InlineKeyboardButton(text="Выбрать победителей", callback_data="admin_set_winners")
+        )
+        builder.row(
+            InlineKeyboardButton(text="Добавить билеты", callback_data="admin_add_tickets"),
+            InlineKeyboardButton(text="Участнки", callback_data="admin_view_participants")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Error in admin_raffle_menu_kb: {e}")
+        return InlineKeyboardMarkup()
 
+def raffle_type_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="По подписке", callback_data="raffle_type_subscription"),
+            InlineKeyboardButton(text="По билетам", callback_data="raffle_type_ticket")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Error in raffle_type_kb: {e}")
+        return InlineKeyboardMarkup()
+
+def raffle_participants_kb(
+        tickets: List[Dict[str, Any]], 
+        raffle_id: int, 
+        page: int, 
+        per_page: int
+) -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        for ticket in tickets:
+            builder.row(
+                InlineKeyboardButton(
+                    text=f"{ticket['username'] or 'N/A'} (ID: {ticket['user_id']}, Билетов: {ticket['count']})",
+                    callback_data=f"admin_user_profile_{ticket['user_id']}"
+                )
+            )
+        
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(
+                InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin_participants_{raffle_id}_{page-1}")
+            )
+        nav_buttons.append(
+            InlineKeyboardButton(text=f"Стр. {page+1}", callback_data="noop")
+        )
+        if len(tickets) == per_page:
+            nav_buttons.append(
+                InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"admin_participants_{raffle_id}_{page+1}")
+            )
+        
+        if nav_buttons:
+            builder.row(*nav_buttons)
+        
+
+        return builder.as_markup()
+    except (KeyError, TypeError) as e:
+        logger.error(f"Data error in raffle_participants_kb: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in raffle_participants_kb: {e}")
+        return InlineKeyboardMarkup()

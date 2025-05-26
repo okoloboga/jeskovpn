@@ -663,6 +663,7 @@ async def process_ukassa_handler(
         device_type = state_data.get("device_type")
         period = state_data.get("period")
         device = state_data.get("device")
+        payload = state_data.get("payload", None)
         # logger.info(f'\nUPDATE STATE\nAMOUNT {amount}\nPAYMENT_TYPE {payment_type}')       
         if not amount or not payment_type:
             await callback.message.answer(text=i18n.error.invalid_payment_data())
@@ -689,10 +690,10 @@ async def process_ukassa_handler(
         # logger.info(f"Payment type: {payment_type}; device: {device}; amount: {amount}; "
         #           f"balance: {balance}; device_type: {device_type}; period: {period}; "
         #           f"customer: {customer}; contact: {customer_data}")
-        payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:ukassa"
-
+        if payload is None:
+            payload = f"{user_id}:{amount}:{period}:{device_type}:{device}:{payment_type}:ukassa"
         result = await payment_req.create_ukassa_invoice(
-            amount=amount,
+            amount=10,
             currency="RUB",
             payload=payload,
             i18n=i18n,
