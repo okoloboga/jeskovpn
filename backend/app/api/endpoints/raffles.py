@@ -102,14 +102,25 @@ async def set_winners(
 ):
     raffle = db.query(Raffle).filter(Raffle.id == id).first()
     if not raffle:
+        logger.error(f"Raffle {id} not found")
         raise HTTPException(status_code=404, detail="Raffle not found")
+    
+    if not raffle.is_active:
+        logger.error(f"Raffle {id} is already inactive")
+        raise HTTPException(status_code=400, detail="Raffle is already completed")
     
     user = db.query(User).filter(User.user_id == winner.user_id).first()
     if not user:
+        logger.error(f"User {winner.user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
     
     db_winner = Winner(raffle_id=id, user_id=winner.user_id)
     db.add(db_winner)
+    
+    raffle.is_active = False
+    db.add(raffle)
+    logger.info(f"Raffle {id} deactivated after setting winner {winner.user_id}")
+    
     db.commit()
     db.refresh(db_winner)
     return db_winner
