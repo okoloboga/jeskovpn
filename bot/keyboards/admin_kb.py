@@ -299,6 +299,29 @@ def outline_server_menu_kb(server_id: str) -> InlineKeyboardMarkup:
         logger.error(f"Unexpected error in promocode_profile_kb: {e}")
         return InlineKeyboardMarkup()
 
+def broadcast_menu_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
+        return InlineKeyboardMarkup() 
+
+def broadcast_confirmation_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="Отправить", callback_data="admin_broadcast_confirm"),
+            InlineKeyboardButton(text="Отмена", callback_data="admin_broadcast_cancel")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Unexpected error in promocode_profile_kb: {e}")
+        return InlineKeyboardMarkup() 
+
 def broadcast_image_kb() -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
@@ -381,3 +404,5 @@ def raffle_participants_kb(
     except Exception as e:
         logger.error(f"Unexpected error in raffle_participants_kb: {e}")
         return InlineKeyboardMarkup()
+
+

@@ -554,31 +554,15 @@ async def admin_broadcast_receive_image(
     state_data = await state.get_data()
     text = state_data.get("broadcast_text")
     
-    user_ids = await admin_req.get_all_users()
-    if not user_ids:
-        await message.answer("Пользователи не найдены.")
-        await state.clear()
-        return
+    await state.update_data(broadcast_photo_id=photo.file_id)
     
-    success_count = 0
-    fail_count = 0
-    for user_id in user_ids:
-        try:
-            await bot.send_photo(
-                chat_id=user_id,
-                photo=photo.file_id,
-                caption=text
-            )
-            success_count += 1
-        except Exception as e:
-            admin_logger.error(f"Broadcast to user {user_id} failed: {e}")
-            fail_count += 1
-    
-    await message.answer(
-        f"Рассылка завершена:\n✅ Успешно: {success_count}\n❌ Неуспешно: {fail_count}"
+    await message.answer_photo(
+        photo=photo.file_id,
+        caption=text,
+        reply_markup=admin_kb.broadcast_confirmation_kb()
     )
-    admin_logger.info(f"Admin {message.from_user.id} sent broadcast with image: {success_count} success, {fail_count} failed")
-    await state.clear()
+    await state.set_state(AdminAuthStates.waiting_for_broadcast_confirmation)
+    admin_logger.info(f"Admin {message.from_user.id} previewed broadcast with image")
 
 @admin_router.callback_query(F.data == "skip_broadcast_image", AdminAuthStates.waiting_for_broadcast_image)
 async def admin_broadcast_skip_image(
@@ -589,39 +573,58 @@ async def admin_broadcast_skip_image(
     state_data = await state.get_data()
     text = state_data.get("broadcast_text")
     
+    await callback.message.answer(
+        text,
+        reply_markup=admin_kb.broadcast_confirmation_kb()
+    )
+    await state.set_state(AdminAuthStates.waiting_for_broadcast_confirmation)
+    admin_logger.info(f"Admin {callback.from_user.id} previewed broadcast without image")
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_broadcast_confirm", AdminAuthStates.waiting_for_broadcast_confirmation)
+async def admin_broadcast_confirm(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    state_data = await state.get_data()
+    text = state_data.get("broadcast_text")
+    photo_id = state_data.get("broadcast_photo_id")
+    
     user_ids = await admin_req.get_all_users()
     if not user_ids:
-        await callback.message.edit_text("Пользователи не найдены.")
+        await callback.message.answer("Пользователи не найдены.")
         await state.clear()
+        await callback.answer()
         return
     
     success_count = 0
     fail_count = 0
     for user_id in user_ids:
         try:
-            await bot.send_message(chat_id=user_id, text=text)
+            if photo_id:
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=photo_id,
+                    caption=text
+                )
+            else:
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=text
+                )
             success_count += 1
         except Exception as e:
             admin_logger.error(f"Broadcast to user {user_id} failed: {e}")
             fail_count += 1
     
-    await callback.message.edit_text(
+    await callback.message.answer(
         f"Рассылка завершена:\n✅ Успешно: {success_count}\n❌ Неуспешно: {fail_count}"
     )
-    admin_logger.info(f"Admin {callback.from_user.id} sent broadcast without image: {success_count} success, {fail_count} failed")
+    admin_logger.info(f"Admin {callback.from_user.id} sent broadcast {'with image' if photo_id else 'without image'}: {success_count} success, {fail_count} failed")
     await state.clear()
     await callback.answer()
 
-@admin_router.callback_query(F.data == "admin_broadcast_send")
-async def admin_broadcast_send(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer("Рассылка уже выполняется или текст не введен. Начните заново.")
-    await state.clear()
-    await callback.answer()
-
-@admin_router.callback_query(F.data == "admin_broadcast_cancel")
+@admin_router.callback_query(F.data == "admin_broadcast_cancel", AdminAuthStates.waiting_for_broadcast_confirmation)
 async def admin_broadcast_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer("Рассылка отменена.")
-    admin_logger.info(f"Admin {callback.from_user.id} canceled broadcast")
+    admin_logger.info(f"Admin {callback.from_user.id} cancelled broadcast")
     await state.clear()
     await callback.answer()
 
@@ -1489,33 +1492,7 @@ async def process_winner(
             await message.answer("Ошибка: розыгрыш не найден")
             await state.clear()
             return
-        
-        # Формируем сообщение для канала
-        text = (
-            f"🎉 Розыгрыш *{raffle['name']}* Завершен\n"
-            f"🏆 Победитель - `{user_id}`"
-        )
-        
-        # Отправляем сообщение в канал
-        try:
-            if raffle.get("images"):
-                await message.bot.send_photo(
-                    chat_id=CHANNEL_ID,
-                    photo=raffle["images"][0],  # Первое изображение
-                    caption=text,
-                    parse_mode="Markdown"
-                )
-            else:
-                await message.bot.send_message(
-                    chat_id=CHANNEL_ID,
-                    text=text,
-                    parse_mode="Markdown"
-                )
-            logger.info(f"Winner announcement sent to channel {CHANNEL_ID} for raffle_id={raffle_id}")
-        except Exception as e:
-            logger.error(f"Error sending message to channel {CHANNEL_ID}: {e}")
-            await message.answer("Победитель добавлен, но не удалось отправить сообщение в канал")
-        
+       
         await message.answer("Победитель добавлен!")
         await state.clear()
         
