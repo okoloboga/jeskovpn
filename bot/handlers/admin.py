@@ -1209,20 +1209,45 @@ async def finish_upload(
         state: FSMContext
 ) -> None:
     data = await state.get_data()
+    images = data.get("images", [])
+    
+    if not images:
+        await callback.message.answer("Необходимо загрузить хотя бы одно изображение.")
+        await callback.message.answer("Загрузите изображение для розыгрыша")
+        await callback.answer()
+        return
+    
     raffle = {
         "type": data["raffle_type"],
         "name": data["name"],
         "ticket_price": data.get("ticket_price"),
         "start_date": data["start_date"].isoformat(),
         "end_date": data["end_date"].isoformat(),
-        "images": data.get("images", [])
+        "images": images
     }
+    
+    await state.update_data(raffle=raffle)
+    
+    text = f"Новый розыгрыш: {raffle['name']}"
+    await callback.message.answer_photo(
+        photo=images[0],
+        caption=text,
+        reply_markup=admin_kb.raffle_confirmation_kb()
+    )
+    await state.set_state(RaffleAdminStates.waiting_for_raffle_confirmation)
+    logger.info(f"Admin {callback.from_user.id} previewed raffle")
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_raffle_confirm", RaffleAdminStates.waiting_for_raffle_confirmation)
+async def raffle_confirm(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    raffle = data.get("raffle")
+    
     response = await raffle_req.create_raffle(raffle)
     if response:
         raffle_id = response["id"]
-        await callback.message.answer("Розыгрыш создан!")
         # Отправка поста в канал
-        channel_id = CHANNEL_ID  # Заменить на реальный ID канала
+        channel_id = CHANNEL_ID
         text = f"Новый розыгрыш: {raffle['name']}"
         await callback.message.bot.send_photo(
             chat_id=channel_id,
@@ -1232,9 +1257,20 @@ async def finish_upload(
                 [InlineKeyboardButton(text="Участвовать", url=BOT_URL)]
             ])
         )
-        await state.clear()
+        await callback.message.edit_text("Розыгрыш создан и отправлен в канал!")
+        logger.info(f"Admin {callback.from_user.id} created and sent raffle: {raffle['name']}")
     else:
-        await callback.message.answer("Ошибка при создании розыгрыша")
+        await callback.message.edit_text("Ошибка при создании розыгрыша")
+        logger.error(f"Admin {callback.from_user.id} failed to create raffle")
+    
+    await state.clear()
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "admin_raffle_cancel", RaffleAdminStates.waiting_for_raffle_confirmation)
+async def raffle_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("Создание розыгрыша отменено.")
+    logger.info(f"Admin {callback.from_user.id} cancelled raffle")
+    await state.clear()
     await callback.answer()
 
 @admin_router.callback_query(F.data == "admin_edit_raffle")

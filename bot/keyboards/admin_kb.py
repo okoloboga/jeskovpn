@@ -364,6 +364,18 @@ def raffle_type_kb() -> InlineKeyboardMarkup:
         logger.error(f"Error in raffle_type_kb: {e}")
         return InlineKeyboardMarkup()
 
+def raffle_confirmation_kb() -> InlineKeyboardMarkup:
+    try:
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="Отправить", callback_data="admin_raffle_confirm"),
+            InlineKeyboardButton(text="Отмена", callback_data="admin_raffle_cancel")
+        )
+        return builder.as_markup()
+    except Exception as e:
+        logger.error(f"Error in raffle_type_kb: {e}")
+        return InlineKeyboardMarkup()
+
 def raffle_participants_kb(
         tickets: List[Dict[str, Any]], 
         raffle_id: int, 

@@ -48,3 +48,4 @@ class RaffleAdminStates(StatesGroup):
     add_tickets = State()
     select_raffle = State()
     select_user = State()
+    waiting_for_raffle_confirmation = State()
