@@ -45,10 +45,20 @@ async def add_referral(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Referrer not found"
         )
+    # Check if referral exists
+    referral = db.query(User).filter(User.user_id == user_id).first()
+    if not referral:
+        logger.error(f"Referral with ID {user_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Referral not found"
+        )
+    # Add 50 rub ti invited
+    referral.balance = (referral.balance or 0) + 50
     # Add 50 rub to inviter 
     referrer.balance = (referrer.balance or 0) + 50
     
-    # Create new referral
+    # Create new referral and add him 50 ruble
     db_referral = Referral(
         user_id=user_id,
         referrer_id=referrer_id

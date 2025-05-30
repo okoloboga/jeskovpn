@@ -64,7 +64,7 @@ active-sub-combo = 🌐 Combo { $combo_type }: { $combo_count } connected
 
 start-invited-head = Hello, { $name }! 👋
 
-                     You were invited here by { $inviter }, so you can connect VPN for free and get 100₽ on your balance! 🎁
+                     You were invited here by { $inviter }, so you can connect VPN for free and get 50₽ on your balance! 🎁
 
 start-head-starter = Hello, { $name }! 👋
 
@@ -140,17 +140,18 @@ period-menu-combo10 = Your balance { $balance }₽ ({ $days } days) 💰
                       6 months — 3,500₽ (30% discount) 🕰️
                       12 months — 5,000₽ (50% discount) 🎉
     
-instruction-android = Instruction
+instruction-android = In development ⚒️
 
-instruction-iphone = Instruction
+instruction-iphone =  In development ⚒️
 
-instruction-windows = Instruction
+instruction-windows =  In development ⚒️
 
-instruction-macos = Instruction
+instruction-macos = In development ⚒️
 
-instruction-tv = Instruction
+instruction-tv = In development ⚒️
 
-instruction-router = Instruction
+instruction-router = In development ⚒️
+
 
 topup-balance-menu = Your balance { $balance }₽ ({ $days } days) 💰
                      You top up your account with { $amount }₽ 💸
@@ -162,7 +163,8 @@ buy-subscription-menu = Your balance { $balance }₽ ({ $days } days) 💰
 
                         Select a payment method 💳
 
-payment-indevelopment = In development!
+payment-indevelopment = In development ⚒️
+
 
 invoice = Your payment link:
           { $invoice_url }

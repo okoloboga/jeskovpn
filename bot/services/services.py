@@ -49,13 +49,13 @@ INSTUCTIONS_TEMP = {
                'router': "В разработке"
                }
 INSTUCTIONS = {
-        'device': 'В разработке',
-        'android': 'В разработке',
-        'tv': 'В разработке',
-        'iphone/ipad': 'В разработке',
-        'windows': 'В разработке',
-        'macos': 'В разработке',
-        'router': 'В разработке',
+        'device': 'В разработке ⚒️',
+        'android': 'В разработке ⚒️',
+        'tv': 'В разработке ⚒️',
+        'iphone/ipad': 'В разработке ⚒️',
+        'windows': 'В разработке ⚒️',
+        'macos': 'В разработке ⚒️',
+        'router': 'В разработке ⚒️',
         }
 
 async def get_user_data(user_id: int) -> Optional[dict]:

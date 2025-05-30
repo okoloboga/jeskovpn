@@ -1245,7 +1245,6 @@ async def raffle_confirm(callback: CallbackQuery, state: FSMContext):
     
     response = await raffle_req.create_raffle(raffle)
     if response:
-        raffle_id = response["id"]
         # Отправка поста в канал
         channel_id = CHANNEL_ID
         text = f"Новый розыгрыш: {raffle['name']}"
@@ -1257,10 +1256,10 @@ async def raffle_confirm(callback: CallbackQuery, state: FSMContext):
                 [InlineKeyboardButton(text="Участвовать", url=BOT_URL)]
             ])
         )
-        await callback.message.edit_text("Розыгрыш создан и отправлен в канал!")
+        await callback.message.answer("Розыгрыш создан и отправлен в канал!")
         logger.info(f"Admin {callback.from_user.id} created and sent raffle: {raffle['name']}")
     else:
-        await callback.message.edit_text("Ошибка при создании розыгрыша")
+        await callback.message.answer("Ошибка при создании розыгрыша")
         logger.error(f"Admin {callback.from_user.id} failed to create raffle")
     
     await state.clear()

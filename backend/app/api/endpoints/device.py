@@ -81,23 +81,24 @@ async def generate_key(
         subscription.paused_at = None
         db.add(subscription)
 
-    server = db.query(OutlineServer).filter(
-        OutlineServer.is_active == True,
-        OutlineServer.key_count < OutlineServer.key_limit
-    ).first()
+    # server = db.query(OutlineServer).filter(
+    #     OutlineServer.is_active == True,
+    #     OutlineServer.key_count < OutlineServer.key_limit
+    # ).first()
     
-    if not server:
-        logger.error("No available outline servers")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Нет доступных серверов"
-        )
+    # if not server:
+    #     logger.error("No available outline servers")
+    #     raise HTTPException(
+    #         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    #         detail="Нет доступных серверов"
+    #     )
 
-    vpn_key, outline_key_id = await create_outline_key(server.api_url, server.cert_sha256)
+    # vpn_key, outline_key_id = await create_outline_key(server.api_url, server.cert_sha256)
+    vpn_key, outline_key_id = 'ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpGT3Y4dlV6NWFVZUNyUk1uN0hBeEtZ@31.128.48.13:26247/?outline=1', '1'
     logger.info(f"Access key: {vpn_key}; key_id: {outline_key_id}")
 
-    server.key_count += 1
-    db.add(server)
+    # server.key_count += 1
+    # db.add(server)
     
     db_device = Device(
         user_id=device_data.user_id,
@@ -106,7 +107,7 @@ async def generate_key(
         device_name=device_data.device_name,
         vpn_key=vpn_key,
         outline_key_id=outline_key_id,
-        server_id=server.id,
+        # server_id=server.id,
         start_date=subscription.start_date,
         end_date=subscription.end_date,
         created_at=current_time

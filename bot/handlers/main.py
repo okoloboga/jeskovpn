@@ -76,6 +76,12 @@ async def command_start_getter(
             if inviter_id and inviter_id != str(user_id):
                 try:
                     await user_req.add_referral(inviter_id, user_id)
+                    inviter_data = await user_req.get_user(inviter_id)
+                    if inviter_data is None:
+                        await message.answer(text=i18n.error.user_not_found())
+                        return
+                    inviter_id = inviter_data.get('username', None)
+                    inviter_id = inviter_data.get('first_name', 'no_name') if inviter_id is None else inviter_id
                     is_invited = True
                     logger.info(f"Referral added: {inviter_id} invited {user_id}")
                 except Exception as e:
@@ -84,6 +90,7 @@ async def command_start_getter(
         # Fetch user data
         user_data = await services.get_user_data(user_id)
         user_info = await services.get_user_info(user_id)
+
 
         # logger.info(f'user_data {user_data}')
         # logger.info(f'user_info {user_info}')
@@ -94,7 +101,6 @@ async def command_start_getter(
         else:
             # month_price = user_info.get('month_price', 0)
             balance = user_data.get("balance", 0)
-            paused = user_data.get("paused", True)
             days_left = user_info.get("days_left", 0)
             active_subscriptions = user_info.get('active_subscriptions', {})
             is_subscribed = user_info.get('is_subscribed', False)

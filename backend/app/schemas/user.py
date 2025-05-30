@@ -40,6 +40,8 @@ class UserCreate(UserBase):
 
 class UserResponse(BaseModel):
     user_id: int
+    username: str
+    first_name: str
     balance: float
     email_address: str | None
     phone_number: str | None

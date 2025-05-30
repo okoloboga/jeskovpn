@@ -29,7 +29,6 @@ async def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
     return user
 
 @router.post("/contact", status_code=status.HTTP_200_OK)
@@ -114,7 +113,7 @@ async def create_user(
         first_name=user.first_name,
         last_name=user.last_name,
         username=user.username,
-        balance=0.0,
+        balance=100.0,
     )
     
     db.add(db_user)
