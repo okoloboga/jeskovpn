@@ -226,7 +226,7 @@ def back_device_kb(i18n: TranslatorRunner) -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
         builder.row(InlineKeyboardButton(text=i18n.devices.button(), callback_data="devices_menu"))
-        builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
+        # builder.row(InlineKeyboardButton(text=i18n.main.menu.button(), callback_data="main_menu"))
         return builder.as_markup()
     except (KeyError, AttributeError) as e:
         logger.error(f"Localization error in device_kb: {e}")

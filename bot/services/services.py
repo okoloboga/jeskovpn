@@ -49,12 +49,12 @@ INSTUCTIONS_TEMP = {
                'router': "В разработке"
                }
 INSTUCTIONS = {
-        'device': 'В разработке ⚒️',
-        'android': 'В разработке ⚒️',
+        'device': 'https://play.google.com/store/apps/details?id=org.outline.android.client',
+        'android': 'https://play.google.com/store/apps/details?id=org.outline.android.client',
         'tv': 'В разработке ⚒️',
-        'iphone/ipad': 'В разработке ⚒️',
-        'windows': 'В разработке ⚒️',
-        'macos': 'В разработке ⚒️',
+        'iphone/ipad': 'https://apps.apple.com/ru/app/outline-app/id1356177741',
+        'windows': 'https://outline-vpn.com/',
+        'macos': 'https://outline-vpn.com/',
         'router': 'В разработке ⚒️',
         }
 

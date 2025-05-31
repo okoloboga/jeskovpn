@@ -179,7 +179,8 @@ ukassa-device_type-device = Device
 ukassa-device_type-router = Router
 ukassa-device_type-combo = Combo ({ $device } devices)
 
-select-contact = Select where, send a receipt for the purchase
+select-contact = SELECT WHERE, SEND A RECEIPT FOR THE PURCHASE 
+
                  this is necessary in accordance with the requirements of 54-FZ
 
                  Current contacts:

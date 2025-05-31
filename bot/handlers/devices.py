@@ -105,6 +105,21 @@ async def devices_button_handler(
         else:
             await event.answer(text=i18n.error.unexpected())
 
+@devices_router.message(F.text == "/help")
+async def select_instructions_handler_text(
+    message: Message,
+    state: FSMContext,
+    i18n: TranslatorRunner
+) -> None:
+
+    await state.set_state(DevicesSG.select_instruction)
+    await message.answer(
+            text=i18n.devices.category.menu(),
+            reply_markup=devices_kb.devices_list_kb(
+                i18n=i18n,
+                device_type='device'
+                ))
+
 @devices_router.callback_query(F.data.startswith("select_instruction"))
 async def select_instructions_handler(
     callback: CallbackQuery,

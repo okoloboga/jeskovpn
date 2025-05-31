@@ -7,8 +7,8 @@ from aiogram.types import Message, CallbackQuery
 from fluentogram import TranslatorRunner
 from datetime import datetime
 
-from services import services, raffle_req, payment_req, user_req, RaffleStates
-from keyboards import another_kb, main_kb, raffle_kb, payment_kb
+from services import services, raffle_req, user_req
+from keyboards import another_kb, main_kb, raffle_kb, payment_kb, devices_kb
 from config import get_config, Admin
 
 another_router = Router()
@@ -83,6 +83,23 @@ async def subscription_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
+@another_router.message(F.text == 'Подписка активна, устройств нет  🕒')
+async def no_active_devices(
+    message: Message,
+    i18n: TranslatorRunner
+) -> None:
+    await message.answer(
+            text=i18n.noactive.devices(),
+            reply_markup=devices_kb.back_device_kb(i18n)
+            )
+
+@another_router.message(F.text == '/privacy')
+async def privacy_handler(
+    message: Message,
+    i18n: TranslatorRunner
+) -> None:
+    await message.answer(text=i18n.privacy())
+
 @another_router.message(F.text.in_(["Тех. Поддержка 🛠️", "Tech Support 🛠️"]))
 async def support_handler(
     message: Message,
@@ -111,7 +128,7 @@ async def support_handler(
         logger.error(f"Unexpected error for user {user_id}: {e}")
         await message.answer(text=i18n.error.unexpected())
 
-@another_router.message(F.text.in_(["Пригласить друга 👥", "Invite a Friend 👥"]))
+@another_router.message(F.text.in_(["/friends", "Пригласить друга 👥", "Invite a Friend 👥"]))
 async def referral_handler(
     message: Message,
     bot: Bot,
