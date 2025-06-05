@@ -35,6 +35,7 @@ class AdminAuthStates(StatesGroup):
     search_users = State()
     enter_json = State()
     enter_key_limit = State()
+    edit_key_limit = State()
 
 class RaffleAdminStates(StatesGroup):
     select_type = State()

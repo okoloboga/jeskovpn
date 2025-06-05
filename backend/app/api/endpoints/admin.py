@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.db.models import AdminAuth, User, Device, Subscription, Blacklist, Payment, Admin, Promocode, \
         PromocodeUsage, OutlineServer
 from app.schemas.admin import AdminPasswordCreate, AdminPasswordCheck, AdminCreate, PromocodeCreate, \
-        PromocodeUsageCreate, OutlineServerCreate
+        PromocodeUsageCreate, OutlineServerCreate, OutlineServerUpdate
 
 router = APIRouter()
 
@@ -695,3 +695,32 @@ async def delete_outline_server(
     
     logger.info(f"Outline server deleted: {server_id}")
     return {"status": "success"}
+
+@router.patch("/outline/servers/{server_id}")
+async def update_outline_server(
+    server_id: int,
+    update_data: OutlineServerUpdate,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Updating key_limit for server {server_id} to {update_data.key_limit}")
+    
+    server = db.query(OutlineServer).filter(OutlineServer.id == server_id).first()
+    if not server:
+        logger.error(f"Server {server_id} not found")
+        raise HTTPException(status_code=404, detail="Server not found")
+    
+    if update_data.key_limit < server.key_count:
+        logger.error(f"New key_limit {update_data.key_limit} is less than key_count {server.key_count} for server {server_id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"New key_limit cannot be less than current key_count ({server.key_count})"
+        )
+    
+    server.key_limit = update_data.key_limit
+    db.add(server)
+    db.commit()
+    db.refresh(server)
+    
+    logger.info(f"Updated key_limit for server {server_id} to {update_data.key_limit}")
+    return {"status": "success", "server_id": server_id}

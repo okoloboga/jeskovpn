@@ -1069,6 +1069,68 @@ async def admin_view_server(
     admin_logger.info(f"Admin {callback.from_user.id} viewed outline server {server_id}")
     await callback.answer()
 
+@admin_router.callback_query(F.data.startswith("admin_edit_server_limit_"))
+async def admin_edit_server_limit(callback: CallbackQuery, state: FSMContext):
+    server_id = int(callback.data.split("_")[-1])
+    servers = await admin_req.get_outline_servers()
+    server = next((s for s in servers if s["id"] == server_id), None)
+    
+    if not server:
+        await callback.message.edit_text(
+            "Сервер не найден.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="🔙 Назад", callback_data="admin_outline_servers")
+            ]])
+        )
+        await callback.answer()
+        return
+    
+    await state.update_data(server_id=server_id, key_count=server["key_count"])
+    await callback.message.edit_text(
+        f"Текущий лимит ключей: {server['key_limit']}\n"
+        f"Активных ключей: {server['key_count']}\n"
+        f"Введите новый лимит ключей (целое число, не менее {server['key_count']}):",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Назад", callback_data=f"admin_view_server_{server_id}")
+        ]])
+    )
+    await state.set_state(AdminAuthStates.edit_key_limit)
+    admin_logger.info(f"Admin {callback.from_user.id} started editing key_limit for server {server_id}")
+    await callback.answer()
+
+@admin_router.message(AdminAuthStates.edit_key_limit)
+async def process_edit_key_limit(message: Message, state: FSMContext):
+    state_data = await state.get_data()
+    server_id = state_data.get("server_id")
+    key_count = state_data.get("key_count")
+    
+    try:
+        new_limit = int(message.text)
+        if new_limit <= 0:
+            await message.answer("Ошибка: Лимит ключей должен быть больше 0.")
+            return
+        if new_limit < key_count:
+            await message.answer(f"Ошибка: Новый лимит не может быть меньше текущего количества ключей ({key_count}).")
+            return
+        
+        result = await admin_req.update_outline_server_limit(server_id, new_limit)
+        if result["success"]:
+            await message.answer(
+                f"Лимит ключей для сервера {server_id} обновлён до {new_limit}.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="🔙 Назад", callback_data=f"admin_view_server_{server_id}")
+                ]])
+            )
+            admin_logger.info(f"Admin {message.from_user.id} updated key_limit for server {server_id} to {new_limit}")
+        else:
+            await message.answer(f"Ошибка: {result['error']}")
+    except ValueError:
+        await message.answer("Ошибка: Введите целое число.")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+    
+    await state.clear()
+
 ###########
 # RAFFLES #
 ###########

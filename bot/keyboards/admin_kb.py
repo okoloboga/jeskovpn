@@ -292,6 +292,9 @@ def outline_server_menu_kb(server_id: str) -> InlineKeyboardMarkup:
     try:
         builder = InlineKeyboardBuilder()
         builder.row(
+            InlineKeyboardButton(text="✏️ Изменить лимит", callback_data=f"admin_edit_server_limit_{server_id}")
+        )
+        builder.row(
                 InlineKeyboardButton(text="🗑 Удалить", callback_data=f"admin_delete_outline_server_{server_id}")
         )
         return builder.as_markup()

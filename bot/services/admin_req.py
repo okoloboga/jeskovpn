@@ -395,3 +395,22 @@ async def delete_outline_server(server_id: int) -> dict:
         except Exception as e:
             logger.error(f"delete_outline_server {server_id}: {e}")
             return {"success": False, "error": str(e)}
+
+async def update_outline_server_limit(server_id: int, key_limit: int) -> dict:
+    url = f"{BASE_URL}/admin/outline/servers/{server_id}"
+    payload = {"key_limit": key_limit}
+    logger.debug(f"Sending PATCH request to {url} with payload: {payload}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.patch(url, headers=HEADERS, json=payload) as response:
+                if response.status == 200:
+                    response_json = await response.json()
+                    logger.debug(f"Updated key_limit for server {server_id} to {key_limit}")
+                    return {"success": True, "server_id": response_json.get("server_id")}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to update server {server_id}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
+        except Exception as e:
+            logger.error(f"update_outline_server_limit {server_id}: {e}")
+            return {"success": False, "error": str(e)}

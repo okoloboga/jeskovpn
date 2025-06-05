@@ -33,3 +33,6 @@ class OutlineServerResponse(BaseModel):
     key_limit: int
     is_active: bool
     created_at: str
+
+class OutlineServerUpdate(BaseModel):
+    key_limit: int = Field(..., gt=0)
