@@ -83,11 +83,6 @@ async def reset_admin_passwords(
     
     logger.info(f"Resetting admin passwords initiated by user {user_id}")
     
-    admin = db.query(User).filter(User.user_id == user_id, User.is_admin == True).first()
-    if not admin:
-        logger.error(f"User {user_id} is not an admin")
-        raise HTTPException(status_code=403, detail="User is not an admin")
-    
     stmt = update(User).where(User.is_admin == True).values(password=None)
     db.execute(stmt)
     db.commit()
