@@ -3,7 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import or_, func
-from sqlalchemy import update
+from sqlalchemy import delete
 from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 from passlib.hash import bcrypt
@@ -83,8 +83,7 @@ async def reset_admin_passwords(
     
     logger.info(f"Resetting admin passwords initiated by user {user_id}")
     
-    stmt = update(User).where(User.is_admin == True).values(password=None)
-    db.execute(stmt)
+    db.execute(delete(AdminAuth))
     db.commit()
     
     logger.info(f"Admin passwords reset by user {user_id}")

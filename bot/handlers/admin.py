@@ -113,10 +113,7 @@ async def admin_reset_password(message: Message, state: FSMContext, i18n: Transl
     
     await message.answer(
         "ВНИМАНИЕ: Сброс паролей удалит пароли всех админов. Они должны будут создать новые.\n"
-        "Введите фиксированный пароль для подтверждения:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="🔙 Отмена", callback_data="admin_cancel_reset")
-        ]])
+        "Введите фиксированный пароль для подтверждения:"
     )
     await state.set_state(AdminAuthStates.waiting_for_reset_password)
     admin_logger.info(f"Admin {message.from_user.id} initiated admin password reset")
