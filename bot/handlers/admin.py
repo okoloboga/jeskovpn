@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from services import admin_req, payment_req, raffle_req, AdminAuthStates, RaffleAdminStates
 from utils.admin_auth import is_admin
 from keyboards import admin_kb
-from config import get_config, Admin, Channel, BotConfig
+from config import get_config, Admin, Channel, BotConfig, ResetPassword
 
 admin_router = Router()
 admin = get_config(Admin, "admin")
