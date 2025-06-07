@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import or_, func
 from sqlalchemy import update
@@ -72,10 +72,15 @@ async def check_admin_password(
 
 @router.post("/reset-passwords")
 async def reset_admin_passwords(
-    user_id: int,
+    request: dict = Body(...),
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
+    user_id = request.get("user_id")
+    if not user_id:
+        logger.error("Missing user_id in request body")
+        raise HTTPException(status_code=422, detail="Field user_id required")
+    
     logger.info(f"Resetting admin passwords initiated by user {user_id}")
     
     admin = db.query(User).filter(User.user_id == user_id, User.is_admin == True).first()
