@@ -3,6 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import or_, func
+from sqlalchemy import update
 from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 from passlib.hash import bcrypt
@@ -68,6 +69,26 @@ async def check_admin_password(
     
     logger.info(f"Password verified successfully for admin_id={data.admin_id}")
     return {"status": "ok"}
+
+@router.post("/reset-passwords")
+async def reset_admin_passwords(
+    user_id: int,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    logger.info(f"Resetting admin passwords initiated by user {user_id}")
+    
+    admin = db.query(User).filter(User.user_id == user_id, User.is_admin == True).first()
+    if not admin:
+        logger.error(f"User {user_id} is not an admin")
+        raise HTTPException(status_code=403, detail="User is not an admin")
+    
+    stmt = update(User).where(User.is_admin == True).values(password=None)
+    db.execute(stmt)
+    db.commit()
+    
+    logger.info(f"Admin passwords reset by user {user_id}")
+    return {"status": "success"}
 
 @router.get("/users/summary", status_code=status.HTTP_200_OK)
 async def get_users_summary(

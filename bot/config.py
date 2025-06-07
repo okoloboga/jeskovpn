@@ -28,6 +28,9 @@ class CryptoBot(BaseModel):
 class Channel(BaseModel):
     id: str
 
+class ResetPassword(BaseModel):
+    password: str
+
 @lru_cache(maxsize=1)
 def parse_config_file() -> dict:
     try:

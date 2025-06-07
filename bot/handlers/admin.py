@@ -19,10 +19,12 @@ admin_router = Router()
 admin = get_config(Admin, "admin")
 channel = get_config(Channel, "channel")
 bot_config = get_config(BotConfig, "bot")
+reset_password = get_config(ResetPassword, "reset")
 admin_id = admin.id
 PER_PAGE = 20
 CHANNEL_ID = channel.id
 BOT_URL = bot_config.url
+RESET_PASSWORD = reset_password.password
 logger = logging.getLogger(__name__)
 admin_logger = logging.getLogger("admin_actions")
 
@@ -99,6 +101,55 @@ async def admin_check_password(
         await state.clear()
     else:
         await message.answer("Неверный пароль. Попробуйте ещё раз.")
+
+@admin_router.message(F.text == "/reset_password")
+async def admin_reset_password(message: Message, state: FSMContext, i18n: TranslatorRunner):
+    user_id = message.from_user.id
+    is_admin_check = await is_admin(str(user_id), admin_id)
+    if not is_admin_check:
+        logger.info(f'not admin. user_id: {user_id}, admin_id: {admin_id}')
+        await message.answer(text=i18n.unknown.message())
+        return
+    
+    await message.answer(
+        "ВНИМАНИЕ: Сброс паролей удалит пароли всех админов. Они должны будут создать новые.\n"
+        "Введите фиксированный пароль для подтверждения:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔙 Отмена", callback_data="admin_cancel_reset")
+        ]])
+    )
+    await state.set_state(AdminAuthStates.waiting_for_reset_password)
+    admin_logger.info(f"Admin {message.from_user.id} initiated admin password reset")
+
+@admin_router.callback_query(F.data == "admin_cancel_reset")
+async def admin_cancel_reset(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("Сброс паролей отменён.")
+    admin_logger.info(f"Admin {callback.from_user.id} cancelled password reset")
+    await state.clear()
+    await callback.answer()
+
+@admin_router.message(AdminAuthStates.waiting_for_reset_password)
+async def process_reset_password(message: Message, state: FSMContext):
+    if message.text != RESET_PASSWORD:
+        await message.answer("Неверный пароль. Попробуйте снова или отмените операцию.")
+        return
+    
+    try:
+        result = await admin_req.reset_admin_passwords(message.from_user.id)
+        if result["success"]:
+            await message.answer(
+                "Пароли всех админов сброшены. Они должны создать новые пароли.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="🔙 Назад", callback_data="admin_menu")
+                ]])
+            )
+            admin_logger.info(f"Admin {message.from_user.id} reset all admin passwords")
+        else:
+            await message.answer(f"Ошибка: {result['error']}")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+    
+    await state.clear()
 
 @admin_router.message(F.text == "👤 Пользователи")
 async def admin_users_menu(

@@ -67,6 +67,24 @@ async def check_admin_password(admin_id: int, password: str) -> bool:
             logger.error(f"Check Admin Password: Error - {e}")
             return False
 
+async def reset_admin_passwords(user_id: int) -> dict:
+    url = f"{BASE_URL}/admin/reset-passwords"
+    payload = {"user_id": user_id}
+    logger.debug(f"Sending POST request to {url} with payload: {payload}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(url, headers=HEADERS, json=payload) as response:
+                if response.status == 200:
+                    logger.debug(f"Admin passwords reset by user {user_id}")
+                    return {"success": True}
+                else:
+                    error_detail = await response.json()
+                    logger.error(f"Failed to reset admin passwords by user {user_id}: status {response.status}, detail={error_detail}")
+                    return {"success": False, "error": error_detail.get("detail", "Unknown error")}
+        except Exception as e:
+            logger.error(f"reset_admin_passwords by user {user_id}: {e}")
+            return {"success": False, "error": str(e)}
+
 async def get_users_summary():
     """GET /admin/users/summary"""
     url = f"{BASE_URL}/admin/users/summary"
