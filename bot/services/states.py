@@ -47,6 +47,7 @@ class RaffleAdminStates(StatesGroup):
     upload_images = State()
     edit_field = State()
     select_winner = State()
+    edit_raffle_text = State()
     add_tickets = State()
     select_raffle = State()
     select_user = State()
