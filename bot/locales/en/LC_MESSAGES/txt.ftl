@@ -68,8 +68,6 @@ start-invited-head = Hello, { $name }! 👋
 
 start-head-starter = Hello, { $name }! 👋
 
-                     Connect VPN for free! We give you 100₽ on your balance! 🎁
-
 start-head = Hello, { $name }! 👋
 
 start-body = 💰 One of the lowest prices on the market!

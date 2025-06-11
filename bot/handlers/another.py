@@ -9,10 +9,12 @@ from datetime import datetime
 
 from services import services, raffle_req, user_req
 from keyboards import another_kb, main_kb, raffle_kb, payment_kb, devices_kb
-from config import get_config, Admin
+from config import get_config, Admin, Channel
 
 another_router = Router()
 admin = get_config(Admin, "admin")  # Admin configuration
+channel = get_config(Channel, "channel")
+CHANNEL_ID = channel.id
 admin_id = admin.id
 
 logger = logging.getLogger(__name__)
@@ -222,6 +224,35 @@ async def process_buy_tickets(
         await callback.message.answer(i18n.error())
         await callback.answer()
 
+@another_router.callback_query(F.data == "check_subscription")
+async def check_subscription(callback: CallbackQuery, state: FSMContext, i18n: TranslatorRunner) -> None:
+    user_id = callback.from_user.id
+    try:
+        chat_member = await callback.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        if chat_member.status in ["member", "administrator", "creator"]:
+            await callback.message.edit_text("Вы подписаны на канал! Продолжите покупку билетов.")
+            # Возвращаем пользователя к выбору количества билетов
+            data = await state.get_data()
+            raffle_id = data.get("raffle_id")
+            if raffle_id:
+                raffle = await raffle_req.get_active_raffles(raffle_id=raffle_id)
+                if raffle and raffle["type"] == "ticket":
+                    await callback.message.answer(
+                        f"Выберите количество билетов для розыгрыша '{raffle['name']}':",
+                        reply_markup=raffle_kb.ticket_purchase_kb(i18n)
+                    )
+            else:
+                await callback.message.answer("Начните покупку билетов заново.")
+        else:
+            await callback.message.edit_text(
+                "Вы всё ещё не подписаны на канал!",
+                reply_markup=payment_kb.subscribe_channel_kb()
+            )
+    except Exception as e:
+        logger.error(f"Error checking channel subscription for user {user_id}: {e}")
+        await callback.message.edit_text(i18n.error())
+    await callback.answer()
+
 @another_router.callback_query(F.data.startswith("ticket_count_"))
 async def process_ticket_count(
         callback: CallbackQuery, 
@@ -234,6 +265,24 @@ async def process_ticket_count(
             await callback.message.answer(i18n.error.invalid.ticket.count())
             return
         
+        # Проверка подписки на канал
+        user_id = callback.from_user.id
+        try:
+            chat_member = await callback.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+            if chat_member.status not in ["member", "administrator", "creator"]:
+                logger.info(f"User {user_id} attempted to buy tickets without channel subscription")
+                await callback.message.answer(
+                    "Вы должны быть подписаны на канал для покупки билетов!",
+                    reply_markup=payment_kb.subscribe_channel_kb()
+                )
+                await callback.answer()
+                return
+        except Exception as e:
+            logger.error(f"Error checking channel subscription for user {user_id}: {e}")
+            await callback.message.answer(i18n.error())
+            await state.clear()
+            return
+
         data = await state.get_data()
         raffle_id = data["raffle_id"]
 
@@ -250,7 +299,7 @@ async def process_ticket_count(
         
         ticket_price = raffle["ticket_price"]       
         amount = float(count) * float(ticket_price)
-        user_id = callback.from_user.id      
+        
         # Создание инвойса через ЮKassa
         payload = f"{user_id}:{amount}:0:ticket:{raffle_id}:ticket:ukassa"
         

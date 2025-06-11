@@ -2,6 +2,9 @@ import logging
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from fluentogram import TranslatorRunner
+from config import get_config, Channel
+channel = get_config(Channel, "channel")
+CHANNEL_ID = channel.id
 
 logger = logging.getLogger(__name__)
 
@@ -173,3 +176,20 @@ def pay_inline(i18n: TranslatorRunner, invoice_url: str) -> InlineKeyboardMarkup
         logger.error(f"Unexpected error in payment_select: {e}")
         raise
        
+def subscribe_channel_kb() -> InlineKeyboardMarkup:
+    
+    try: 
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            InlineKeyboardButton(text="Подписаться на канал", url=f"https://t.me/{CHANNEL_ID.lstrip('@')}"),
+            InlineKeyboardButton(text="Проверить подписку", callback_data="check_subscription")
+        )
+        return builder.as_markup()
+    except (KeyError, AttributeError) as e:
+        logger.error(f"Localization error in payment_select: {e}")
+        return InlineKeyboardMarkup()
+    except Exception as e:
+        logger.error(f"Unexpected error in payment_select: {e}")
+        raise
+
+

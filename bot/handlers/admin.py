@@ -1348,6 +1348,39 @@ async def finish_upload(
     logger.info(f"Admin {callback.from_user.id} previewed raffle")
     await callback.answer()
 
+@admin_router.callback_query(F.data == "admin_raffle_edit_text", RaffleAdminStates.waiting_for_raffle_confirmation)
+async def admin_edit_raffle_text(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.edit_text(
+        "Введите новый текст для подписи к розыгрышу:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Отмена", callback_data="admin_raffle_cancel")]
+        ])
+    )
+    await state.set_state(RaffleAdminStates.edit_raffle_text)
+    logger.info(f"Admin {callback.from_user.id} started editing raffle text")
+    await callback.answer()
+
+@admin_router.message(RaffleAdminStates.edit_raffle_text)
+async def process_edited_raffle_text(message: Message, state: FSMContext) -> None:
+    new_text = message.text.strip()
+    if not new_text:
+        await message.answer("Текст не может быть пустым. Введите новый текст.")
+        return
+    
+    data = await state.get_data()
+    raffle = data.get("raffle")
+    images = raffle.get("images", [])
+    
+    await state.update_data(caption_text=new_text)
+    
+    await message.answer_photo(
+        photo=images[0],
+        caption=new_text,
+        reply_markup=admin_kb.raffle_confirmation_kb()
+    )
+    await state.set_state(RaffleAdminStates.waiting_for_raffle_confirmation)
+    logger.info(f"Admin {message.from_user.id} edited raffle text")
+
 @admin_router.callback_query(F.data == "admin_raffle_confirm", RaffleAdminStates.waiting_for_raffle_confirmation)
 async def raffle_confirm(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()

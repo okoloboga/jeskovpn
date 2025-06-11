@@ -181,7 +181,7 @@ async def get_user_info(user_id: int) -> Optional[Dict]:
         for sub in subscriptions:
             logger.info(f'\n\n{sub}')
             if sub["paused_at"] is None:
-                month_price += float(sub["monthly_price"])
+                month_price += (float(sub["monthly_price"]) * float(len(sub["device_type"])))
                 active_remaining_days.append(sub["remaining_days"])
         
         days_left = max(active_remaining_days) if active_remaining_days else 0
