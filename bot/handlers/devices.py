@@ -335,7 +335,7 @@ async def select_tv_handler(
     message: Message
 ) -> None:
 
-    message.answer(text="В разработке, по всем вопросам обращайтесь в поддержку: @Jesko_support")
+    await message.answer(text="В разработке, по всем вопросам обращайтесь в поддержку: @Jesko_support")
 
 @devices_router.message(F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "Роутер 🌐", "Router 🌐"]))
 async def select_device_handler(
