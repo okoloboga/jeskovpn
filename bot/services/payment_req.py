@@ -145,7 +145,7 @@ async def create_ukassa_invoice(
         },
         "confirmation": {
             "type": "redirect",
-            "return_url": "https://t.me/lovelyNochka_bot"  # Реальный username бота
+            "return_url": "https://t.me/JeskoVPN_bot"  # Реальный username бота
         },
         "capture": True,
         "description": description or "Subscription payment",
