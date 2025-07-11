@@ -24,7 +24,7 @@ logging.basicConfig(
            '[%(asctime)s] - %(name)s - %(message)s'
 )
 
-@devices_router.message(F.text.in_(["🌐 Мои устройства 📱💻", "My Devices 📱"]))
+@devices_router.message(F.text.in_(["🌐 Мои устройства 📱💻", "🌐 My devices 📱💻"]))
 @devices_router.callback_query(F.data == "devices_menu")
 async def devices_button_handler(
     event: Union[CallbackQuery, Message],
