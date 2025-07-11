@@ -330,7 +330,14 @@ async def select_instruction_handler(
     await message.answer(text=link, reply_markup=main_kb.back_to_devices_inline_kb(i18n))
     await state.clear()
 
-@devices_router.message(F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "TV 📺", "Роутер 🌐", "Router 🌐"]))
+@devices_router.message(F.text == "TV 📺")
+async def select_tv_handler(
+    message: Message
+) -> None:
+
+    message.answer(text="В разработке, по всем вопросам обращайтесь в поддержку: @Jesko_support")
+
+@devices_router.message(F.text.in_(["Android 📱", "iPhone/iPad 📱", "Windows 💻", "MacOS 💻", "Роутер 🌐", "Router 🌐"]))
 async def select_device_handler(
     message: Message,
     state: FSMContext,

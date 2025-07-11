@@ -1,36 +1,36 @@
-active-sub-button = Subscription expires in: { $days } days 🕒
-active-sub-withoutdays-button = Subscription is active, no devices 🕒
-inactive-sub-button = No active subscription 😔
-balance-button = Balance: { $balance } 💰
-connect-vpn-button = Connect VPN 🚀
-devices-button = 🌐 My devices 📱💻
-invite-button = Invite a friend 👥
-support-button = Tech. Support 🛠️
-vpn-devices-button = Device
-change-language-button = Change language { $language } 🌐
+active-sub-button = До окончания подписки: { $days } дней 🕒
+active-sub-withoutdays-button = Подписка активна, устройств нет  🕒
+inactive-sub-button = Нет активной подписки 😔
+balance-button = Баланс: { $balance } 💰
+connect-vpn-button = Подключить VPN 🚀
+devices-button = 🌐 Мои устройства 📱💻
+invite-button = Пригласить друга 👥
+support-button = Тех. Поддержка 🛠️
+vpn-devices-button = Устройство
+change-language-button = Сменить язык { $language } 🌐
 device-android-button = Android 📱
 device-iphone-button = iPhone/iPad 📱
 device-windows-button = Windows 💻
 device-macos-button = MacOS 💻
 device-tv-button = TV 📺
-device-router-button = Router 🌐
-vpn-combo-button = Combo set
-device-instruction-button = Instruction 📖
-add-device-button = Add device ➕
-add-router-button = Add router ➕
-rename-device-button = Change name ⬅️
-remove-device-button = Remove device ❌
-payment-ukassa-button = SBP 💳
-payment-crypto-button = CRYPTO 🪙
-payment-stars-button = TG STARS ⭐
-payment-balance-button = BALANCE 💸
-one-month-button = 1 month 📅
-three-month-button = 3 months 🗓️
-six-month-button = 6 months 🕰️
-twelve-month-button = 12 months 🎉
-back-devices-button = Back ⬅️
-combo-five-button = 5 devices + router 📱🌐
-combo-ten-button = 10 devices + router 📱🌐
+device-router-button = Роутер 🌐
+vpn-combo-button = Комбо набор
+device-instruction-button = Инструкция 📖
+add-device-button = Добавить устройство ➕
+add-router-button = Добавить роутер ➕
+rename-device-button = Изменить название ⬅️
+remove-device-button = Удалить устройство ❌
+payment-ukassa-button = СБП 💳
+payment-crypto-button = КРИПТА 🪙
+payment-stars-button = ЗВЁЗДЫ TG ⭐
+payment-balance-button = БАЛАНС 💸
+one-month-button = 1 месяц 📅
+three-month-button = 3 месяца 🗓️
+six-month-button = 6 месяцев 🕰️
+twelve-month-button = 12 месяцев 🎉
+back-devices-button = Назад ⬅️
+combo-five-button = 5 устройств + роутер 📱🌐
+combo-ten-button = 10 устройств + роутер 📱🌐
 add-balance50-button = 50₽ 💵
 add-balance100-button = 100₽ 💵
 add-balance200-button = 200₽ 💵
@@ -41,267 +41,296 @@ add-balance650-button = 650₽ 💵
 add-balance750-button = 750₽ 💵
 add-balance900-button = 900₽ 💵
 add-balance1000-button = 1000₽ 💵
-add-balance2000-button= 2000₽ 💵
+add-balance2000-button = 2000₽ 💵
 add-balance3000-button = 3000₽ 💵
-payment-custom-button = Custom amount ✏️
-decline-payment-button = Cancel 🚫
-increase-balance-button = Top up balance 💰
-main-menu-button = Go to main menu 🏠
+payment-custom-button = Своя сумма ✏️
+decline-payment-button = Отменить 🚫
+increase-balance-button = Пополнить баланс 💰
+main-menu-button = В главное меню 🏠
 email-button = E-Mail @
-phone-button = Phone Number 📱
-pay-button = Pay 💵
-buy-tickets = 🎟 Buy tickets
-ticket-count1-button = 1 ticket 
-ticket-count5-button = 5 tickets
-ticket-count10-button = 10 tickets
-cancel = ❌ Cancel
+phone-button = Номер телефона 📱
+pay-button = Заплатить 💵
+buy-tickets = 🎟 Купить билеты
+ticket-count1-button = 1 билет
+ticket-count5-button = 5 билетов
+ticket-count10-button = 10 билетов
+cancel = ❌ Отмена
 
-active-sub-head = Active subscriptions
+active-sub-head = Активные подписки
 
-active-sub-device = 📱💻 Devices: { $devices_count } connected
-active-sub-router = 🌐 Router: { $routers_count } connected
-active-sub-combo = 🌐 Combo { $combo_type }: { $combo_count } connected
+active-sub-device = 📱💻 Устройства: { $devices_count } подключено
+active-sub-router = 🌐 Роутер: { $routers_count } подключено
+active-sub-combo = 🌐 Комбо { $combo_type }: { $combo_count } подключено
 
-start-invited-head = Hello, { $name }! 👋
+start-invited-head = Привет, { $name }! 👋
 
-                     You were invited here by { $inviter }, so you can connect VPN for free and get 50₽ on your balance! 🎁
+                     Вас пригласил сюда { $inviter }, поэтому вы можете бесплатно подключить VPN и получить 50₽ на балансе! 🎁
 
-start-head-starter = Hello, { $name }! 👋
+start-head-starter = Привет, { $name }! 👋
 
-start-head = Hello, { $name }! 👋
+start-head = Привет, { $name }! 👋
 
-start-body = 💰 One of the lowest prices on the market!
-             🚀 High speed
-             💃 Access to all sites
-             💳 Payment SBP, Crypto, Telegram Stars
+start-body = 💰 Одна из самых низких цен на рынке!
+             🚀 Высокая скорость
+             💃 Доступ ко всем сайтам
+             💳 Оплата СБП, Крипта, Звезды Телеграмма
 
-             Cost 100₽/month for 1 device.
+             🎉 В нашем канале @Jeskovpn  регулярно проходят розыгрыши
 
-             👥 Invite your friends to our service and get 50₽ on your balance for each friend. Your friends will get 100₽ on their balance!
+             Стоимость 100₽/мес за 1 устройство.
 
-             ⬇️ Click the button! ⬇️
+             👥 Пригласите друзей в наш сервис и получите 50₽ на баланс за каждого друга.
 
-devices-menu = You have { $devices } active devices. Your subscription fee is { $subscription_fee }₽ per month. 📱
+             ⬇️ Жмите кнопку! ⬇️
 
-               ❌ Remove devices you don't use from the bot to avoid paying a subscription fee for them!
+devices-menu = У вас активно { $devices } устройств/а. Ваша абонентская плата { $subscription_fee }₽ в месяц. 📱
 
-               🗝️ Click on the device ID in the list to get a link to set up the VPN app.
+               ❌ Удаляйте из бота устройства, которые вы не используете, чтобы не платить абонентскую плату за них!
 
-               List of your devices:
+               🗝️ Нажмите на идентификатор устройства в списке, чтобы получить ссылку для настройки приложения VPN.
 
-device-type-menu = Select the subscription type:
-                   Device or Combo set (several devices + router)
+               Список ваших устройств:
 
-fill-device-name = Enter the name of the new device.
-                   The name can contain English and Cyrillic letters, as well as numbers.
+noactive-devices = К сожалению на данный момент у вас нет активного устройства, но вы можете активировать его в разделе: 🌐Мои устройства📱💻
 
-new-device-name = Enter a new device name.
-                  The name can contain English and Cyrillic letters, as well as numbers.
+device-type-menu = Выберите тип подписки:
+                   Устройство или Комбо набор (несколько устройств + роутер)
+                   
 
-device-name-already-exists = A device with this name already exists!
+fill-device-name = Введите название нового уcтройства.
+                   Название может содержать буквы английского алфавита и кириллицу, а так же числа.
 
-device-menu = This is the key for setting up the VPN application, device { $name } - { $device }. 🗝️
-
-              For more information, click on the "Instructions for (device type)" button. 📖
-
-              ⚠️ Warning! For downloading torrents - account ban!
-
-              ⬇️ Your key ⬇️
-
-device-removed = Device { $device } removed! ✅
-
-period-menu = Your balance { $balance }₽ ({ $days } days) 💰
-
-              1 month — 100₽ 📅
-              3 months — 240₽ (20% discount) 🗓️
-              6 months — 420₽ (30% discount) 🕰️
-              12 months — 600₽ (50% discount) 🎉
-
-period-menu-router = Your balance { $balance }₽ ({ $days } days) 💰
-
-                     1 month — 250₽ 📅
-                     3 months — 600₽ (20% discount) 🗓️
-                     6 months — 1,000₽ (30% discount) 🕰️
-                     12 months — 1,500₽ (50% discount) 🎉
-
-period-menu-combo5 = Your balance { $balance }₽ ({ $days } days) 💰
-
-                     1 month — 500₽ 📅
-                     3 months — 1,200₽ (20% discount) 🗓️
-                     6 months — 2,100₽ (30% discount) 🕰️
-                     12 months — 3,000₽ (50% discount) 🎉
-
-period-menu-combo10 = Your balance { $balance }₽ ({ $days } days) 💰
-
-                      1 month — 850₽ 📅
-                      3 months — 2,000₽ (20% discount) 🗓️
-                      6 months — 3,500₽ (30% discount) 🕰️
-                      12 months — 5,000₽ (50% discount) 🎉
-    
-instruction-android = In development ⚒️
-
-instruction-iphone =  In development ⚒️
-
-instruction-windows =  In development ⚒️
-
-instruction-macos = In development ⚒️
-
-instruction-tv = In development ⚒️
-
-instruction-router = In development ⚒️
+new-device-name = Введите новое название уcтройства.
+                  Название может содержать буквы английского алфавита и кириллицу, а так же числа.
 
 
-topup-balance-menu = Your balance { $balance }₽ ({ $days } days) 💰
-                     You top up your account with { $amount }₽ 💸
+device-name-already-exists = Устройство с таким названием уже существует!
 
-                     Select payment method 💳
+device-menu = Это ключ для настройки приложения VPN, устройство  { $name } - { $device }. 🗝️
+              
+              Инструкция:
 
-buy-subscription-menu = Your balance { $balance }₽ ({ $days } days) 💰
-                        You pay for a subscription for the amount of { $amount }₽ 💸
+              - Скачайте приложение: { $link }
 
-                        Select a payment method 💳
+              - Вставьте ключ отправленный сообщением ниже
 
-payment-indevelopment = In development ⚒️
+              Для получения дополнительной информации нажмите на кнопку «Инструкция 📖»
 
+              ⬇️ Ваш ключ ⬇️
 
-invoice = Your payment link:
+device-removed = Устройство { $device } удалено! ✅
+
+period-menu = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+
+              1 месяц — 100₽ 📅
+              3 месяца — 240₽ (скидка 20%) 🗓️
+              6 месяцев — 420₽ (скидка 30%) 🕰️
+              12 месяцев — 600₽ (скидка 50%) 🎉
+
+period-menu-router = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+
+                     1 месяц — 250₽ 📅
+                     3 месяца — 600₽ (скидка 20%) 🗓️
+                     6 месяцев — 1.000₽ (скидка 30%) 🕰️
+                     12 месяцев — 1.500₽ (скидка 50%) 🎉
+
+period-menu-combo5 = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+
+                     1 месяц — 500₽ 📅
+                     3 месяца — 1.200₽ (скидка 20%) 🗓️
+                     6 месяцев — 2.100₽ (скидка 30%) 🕰️
+                     12 месяцев — 3.000₽ (скидка 50%) 🎉
+
+period-menu-combo10 = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+
+                      1 месяц — 850₽ 📅
+                      3 месяца — 2.000₽ (скидка 20%) 🗓️
+                      6 месяцев — 3.500₽ (скидка 30%) 🕰️
+                      12 месяце — 5.000₽ (скидка 50%) 🎉
+
+instruction-android = https://play.google.com/store/apps/details?id=org.outline.android.client
+
+instruction-iphone = https://apps.apple.com/ru/app/outline-app/id1356177741
+
+instruction-windows = https://outline-vpn.com/
+
+instruction-macos = https://outline-vpn.com/
+
+instruction-tv = В разработке ⚒️
+
+instruction-router = В разработке ⚒️
+
+topup-balance-menu = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+                     Вы пополняете счёт на { $amount }₽ 💸
+
+                     Выберите способ оплаты 💳
+
+buy-subscription-menu = Ваш баланс { $balance }₽ ({ $days } дней) 💰
+                        Вы оплачиваете подписку на сумму { $amount }₽ 💸
+
+                        Выберите способ оплаты 💳
+
+payment-indevelopment = В разработке ⚒️
+
+invoice = Ваша ссылка для оплаты:
           { $invoice_url }
 
-          Order #{ $invoice_id }
+          Заказ #{ $invoice_id }
 
-ukassa-subscription-description = Subscription payment for the amount of { $amount }rubles.
+ukassa-subscription-description = Оплата подписки на сумму { $amount }руб.
 
-ukassa-receipt.add_balance = Balance replenishment for { $amount } rubles
-ukassa-receipt.subscription = Subscription for { $device_type }, { $ period } months.
-ukassa-device_type-device = Device
-ukassa-device_type-router = Router
-ukassa-device_type-combo = Combo ({ $device } devices)
+ukassa-receipt.add_balance = Пополнение баланса на { $amount } рублей
+ukassa-receipt.subscription = Подписка на { $device_type }, { $period } мес.
+ukassa-device_type-device = Устройство
+ukassa-device_type-router = Роутер
+ukassa-device_type-combo = Комбо ({ $device } устройств)
 
-select-contact = SELECT WHERE, SEND A RECEIPT FOR THE PURCHASE 
+select-contact = ВЫБЕРИТЕ, КУДА ПРИСЛАТЬ ЧЕК ПОКУПКИ
 
-                 this is necessary in accordance with the requirements of 54-FZ
+                 это необходимо в соответвии с требованими 54-ФЗ
 
-                 Current contacts:
+                 Текущие контакты:
 
-                 E-mail: { $email }
-                 Phone number: { $phone }
+                 E-Mail: { $email }
+                 Номер телефона: { $phone }
 
-no-contact = Not added!
-fill-email = Enter your email address
-fill-phone = To calculate the phone number
+no-contact = Не добавлен!
+fill-email = Введите E-Mail адрес
+fill-phone = Что бы предоставить номер телефона
+             
+              ⬇️ Нажмите на кнопку ⬇️
 
-             ⬇️ Click the button ⬇️
-
-email-saved = Email saved!
-
-              Payment link:
-              { $link}
-phone-saved = Phone number saved!
-
-              Payment link:
-              { $link }
-
-devices-category-menu = Select type 📱
+devices-category-menu = Выбери тип 📱
 
 stars-subscription-title = JeskoVPN 🌟
-stars-subscription-description = Payment for JeskoVPN service 🌟
-                                 Amount: { $amount }
+stars-subscription-description = Оплата сервиса JeskoVPN 🌟
+                                 Сумма: { $amount }
 payment-label = JeskoVPN 💳
-payment-pending = Payment process ⏳
-payment-success = Payment successful 🎉
-stars-payment-successful = Successful payment { $payload } 🎉
-notenough-balance = Not enough funds!
-balance-menu = Your balance is: { $balance }₽ ({ $days } days). 💰
+payment-pending = Процесс оплаты ⏳
+payment-success = Оплата успешна 🎉
+stars-payment-successful = Успешная оплата { $payload } 🎉
+notenough-balance = Недостаточно средств!
+balance-menu = Ваш баланс равен: { $balance }₽ ({ $days } дней). 💰
 
-balance-advice = Want to top up? ➕
+balance-advice = Выберете сумму 💸
 
-fill-custom-balance = Enter the amount ✏️
-subscription-menu-active = We are glad to see you, { $name }! 👋
+fill-custom-balance = Введите сумму ✏️
+subscription-menu-active = Рады видеть вас, { $name }! 👋
 
-                           Your balance is { $balance }₽ ({ $days } days), account is active ✅
-                           Tariff 100₽/month for 1 device, { $devices } devices are active.
+                           Ваш баланс { $balance }₽ ({ $days } дней), аккаунт активен ✅
+                           Тариф 100₽/мес за 1 устройство, активно { $devices } устройств.
 
-                           If you have lost your settings, you can download them again by clicking on the "My devices" button. 📱
+                           Если вы потеряли настройки — вы можете повторно их скачать, нажав на кнопку "Мои устройства". 📱
 
-                           👥 Invite friends to our service and get 50₽ on your balance for each friend. Your friends will get 100₽ on their balance!
+                           👥 Пригласите друзей в наш сервис и получите 50₽ на баланс за каждого друга. Ваши друзья получат 50₽ на баланс!
 
-nosubscription-have-balance = Unfortunately, you do not have an active subscription, but you can get one in a couple of clicks. 😔
+nosubscription-have-balance = К сожалению, у вас нет активной подписки, но вы можете оформить её в пару кликов. 😔
 
-                              To use the service, top up your balance by clicking the "Top up balance" button. ➕
+                              Чтобы использовать сервис, пополните баланс, нажав кнопку "Пополнить баланс"
 
-                              We remind you that our tariff is 100₽/month for 1 device.
+                              Напоминаем, наш тариф 100₽/мес за 1 устройство.
 
-                              👥 Invite friends to our service and get 50₽ on the balance for each friend. Your friends will get 100₽ on the balance!
+                              👥 Пригласите друзей в наш сервис и получите 50₽ на баланс за каждого друга. Ваши друзья получат 50₽ на баланс!
 
-nosubscription-nobalance = Unfortunately, your balance ({ $balance }₽) is not enough to buy a subscription 😔
+nosubscription-nobalance = К сожалению, вашего баланса ({ $balance }₽) недостаточно для покупки подписки 😔
 
-                           To use the service, top up your balance by clicking the "Top up balance" button ➕
+                           Чтобы использовать сервис, пополните баланс, нажав кнопку "Пополнить баланс"
 
-nosubscription-selected-device = Unfortunately, you do not have an active subscription for the selected device!
+nosubscription-selected-device = К сожалению, у вас нет активной подписки на выбранное устройство!
+                                 
+                                 Офомирте подписку в пару кликов или выберите другое устройство
 
-                                 Subscribe in a couple of clicks or select another device
-
-referral-link = Send a link to a friend: 👥
+referral-link = Пошлите другу ссылку: 👥
 
                 { $link }
 
-                When your friend goes to our bot using this link and buys a subscription, you will get 50₽ on the balance! 💰
-    
-buy-subscription-success = 🎉 Congratulations, you have activated your JeskoVPN account, { $balance }₽ on your balance!
+                Когда ваш друг зайдёт в наш бот по этой ссылке и купит подписку, вы получите 50₽ на баланс! 💰
 
-                           Now let's set up your VPN!
+buy-subscription-success = ВВЕДИТЕ НАЗВАНИЕ УСТРОЙСТВА
 
-                           Enter the device name:
+                           🎉 Поздравляем, вы активировали аккаунт JeskoVPN, { $balance }₽ у вас на балансе!
+buy-subscription-success-combo = 🎉 Поздравляем, вы активировали аккаунт JeskoVPN с Комбо набором!
 
-buy-subscription-success-combo = 🎉 Congratulations, you have activated your JeskoVPN account with Combo pack!
+subscription-success-promo = 🎉 Поздравляем, вы активировали подписку при помощи Промокода!
 
-ticket-menu = Tech support: 💬
+ticket-menu = Тех. поддержка: 💬
               @Jesko_support
-promo-success-balance = 🎉 Top-Up balance Success!
-promo-enter-code = Enter Promocode
+promo-success-balance = 🎉 Успешное пополнение баланса!
+promo-enter-code = Введите промокод
 
-no-active-raffles = 😔 No active raffles
-raffle-info = 🎉 Raffle: { $name }
-              💰 Ticket price: { $ticket_price }
-              📅 Start date: { $start_date }
-              📅 End date: { $end_date }
-              🎟 Your tickets: { $ticket_count }
+no-active-raffles = 😔 Нет активных розыгрышей
+raffle-info = 🎉 Розыгрыш: { $name }
+              💰 Цена билета: { $ticket_price }
+              📅 Начало: { $start_date }
+              📅 Окончание: { $end_date }
+              🎟 Ваши билеты: { $ticket_count }
 
-enter-ticket-count = 🎟 Enter the number of tickets
-raffle-ticket-purchase = 🎫 Purchase of { $count } tickets for the raffle "{ $raffle_name }"
-invoice = 💸 Invoice created!
-         
-          🔗 [Pay]({ $invoice_url })
-          🆔 Invoice ID: { $invoice_id }
+enter-ticket-count = 🎟 Введите количество билетов
+raffle-ticket-purchase = 🎫 Покупка { $count } билетов для розыгрыша "{ $raffle_name }"
+invoice = 💸 Счёт создан!
+          
+          🔗 [Оплатить]({ $invoice_url })
+          🆔 ID счёта: { $invoice_id }
 
-forsubscription = For Subscription
+forsubscription = За Подписку
 
-unknown-message = Unclear message ❓
+privacy = Политика конфиденциальности Telegram бота @JeskoVPN_bot
+          Администрация Telegram бота @JeskoVPN_bot обязуется сохранять вашу конфиденциальность в Интернете. Мы уделяем большое значение охране предоставленных вами данных. Наша политика конфиденциальности основана на требованиях политик конфиденциальности Telegram и магазинов Apple и Google. 
 
-error-invalid-ticket-count = ❌ Invalid ticket count, enter a number greater than 0
-error-raffle-notfound = 😕 Raffle not found
-error-cannot-buy-tickets = 🚫 Buying tickets is not available for this raffle
-error-payment: 😔 Error creating invoice, try again later
-error: 😔 Something went wrong, try again later
-error-only-admin = 🚫 Access only for admins
-error-user_not_found = 🚫 User not found
-error-telegram_failed = 🚫 Telegram error
-error-unexpected = 🚫 Unknown error
-error-device_not_found = 🚫 Device not found
-error-invalid_amount = 🚫 Invalid amount - minimum top-up amount is 50₽
-error-invalid_payment_data = 🚫 Invalid payment data
-error-invalid_payment_method = 🚫 Invalid payment method
-error-device-name-pattern = 🚫 Incorrect device name!
-error-device-name-len = 🚫 Device name is too long!
-error-device-rename = 🚫 A device with this name already exists!
-error-slot = 🚫 No space for devices!
-error-wrong-email = 🚫 Wrong E-Mail!
-error-no-number =  🚫 Phone number not provided!
-error-no-contact =  🚫 Phone number or E-Mail not provided!
-error-payment_failed = 🚫 Create payment invoice error!
-error-promo = 🚫 Process Promo error!
-error-promo-invalid_type = 🚫 Incorrect Promo type!
-error-promo-already_used = 🚫 Promo already used!
-error-promo-not_found = 🚫 Promocode not found!
-error-promo-not_active = 🚫 Promocode not active yet!
-error-no-available-servers = 🚫 Нет доступных серверов VPN!
+          Мы не собираем и не обрабатываем персональные данные пользователей. Наш Telegram бот в целях осуществления работы сервиса использует только неперсонализированный Telegram ID.
+
+          Сбор и использование персональных данных
+
+          Мы не запрашиваем и не собираем никаких персональных данных. Все данные пользователей в нашем сервисе привязаны только к неперсонализированному Telegram ID.
+
+          Когда вы запускаете Telegram бот @JeskoVPN_bot, Telegram автоматически передает нам только ваш Telegram ID, который не дает нам доступа к вашей личной информации.
+
+          Хранение данных, изменение и удаление
+
+          Пользователь, предоставивший свой Telegram-ID нашему Telegram боту @JeskoVPN_bot имеет право на удаление своих данных, привязанных к Telegram ID, кроме информации о блокировке пользователя.
+
+          Раскрытие информации третьим лицам
+
+          Мы не продаем, не используем и не раскрываем третьим лицам какие-либо данные своих пользователей для каких-либо целей.
+
+          Предоставление информации детям
+
+          Если вы являетесь родителем или опекуном, и вы знаете, что ваши дети предоставили нам свои данные без вашего согласия, свяжитесь с нами. 
+
+          Изменения в политике конфиденциальности
+
+          Telegram бот @JeskoVPN_bot может обновлять нашу политику конфиденциальности время от времени. Мы сообщаем о любых изменениях, разместив новую политику конфиденциальности на этой странице. Если вы оставили данные у нас, то мы оповестим вас об изменении в политике конфиденциальности при помощи бота @JeskoVPN_bot.
+
+          Обратная связь, заключительные положения
+
+          Связаться с администрацией Telegram бота @JeskoVPN_bot по вопросам, связанным с политикой конфиденциальности можно с помощью контактной информации указанной в разделе Помощь нашего бота. Если вы не согласны с данной политикой конфиденциальности, вы не можете пользоваться услугами Telegram бота @JeskoVPN_bot.
+
+unknown-message = Непонятное сообщение ❓
+
+error-invalid-ticket-count = ❌ Некорректное количество билетов, введите число больше 0
+error-raffle-notfound = 😕 Розыгрыш не найден
+error-cannot-buy-tickets = 🚫 Покупка билетов недоступна для этого розыгрыша
+error-payment = 😔 Что-то пошло не так, попробуйте позже
+error = 😔 Что-то пошло не так, попробуйте позже
+error-only-admin = 🚫 Доступ только для админов
+error-user_not_found = 🚫 Пользователь не найден
+error-telegram_failed = 🚫 Ошибка Телеграм
+error-unexpected = 🚫 Неизвестная ошибка
+error-device_not_found = 🚫 Устройство не найдено
+error-invalid_amount = 🚫 Неверная сумма - минимальная сумма пополнения 50₽
+error-invalid_payment_data = 🚫 Неверные данные оплаты
+error-invalid_payment_method = 🚫 Неверный способ оплаты
+error-device-name-pattern = 🚫 Некорректное название устройства!
+error-device-name-len = 🚫 Слишком длинное название устройства!
+error-device-rename = 🚫 Устройство с таким названием уже существует!
+error-slot = 🚫 Нет места для устройств!
+error-wrong-email = 🚫 Неверный формат E-Mail! 
+error-no-number =  🚫 Номер телефона не предоставлен!
+error-no-contact =  🚫 Номер телефона или E-Mail не предоставлен!
+error-payment_failed = 🚫 Ошибка при создании оплаты!
+error-promo =  🚫 Ошибка обработки Промо!
+error-promo-invalid_type = 🚫 Неверный тип Промо!
+error-promo-already_used = 🚫 Промокод уже был использован!
+error-promo-not_found = 🚫 Промокод не найден!
+error-promo-not_active = 🚫 Промокод уже не действует!
+error-no-available-servers = Нет доступных серверов. Пожалуйста подождите. Если в течении 1 часа проблема не исправиться, то напишите в Тех.Поддержку: @jesko_support
